@@ -1,0 +1,58 @@
+# Dépendances
+node_modules/
+.pnp
+.pnp.js
+
+# Build Next.js
+.next/
+out/
+
+# Env (JAMAIS versionner les secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Données clients — RGPD / confidentialité
+data/legacy/
+data/
+
+# Base SQLite locale
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# TypeScript généré
+*.tsbuildinfo
+next-env.d.ts
+
+# Images produits uploadées (743 MB — régénérées par npm run import:products)
+public/media/
+
+# Fichiers à la racine à ignorer
+produits.csv
+*.png
+*.jpg
+*.jpeg
+!public/branding/
+!branding/
+
+# Logs dev locaux
+dev.log
+dev-new.log
+*.log

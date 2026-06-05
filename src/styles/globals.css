@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* ── Variables de couleurs She's Fit & Beauty ────────────────────── */
+@theme {
+  --color-background: #FFFFFF;
+  --color-foreground: #1A1A1A;
+  --color-primary: #E93D91;
+  --color-primary-hover: #D32D80;
+  --color-accent: #CEA060;
+  --color-accent-dark: #9F6F3B;
+  --color-muted: #F7F5F2;
+  --color-border: #EBE6DF;
+
+  /* Polices arabes */
+  --font-arabic: 'IBM Plex Sans Arabic', 'Cairo', sans-serif;
+}
+
+/* ── Reset & base RTL ────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  direction: rtl;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-arabic);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar personnalisée ─────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-muted);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* ── Focus accessible ────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Liseré doré sous les titres de sections ─────────────────────── */
+.section-title {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.5rem;
+}
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 3rem;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 1px;
+}
+
+/* ── Badges promotionnels ────────────────────────────────────────── */
+.badge-promo {
+  background-color: var(--color-primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+/* ── Transitions globales ────────────────────────────────────────── */
+a, button {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
