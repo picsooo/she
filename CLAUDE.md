@@ -1,5 +1,29 @@
 # CLAUDE.md — Boutique E-commerce Vêtements Femmes (Algérie)
 
+## 🚀 SETUP AUTOMATIQUE — PREMIÈRE CHOSE À FAIRE SUR UN NOUVEAU PC
+
+**Si tu détectes l'une de ces conditions au démarrage de session :**
+- `node_modules/` absent
+- `.env.local` absent
+- `boutique-she.db` absent
+- `public/media/` vide ou absent
+
+**→ Lancer immédiatement sans demander :**
+```bash
+npm run setup
+```
+
+Ce script fait tout : crée `.env.local`, installe les dépendances, démarre le serveur, importe tous les produits et télécharge les 580 images depuis boutique-she.com. Durée : 10-20 minutes. L'utilisateur n'a rien à faire.
+
+**Si `npm run setup` échoue** (ex: serveur pas démarré à temps), faire à la main :
+1. `npm install`
+2. Créer `.env.local` avec `DATABASE_URI=file:./boutique-she.db`, `PAYLOAD_SECRET=<random>`, `NEXT_PUBLIC_SERVER_URL=http://localhost:3000`
+3. `npm run dev` (dans un terminal séparé)
+4. Attendre que le serveur soit prêt, puis appeler l'API d'import directement :
+   ```bash
+   curl -X POST http://localhost:3000/api/admin/import-products -H "x-import-key: <PAYLOAD_SECRET>"
+   ```
+
 ## 🎯 Contexte du projet
 
 Site e-commerce de vêtements pour femmes pour un commerçant algérien.

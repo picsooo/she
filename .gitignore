@@ -15,8 +15,13 @@ out/
 .env.production.local
 
 # Données clients — RGPD / confidentialité
-data/legacy/
-data/
+data/legacy/clients.csv
+data/legacy/commandes.csv
+data/legacy/images/
+# Inclure explicitement le catalogue produits (pas de données personnelles)
+!data/
+!data/legacy/
+!data/legacy/produits.csv
 
 # Base SQLite locale
 *.db
@@ -44,13 +49,11 @@ next-env.d.ts
 # Images produits uploadées (743 MB — régénérées par npm run import:products)
 public/media/
 
-# Fichiers à la racine à ignorer
-produits.csv
-*.png
-*.jpg
-*.jpeg
-!public/branding/
-!branding/
+# Fichiers parasites à la racine (copies accidentelles)
+/logo.png
+/*.png
+/*.jpg
+/*.jpeg
 
 # Logs dev locaux
 dev.log

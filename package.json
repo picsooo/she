@@ -11,7 +11,8 @@
     "payload": "payload",
     "generate:types": "payload generate:types",
     "generate:graphQLSchema": "payload generate:graphQLSchema",
-    "import:products": "node --env-file=.env.local --import tsx/esm scripts/import-products.ts"
+    "import:products": "node --env-file=.env.local --import tsx/esm scripts/import-products.ts",
+    "setup": "bash scripts/setup.sh"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.85.0",
