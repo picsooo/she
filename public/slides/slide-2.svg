@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#000d1a;stop-opacity:1"/>
+      <stop offset="35%" style="stop-color:#001a3d;stop-opacity:1"/>
+      <stop offset="65%" style="stop-color:#003366;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#00508a;stop-opacity:1"/>
+    </linearGradient>
+    <linearGradient id="seaGlow" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" style="stop-color:#0099cc;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#0099cc;stop-opacity:0"/>
+    </linearGradient>
+    <pattern id="waves" x="0" y="0" width="80" height="20" patternUnits="userSpaceOnUse">
+      <path d="M0,10 Q20,0 40,10 Q60,20 80,10" fill="none" stroke="rgba(0,180,220,0.06)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <!-- Fond océan -->
+  <rect width="1920" height="1080" fill="url(#bg2)"/>
+  <!-- Effet reflet eau bas -->
+  <rect y="700" width="1920" height="380" fill="url(#seaGlow)"/>
+  <!-- Motif vagues subtil -->
+  <rect width="1920" height="1080" fill="url(#waves)"/>
+  <!-- Halo soleil -->
+  <ellipse cx="960" cy="-50" rx="600" ry="400" fill="#0099cc" fill-opacity="0.12"/>
+  <ellipse cx="960" cy="-50" rx="300" ry="200" fill="#fff" fill-opacity="0.04"/>
+  <!-- Silhouette burkini sur la plage -->
+  <g opacity="0.15" transform="translate(850, 100)">
+    <!-- Tête avec bonnet de bain -->
+    <ellipse cx="110" cy="70" rx="42" ry="45" fill="#CEA060"/>
+    <ellipse cx="110" cy="45" rx="50" ry="30" fill="#CEA060" opacity="0.8"/>
+    <!-- Corps burkini -->
+    <path d="M68,115 Q45,180 40,300 Q38,420 50,550 L170,550 Q182,420 180,300 Q175,180 152,115 Z" fill="#CEA060"/>
+    <!-- Bras levé -->
+    <path d="M68,130 Q20,100 0,60 Q30,90 68,160 Z" fill="#CEA060"/>
+    <!-- Jupe burkini -->
+    <path d="M60,270 Q40,350 50,450 L170,450 Q180,350 160,270 Z" fill="#CEA060" opacity="0.8"/>
+  </g>
+  <!-- Ondulation eau -->
+  <path d="M0,900 Q480,860 960,900 Q1440,940 1920,900 L1920,1080 L0,1080 Z" fill="rgba(0,100,160,0.2)"/>
+  <path d="M0,950 Q480,920 960,950 Q1440,980 1920,950 L1920,1080 L0,1080 Z" fill="rgba(0,80,130,0.3)"/>
+  <!-- Reflets soleil sur eau -->
+  <ellipse cx="960" cy="980" rx="300" ry="30" fill="rgba(255,220,100,0.08)"/>
+  <!-- Trait doré -->
+  <line x1="400" y1="540" x2="1520" y2="540" stroke="#CEA060" stroke-width="0.5" opacity="0.25"/>
+  <circle cx="960" cy="540" r="180" fill="none" stroke="rgba(0,180,220,0.15)" stroke-width="1"/>
+  <text x="960" y="1040" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#CEA060" fill-opacity="0.25" letter-spacing="6">SHE&apos;S FIT &amp; BEAUTY</text>
+  <text x="960" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.2)">[ Remplacez par votre photo — Slide Burkini ]</text>
+</svg>

@@ -79,6 +79,21 @@ export async function getFeaturedProducts(limit = 8) {
   })
 }
 
+// Produits d'une catégorie donnée (pour les sections homepage par catégorie)
+export async function getProductsByCategory(categoryId: string, limit = 4) {
+  const payload = await getPayloadClient()
+  return payload.find({
+    collection: 'products',
+    where: {
+      status: { equals: 'published' },
+      category: { in: [categoryId] },
+    },
+    limit,
+    sort: '-createdAt',
+    depth: 2,
+  })
+}
+
 export async function getRelatedProducts(categoryIds: string[], excludeId: string, limit = 4) {
   const payload = await getPayloadClient()
   return payload.find({
@@ -94,6 +109,31 @@ export async function getRelatedProducts(categoryIds: string[], excludeId: strin
 }
 
 // ── Catégories ────────────────────────────────────────────────────────
+
+// Retourne uniquement les catégories racines qui ont au moins 1 produit publié
+// Utilisée par le Header et la homepage pour ne pas afficher de catégories vides
+export async function getActiveRootCategories() {
+  const payload = await getPayloadClient()
+  const cats = await payload.find({
+    collection: 'categories',
+    where: { parent: { exists: false } },
+    limit: 50,
+    sort: 'nameAr',
+    depth: 1,
+  })
+  // Vérifier en parallèle quelles catégories ont au moins 1 produit
+  const checks = await Promise.all(
+    cats.docs.map((cat) =>
+      payload.find({
+        collection: 'products',
+        where: { status: { equals: 'published' }, category: { in: [cat.id] } },
+        limit: 1,
+        depth: 0,
+      }).then((r) => ({ cat, hasProducts: r.totalDocs > 0 }))
+    )
+  )
+  return { docs: checks.filter((c) => c.hasProducts).map((c) => c.cat) }
+}
 
 export async function getCategories() {
   const payload = await getPayloadClient()

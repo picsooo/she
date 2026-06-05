@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d0900;stop-opacity:1"/>
+      <stop offset="35%" style="stop-color:#221600;stop-opacity:1"/>
+      <stop offset="65%" style="stop-color:#4a3000;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#7a4a00;stop-opacity:1"/>
+    </linearGradient>
+    <pattern id="diamondGrid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M30,0 L60,30 L30,60 L0,30 Z" fill="none" stroke="rgba(206,160,96,0.05)" stroke-width="0.8"/>
+    </pattern>
+    <radialGradient id="goldSpot" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#CEA060;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#CEA060;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+  <!-- Fond doré foncé -->
+  <rect width="1920" height="1080" fill="url(#bg3)"/>
+  <!-- Motif diamant tissu -->
+  <rect width="1920" height="1080" fill="url(#diamondGrid)"/>
+  <!-- Halo central doré -->
+  <ellipse cx="960" cy="540" rx="700" ry="500" fill="url(#goldSpot)"/>
+  <!-- Étiquettes prix flottantes décoratives -->
+  <g opacity="0.12">
+    <rect x="200" y="200" width="160" height="60" rx="10" fill="#CEA060"/>
+    <text x="280" y="237" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#fff">-30%</text>
+    <rect x="1550" y="350" width="160" height="60" rx="10" fill="#E93D91"/>
+    <text x="1630" y="387" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#fff">-50%</text>
+    <rect x="300" y="750" width="160" height="60" rx="10" fill="#CEA060"/>
+    <text x="380" y="787" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#fff">-40%</text>
+    <rect x="1400" y="700" width="160" height="60" rx="10" fill="#E93D91"/>
+    <text x="1480" y="737" text-anchor="middle" font-family="Arial" font-size="22" font-weight="bold" fill="#fff">-25%</text>
+  </g>
+  <!-- Silhouettes robes multiples -->
+  <g opacity="0.1">
+    <!-- Robe 1 -->
+    <g transform="translate(600, 50)">
+      <ellipse cx="80" cy="65" rx="32" ry="38" fill="#CEA060"/>
+      <path d="M48,103 Q30,160 22,280 Q15,400 20,700 L140,700 Q145,400 138,280 Q130,160 112,103 Z" fill="#CEA060"/>
+    </g>
+    <!-- Robe 2 -->
+    <g transform="translate(1100, 80)">
+      <ellipse cx="80" cy="65" rx="32" ry="38" fill="#E93D91"/>
+      <path d="M48,103 Q20,170 10,300 Q0,450 15,700 L145,700 Q160,450 150,300 Q140,170 112,103 Z" fill="#E93D91"/>
+    </g>
+    <!-- Robe 3 -->
+    <g transform="translate(400, 120) scale(0.75)">
+      <ellipse cx="80" cy="65" rx="32" ry="38" fill="#fff"/>
+      <path d="M48,103 Q30,160 22,280 Q15,400 20,700 L140,700 Q145,400 138,280 Q130,160 112,103 Z" fill="#fff"/>
+    </g>
+  </g>
+  <!-- Étoiles dorées dispersées -->
+  <g fill="#CEA060" opacity="0.2">
+    <polygon points="150,400 155,415 170,415 158,424 163,440 150,430 137,440 142,424 130,415 145,415" />
+    <polygon points="1750,300 1755,315 1770,315 1758,324 1763,340 1750,330 1737,340 1742,324 1730,315 1745,315" />
+    <polygon points="960,150 964,162 976,162 966,169 970,182 960,175 950,182 954,169 944,162 956,162" />
+    <polygon points="500,800 504,812 516,812 506,819 510,832 500,825 490,832 494,819 484,812 496,812" />
+    <polygon points="1440,850 1444,862 1456,862 1446,869 1450,882 1440,875 1430,882 1434,869 1424,862 1436,862" />
+  </g>
+  <!-- Lignes décoratives dorées -->
+  <line x1="0" y1="540" x2="1920" y2="540" stroke="#CEA060" stroke-width="0.3" opacity="0.2"/>
+  <line x1="960" y1="0" x2="960" y2="1080" stroke="#CEA060" stroke-width="0.3" opacity="0.1"/>
+  <circle cx="960" cy="540" r="220" fill="none" stroke="#CEA060" stroke-width="0.8" opacity="0.15"/>
+  <circle cx="960" cy="540" r="320" fill="none" stroke="#CEA060" stroke-width="0.4" opacity="0.08"/>
+  <text x="960" y="1040" text-anchor="middle" font-family="Georgia, serif" font-size="14" fill="#CEA060" fill-opacity="0.25" letter-spacing="6">SHE&apos;S FIT &amp; BEAUTY</text>
+  <text x="960" y="200" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.2)">[ Remplacez par votre photo — Slide Promos ]</text>
+</svg>
