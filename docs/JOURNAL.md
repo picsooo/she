@@ -40,9 +40,10 @@
 
 ### Comptes confirmatrices à créer (si pas encore fait)
 Aller sur `/admin/collections/users/create` et créer :
-- confirmatrice01@boutique-she.dz — mot de passe : She2026@01
-- confirmatrice02@boutique-she.dz — mot de passe : She2026@02
-- confirmatrice03@boutique-she.dz — mot de passe : She2026@03
+- confirmatrice01@boutique-she.dz
+- confirmatrice02@boutique-she.dz
+- confirmatrice03@boutique-she.dz
+(mots de passe à définir directement dans l'admin — ne jamais mettre en clair dans un fichier)
 
 ### Numéro WhatsApp à configurer
 Remplacer `213550000000` dans :
@@ -64,7 +65,7 @@ Remplacer `213550000000` dans :
 
 ### Ce qui a été fait
 - Fix Payload 3.85.0 : route `[...payload]` → `[...slug]` (voir session précédente)
-- Compte admin créé via SQLite direct + PBKDF2 : `wsaoudi@webminds.dz` / `Boussada321`
+- Compte admin créé via SQLite direct + PBKDF2 : `wsaoudi@webminds.dz` (mot de passe dans gestionnaire)
 - Composants admin personnalisés créés et enregistrés dans importMap :
   - `Logo.tsx` — logo She's dans le header admin
   - `Icon.tsx` — icône ronde pour la nav

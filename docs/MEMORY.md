@@ -8,8 +8,8 @@ Le site est entièrement construit. TypeScript : 0 erreur. Admin Payload : ✅ a
 
 ### Compte administrateur
 - Email : wsaoudi@webminds.dz
-- Mot de passe : Boussada321
-- Accès : http://localhost:3000/admin
+- Mot de passe : (voir gestionnaire de mots de passe — ne jamais mettre en clair ici)
+- Accès : http://localhost:3000/admin (local) / https://boutique-she.com/admin (prod)
 
 ### Fix critique appliqué (2026-06-06)
 - Route REST API renommée `[...payload]` → `[...slug]` (breaking change Payload 3.85.0)
