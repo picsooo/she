@@ -6,8 +6,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   // Optimisation images
+  // unoptimized: les images sont déjà en WebP/JPEG optimisé par Payload
+  // (contournement incompatibilité sharp sur CPU ancien du VPS)
   images: {
-    formats: ['image/avif', 'image/webp'],
+    unoptimized: true,
     remotePatterns: [
       // Images servies par Payload (dev local)
       {
