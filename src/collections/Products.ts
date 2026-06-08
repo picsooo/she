@@ -1,56 +1,5 @@
 import type { CollectionConfig } from 'payload'
 
-// ── Couleurs disponibles ──────────────────────────────────────────────────────
-const COLOR_OPTIONS = [
-  { label: 'أبيض — Blanc',             value: 'أبيض' },
-  { label: 'أسود — Noir',              value: 'أسود' },
-  { label: 'وردي — Rose',              value: 'وردي' },
-  { label: 'أحمر — Rouge',             value: 'أحمر' },
-  { label: 'أزرق — Bleu',              value: 'أزرق' },
-  { label: 'كحلي — Bleu marine',       value: 'كحلي' },
-  { label: 'أزرق سماوي — Bleu ciel',   value: 'أزرق سماوي' },
-  { label: 'أزرق فاتح — Bleu clair',   value: 'أزرق فاتح' },
-  { label: 'أزرق غامق — Bleu foncé',   value: 'أزرق غامق' },
-  { label: 'أخضر — Vert',              value: 'أخضر' },
-  { label: 'أخضر زيتوني — Vert kaki',  value: 'أخضر زيتوني' },
-  { label: 'رمادي — Gris',             value: 'رمادي' },
-  { label: 'رمادي فاتح — Gris clair',  value: 'رمادي فاتح' },
-  { label: 'رمادي غامق — Gris foncé',  value: 'رمادي غامق' },
-  { label: 'بيج — Beige',              value: 'بيج' },
-  { label: 'بني — Marron',             value: 'بني' },
-  { label: 'جملي — Camel',             value: 'جملي' },
-  { label: 'كريمي — Crème',            value: 'كريمي' },
-  { label: 'أبيض مكسور — Blanc cassé', value: 'أبيض مكسور' },
-  { label: 'إيكرو — Ecru',             value: 'إيكرو' },
-  { label: 'بنفسجي — Violet',          value: 'بنفسجي' },
-  { label: 'خزامي — Lavande',          value: 'خزامي' },
-  { label: 'برتقالي — Orange',         value: 'برتقالي' },
-  { label: 'مرجاني — Corail',          value: 'مرجاني' },
-  { label: 'سلموني — Saumon',          value: 'سلموني' },
-  { label: 'أصفر — Jaune',             value: 'أصفر' },
-  { label: 'خردلي — Moutarde',         value: 'خردلي' },
-  { label: 'فوشيا — Fuchsia',          value: 'فوشيا' },
-  { label: 'وردي فوشيا — Rose fushia', value: 'وردي فوشيا' },
-  { label: 'وردي ناعم — Rose poudré',  value: 'وردي ناعم' },
-  { label: 'عنابي — Bordeaux',         value: 'عنابي' },
-  { label: 'تركواز — Turquoise',       value: 'تركواز' },
-  { label: 'ذهبي — Or',               value: 'ذهبي' },
-  { label: 'فضي — Argent',             value: 'فضي' },
-  { label: 'كاكي — Kaki',             value: 'كاكي' },
-  { label: 'توب — Taupe',              value: 'توب' },
-  { label: 'بشرة — Nude',              value: 'بشرة' },
-]
-
-const SIZE_OPTIONS = [
-  { label: 'XS  (36-38)', value: 'XS(36-38)' },
-  { label: 'S   (38-40)', value: 'S(38-40)' },
-  { label: 'M   (40-42)', value: 'M(40-42)' },
-  { label: 'L   (42-44)', value: 'L(42-44)' },
-  { label: 'XL  (44-46)', value: 'XL(44-46)' },
-  { label: 'XXL (46-48)', value: 'XXL(46-48)' },
-  { label: 'Taille unique', value: 'unique' },
-]
-
 // ── Génère le slug depuis le nom ─────────────────────────────────────────────
 function makeSlug(text: string): string {
   return text
@@ -136,17 +85,18 @@ export const Products: CollectionConfig = {
             {
               name: 'colorAr',
               label: 'Couleur',
-              type: 'select',
-              options: COLOR_OPTIONS,
+              type: 'text',
               admin: {
-                description: 'Choisissez parmi les couleurs existantes',
+                description: 'Ex: أبيض, أسود, وردي…',
               },
             },
             {
               name: 'size',
               label: 'Taille',
-              type: 'select',
-              options: SIZE_OPTIONS,
+              type: 'text',
+              admin: {
+                description: 'Ex: S(38-40), M(40-42), XL(44-46), unique, 38…',
+              },
             },
             {
               name: 'regularPrice',
