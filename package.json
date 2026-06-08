@@ -29,6 +29,7 @@
     "payload": "3.85.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "resend": "^6.12.4",
     "sharp": "^0.34.2",
     "tailwind-merge": "^3.6.0",
     "zod": "^3.25.45",

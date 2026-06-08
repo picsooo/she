@@ -5,6 +5,7 @@ import configPromise from '@payload-config'
 import { createOrderSchema } from '@/lib/checkout-schema'
 import { generateOrderNumber, getEffectivePrice } from '@/lib/utils'
 import { getProductById, getNextOrderSequence } from '@/lib/payload-client'
+import { sendOrderEmails } from '@/lib/email'
 
 type CreateOrderResult =
   | { success: true; orderNumber: string }
@@ -148,6 +149,7 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         orderNumber,
         customerName: customer.customerName,
         phone: customer.phone,
+        email: customer.email || undefined,
         wilaya: customer.wilayaName,
         commune: customer.commune,
         address: customer.address,
@@ -161,6 +163,23 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         ...(assignedTo ? { assignedTo } : {}),
       },
     })
+
+    // Envoi emails (ne bloque pas la réponse — erreurs silencieuses)
+    sendOrderEmails({
+      orderNumber,
+      customerName: customer.customerName,
+      phone: customer.phone,
+      email: customer.email || undefined,
+      wilaya: customer.wilayaName,
+      commune: customer.commune,
+      address: customer.address,
+      note: customer.note,
+      deliveryMode,
+      items: resolvedItems,
+      subtotal,
+      shippingFee,
+      total,
+    }).catch(err => console.error('[createOrder] sendOrderEmails error:', err))
 
     // Upsert client
     const existingCustomer = await payload.find({

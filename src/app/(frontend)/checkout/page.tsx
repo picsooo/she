@@ -23,6 +23,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState({
     customerName: '',
     phone: '',
+    email: '',
     wilayaCode: '',
     wilayaName: '',
     commune: '',
@@ -96,6 +97,7 @@ export default function CheckoutPage() {
         commune: form.commune,
         address: form.address,
         note: form.note || undefined,
+        email: form.email.trim() || undefined,
         deliveryMode: form.deliveryMode,
       },
       items: items.map((item) => ({
@@ -171,6 +173,17 @@ export default function CheckoutPage() {
               hint={t.checkout.phoneHint}
               autoComplete="tel"
               inputMode="numeric"
+            />
+
+            <Input
+              label="البريد الإلكتروني (اختياري)"
+              type="email"
+              value={form.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              error={errors.email}
+              placeholder="example@gmail.com"
+              hint="لاستلام تأكيد طلبك عبر البريد الإلكتروني"
+              autoComplete="email"
             />
 
             <div className="grid grid-cols-2 gap-3">

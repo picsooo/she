@@ -32,6 +32,9 @@ export const checkoutSchema = z.object({
 
   note: z.string().max(500).optional(),
 
+  // Email optionnel — pour l'envoi de la confirmation de commande
+  email: z.string().email('البريد الإلكتروني غير صحيح').optional().or(z.literal('')),
+
   // Mode de livraison — home = domicile, desk = bureau Yalidine
   deliveryMode: z.enum(['home', 'desk']).default('home'),
 })

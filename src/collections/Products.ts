@@ -106,9 +106,9 @@ export const Products: CollectionConfig = {
     {
       name: 'descriptionAr',
       label: 'Description du produit',
-      type: 'richText',
+      type: 'textarea',
       admin: {
-        description: 'Description affichée sur la page produit',
+        description: 'Description affichée sur la page produit (texte simple)',
       },
     },
 

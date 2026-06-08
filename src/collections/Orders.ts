@@ -207,6 +207,12 @@ export const Orders: CollectionConfig = {
       label: 'Note client',
       type: 'textarea',
     },
+    {
+      name: 'email',
+      label: 'Email client',
+      type: 'email',
+      admin: { description: 'Adresse email pour l\'envoi de la confirmation (optionnel)' },
+    },
 
     // ── Articles commandés ────────────────────────────────────────────
     {

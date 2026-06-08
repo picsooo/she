@@ -344,10 +344,19 @@ export default function ProductForm({ productId, initial }: { productId?: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        const errMsg = errData?.errors?.[0]?.message ?? errData?.message ?? `Erreur ${res.status}`
+        console.error('[ProductForm] Save failed:', res.status, errData)
+        showToast(`Erreur sauvegarde : ${errMsg}`, false)
+        return
+      }
       showToast(isEdit ? 'Produit mis à jour ✓' : 'Produit créé ✓', true)
       setTimeout(() => router.push('/boutique-admin/products'), 900)
-    } catch { showToast('Erreur lors de la sauvegarde', false) }
+    } catch (err) {
+      console.error('[ProductForm] Unexpected error:', err)
+      showToast('Erreur réseau lors de la sauvegarde', false)
+    }
     finally { setSaving(false) }
   }
 
