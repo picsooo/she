@@ -1,0 +1,99 @@
+/**
+ * She's Fit & Beauty — Surcharge du thème admin Payload CMS
+ * Palettes : rose #E93D91, or #CEA060, fond blanc
+ */
+
+/* ── Variables de thème ───────────────────────────────────────────── */
+:root {
+  /* Couleur primaire → rose She's */
+  --color-blue-500: 233 61 145;        /* #E93D91 */
+  --color-blue-400: 209 45 128;        /* #D12D80 */
+  --color-blue-600: 209 45 128;
+
+  /* Couleur accent → or She's */
+  --color-success-500: 206 160 96;     /* #CEA060 */
+
+  /* Fond principal → blanc pur */
+  --theme-bg: 255 255 255;
+
+  /* Radius boutons */
+  --style-radius-s: 8px;
+  --style-radius-m: 12px;
+  --style-radius-l: 16px;
+}
+
+/* ── Login page ───────────────────────────────────────────────────── */
+[class*="login"] [class*="wrap"],
+.login-container,
+form[class*="login"] {
+  border-radius: 20px;
+}
+
+/* ── Boutons primaires ────────────────────────────────────────────── */
+button[class*="btn--style-pill"][class*="btn--theme-default"],
+button[aria-label*="Save"],
+[class*="submit"] button {
+  background: #E93D91 !important;
+  border-color: #E93D91 !important;
+}
+
+button[class*="btn--style-pill"][class*="btn--theme-default"]:hover {
+  background: #D32D80 !important;
+}
+
+/* ── Nav sidebar active ───────────────────────────────────────────── */
+[class*="nav-item"][aria-current="page"],
+[class*="nav-item"][aria-selected="true"] {
+  background: #FFF0F7 !important;
+  color: #E93D91 !important;
+  border-left: 3px solid #E93D91 !important;
+}
+
+/* ── Breadcrumbs & titres ─────────────────────────────────────────── */
+[class*="step-nav"] a,
+[class*="breadcrumb"] a {
+  color: #E93D91 !important;
+}
+
+/* ── Focus rings ──────────────────────────────────────────────────── */
+:focus-visible {
+  outline-color: #E93D91 !important;
+}
+
+/* ── Liens ────────────────────────────────────────────────────────── */
+a[class*="link"]:hover {
+  color: #E93D91 !important;
+}
+
+/* ── Header admin ─────────────────────────────────────────────────── */
+[class*="app-header"] {
+  border-bottom: 1px solid #F3E8FF;
+}
+
+/* ── Status badges collection list ───────────────────────────────── */
+[class*="cell-status"] [class*="badge"] {
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+/* ── Checkbox & toggle actif ─────────────────────────────────────── */
+[type="checkbox"]:checked,
+[role="switch"][aria-checked="true"] {
+  accent-color: #E93D91 !important;
+}
+
+/* ── Quick action buttons (Dashboard) ────────────────────────────── */
+.she-quick-action:hover {
+  border-color: #E93D91 !important;
+  color: #E93D91 !important;
+  background: #FFF5FA !important;
+  transition: all .15s ease;
+}
+
+/* ── Pagination ───────────────────────────────────────────────────── */
+[class*="pagination"] [class*="active"],
+[class*="page-controls"] [aria-current="page"] {
+  background: #E93D91 !important;
+  color: #fff !important;
+  border-radius: 8px;
+}

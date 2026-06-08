@@ -1,10 +1,19 @@
 # MEMORY.md — État du projet Boutique She's Fit & Beauty
 
-_Dernière mise à jour : 2026-06-05_
+_Dernière mise à jour : 2026-06-06_
 
-## 🟢 État actuel : SITE COMPLET — PRÊT À DÉMARRER EN LOCAL
+## 🟢 État actuel : SITE + ADMIN 100% OPÉRATIONNELS EN LOCAL ✅
 
-Le site est entièrement construit. TypeScript : 0 erreur. Build : ✅. Il ne reste qu'à démarrer PostgreSQL + `npm run dev`.
+Le site est entièrement construit. TypeScript : 0 erreur. Admin Payload : ✅ avec branding She's complet (logo, login premium, dashboard stats). Compte admin créé et fonctionnel.
+
+### Compte administrateur
+- Email : wsaoudi@webminds.dz
+- Mot de passe : Boussada321
+- Accès : http://localhost:3000/admin
+
+### Fix critique appliqué (2026-06-06)
+- Route REST API renommée `[...payload]` → `[...slug]` (breaking change Payload 3.85.0)
+- Composants admin personnalisés créés et enregistrés dans importMap
 
 ## Stack installée et versions
 

@@ -112,7 +112,7 @@ export function ProductCard({ product }: ProductCardProps) {
     if (!canAdd) return
     const price = getEffectivePrice(activeVariation!.regularPrice ?? 0, activeVariation!.salePrice)
     addItem({
-      productId: product.id,
+      productId: String(product.id),
       productSlug: product.slug ?? '',
       productNameAr: product.nameAr ?? '',
       productImage: imageUrl ?? null,

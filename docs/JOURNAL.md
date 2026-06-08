@@ -2,6 +2,100 @@
 
 ---
 
+## [2026-06-08] — Refonte complète : confirmatrices, livraison, FAQ, burkini
+
+### Ce qui a été fait
+
+**Collections (src/collections/)**
+- `Orders.ts` : 3 nouveaux statuts (pending, in_progress, failed), champs `assignedTo` (confirmatrice), `deliveryMode`, `margin`, `stockDecremented`, `yalidineTrackingId`. Hook `afterChange` pour gestion stock auto (déduction à `confirmed`, retour à `cancelled`/`failed`).
+- `Users.ts` : ajout rôle `confirmatrice`
+
+**Checkout (frontend)**
+- `checkout-schema.ts` : ajout champ `deliveryMode`
+- `checkout/page.tsx` : sélecteur mode de livraison "توصيل إلى المنزل / مكتب ياليدين" avec tarifs dynamiques chargés depuis DeliverySettings. Total mis à jour en temps réel.
+- `createOrder.ts` : auto-assign round-robin aux confirmatrices, calcul frais depuis settings, stockage du mode de livraison
+
+**Frontend produit**
+- `products/[slug]/page.tsx` : FAQ accordéon (4 questions en darija), cross-sell burkini (sacs/pareos), chapeau gratuit auto-add, bannière burkini
+- `VariantSelector.tsx` : gestion du cadeau gratuit (chapeau avec burkini), notification visuelle, message ajout enrichi
+- `ProductSidebar.tsx` : guide des tailles SUPPRIMÉ, bouton WhatsApp mis à jour avec icône
+
+**Homepage**
+- Bannière promo burkini "تشري بوركيني تربحي شابو باطل" (lien vers catalogue burkini)
+
+**Page confirmation**
+- Message mis à jour : "سنتواصل معك خلال 24 ساعة القادمة لتأكيد الطلب"
+- Bouton WhatsApp cliquable (numéro à configurer : 213550000000)
+- Affichage mode de livraison + frais dans le récap
+
+**Admin**
+- `Dashboard.tsx` : tableau statuts complet (8 statuts avec compteurs cliquables), rendement par confirmatrice (taux confirmation, confirmées/échouées/annulées), top produits du mois, colonne mode livraison et confirmatrice dans la liste
+- `BulkVariationUpdate.tsx` : composant bulk edit prix/promo/stock pour toutes les variations simultanément
+- `Products.ts` : BulkVariationUpdate intégré comme `beforeInput` sur le tableau de variations
+- `importMap.js` : enregistrement BulkVariationUpdate
+
+**Script**
+- `scripts/seed-confirmatrices.ts` : créer les 3 comptes depuis le terminal
+- `package.json` : `npm run seed:confirmatrices`
+
+### Comptes confirmatrices à créer (si pas encore fait)
+Aller sur `/admin/collections/users/create` et créer :
+- confirmatrice01@boutique-she.dz — mot de passe : She2026@01
+- confirmatrice02@boutique-she.dz — mot de passe : She2026@02
+- confirmatrice03@boutique-she.dz — mot de passe : She2026@03
+
+### Numéro WhatsApp à configurer
+Remplacer `213550000000` dans :
+- `src/app/(frontend)/order-confirmation/[orderNumber]/page.tsx` (ligne ~23)
+- `src/app/(frontend)/products/[slug]/page.tsx` (ligne ~21)
+- `src/components/product/ProductSidebar.tsx` (href du bouton)
+
+### Prochaines étapes
+1. Créer les 3 comptes confirmatrices via /admin
+2. Remplacer le numéro WhatsApp de Rania
+3. Tester le checkout avec sélection mode livraison
+4. Vérifier l'auto-assign des commandes
+5. Intégration Yalidine API (stats + envoi auto)
+6. Analytics avancées (recherche par article/couleur/taille)
+
+---
+
+## [2026-06-06] — Admin entièrement fonctionnel avec branding She's
+
+### Ce qui a été fait
+- Fix Payload 3.85.0 : route `[...payload]` → `[...slug]` (voir session précédente)
+- Compte admin créé via SQLite direct + PBKDF2 : `wsaoudi@webminds.dz` / `Boussada321`
+- Composants admin personnalisés créés et enregistrés dans importMap :
+  - `Logo.tsx` — logo She's dans le header admin
+  - `Icon.tsx` — icône ronde pour la nav
+  - `BeforeLogin.tsx` — page de connexion premium
+  - `GlobalStyles.tsx` — CSS de marque injecté via afterNavLinks
+  - `Dashboard.tsx` — tableau de bord e-commerce (stats, commandes récentes, actions rapides)
+- Dashboard converti en `'use client'` (Server Component incompatible avec Payload admin context)
+- Résultat final : admin ✅ opérationnel, branding ✅, dashboard ✅
+
+### État au 2026-06-06
+**TOUT TOURNE** — admin opérationnel en local sur http://localhost:3000/admin
+
+---
+
+## [2026-06-06] — Fix critique : Internal Server Error sur l'admin
+
+### Problème
+Toutes les routes REST API Payload (`/api/products`, `/api/categories`, etc.) retournaient 500.
+L'admin affichait une erreur "internal server error" à chaque tentative de chargement de données.
+
+### Cause
+**Breaking change Payload 3.85.0** : le handler REST `@payloadcms/next/dist/routes/rest/index.js` lit `params.slug` (nom fixe). Le dossier de route était nommé `[...payload]` → `params.payload` → `params.slug` = `undefined` → `TypeError: Cannot read properties of undefined (reading 'map')`.
+
+### Correctif appliqué
+- Supprimé `src/app/api/[...payload]/route.ts`
+- Créé `src/app/api/[...slug]/route.ts` avec le type `{ params: Promise<{ slug: string[] }> }`
+- Redémarré le serveur
+- Résultat : admin 200 ✅, API 403 (normal sans auth) ✅
+
+---
+
 ## [2026-06-05] — Session 1 : Site complet + Pixels marketing
 
 ### Ce qui a été fait

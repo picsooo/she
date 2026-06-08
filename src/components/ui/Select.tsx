@@ -40,8 +40,8 @@ export function Select({ label, error, placeholder, options, className, id, ...p
               {placeholder}
             </option>
           )}
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+          {options.map((opt, i) => (
+            <option key={`${opt.value}-${i}`} value={opt.value}>
               {opt.label}
             </option>
           ))}

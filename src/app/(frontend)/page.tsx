@@ -76,10 +76,58 @@ export default async function HomePage() {
     // c.count === 0 → exclus
   ]
 
+  // Trouver les produits burkini pour la bannière promotionnelle
+  const burkiniCategory = sorted.find((c) => isBurkini(c.cat))
+
   return (
     <>
       {/* ── Slider hero plein écran ───────────────────────────────────── */}
       <HeroSlider />
+
+      {/* ── Bannière promo Burkini + Chapeau gratuit ──────────────────── */}
+      {burkiniCategory && (
+        <section className="py-6 px-4">
+          <div className="mx-auto max-w-7xl">
+            <Link
+              href={`/products?category=${burkiniCategory.cat.id}`}
+              className="group relative flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden rounded-3xl bg-gradient-to-r from-[#0d2347] via-[#1e4d8c] to-[#1a8fb8] px-6 py-6 sm:px-10 sm:py-8 shadow-xl transition-transform hover:scale-[1.01]"
+            >
+              {/* Motif décoratif */}
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-2 start-8 text-6xl">🌊</div>
+                <div className="absolute bottom-2 end-4 text-5xl">🌊</div>
+              </div>
+
+              {/* Texte accroche */}
+              <div className="relative text-white text-center sm:text-start">
+                <p className="text-xs font-bold uppercase tracking-widest text-white/60 mb-1">
+                  عرض خاص · Offre spéciale
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-1">
+                  تشري بوركيني 🏊‍♀️
+                </h2>
+                <p className="text-xl sm:text-2xl font-bold text-[#CEA060]">
+                  تربحي شابو باطل! 🎁
+                </p>
+                <p className="mt-2 text-sm text-white/70">
+                  شابو مجاني مع كل طلب بوركيني — العرض محدود
+                </p>
+              </div>
+
+              {/* CTA */}
+              <div className="relative flex-shrink-0">
+                <span className="inline-flex items-center gap-2 rounded-full bg-[#E93D91] px-7 py-3.5 text-sm font-extrabold text-white shadow-lg transition-all group-hover:bg-[#D32D80] group-hover:shadow-xl">
+                  <span>تسوقي الآن</span>
+                  <svg className="h-4 w-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+                <p className="mt-2 text-center text-[10px] text-white/50">الكميات محدودة</p>
+              </div>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* ── Cards catégories — défilement horizontal ─────────────────── */}
       {sorted.length > 0 && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useCartStore } from '@/stores/cart'
@@ -34,6 +34,9 @@ export function HeaderClient({ categories }: HeaderClientProps) {
   const { getTotalItems, openDrawer } = useCartStore()
   const count = getTotalItems()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  // Éviter l'hydration mismatch — le panier vient de localStorage, absent côté serveur
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   return (
     <>
@@ -48,7 +51,7 @@ export function HeaderClient({ categories }: HeaderClientProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7}
               d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
           </svg>
-          {count > 0 && (
+          {mounted && count > 0 && (
             <span className="absolute -end-0.5 -top-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#E93D91] text-[10px] font-bold text-white shadow-sm">
               {count > 99 ? '99+' : count}
             </span>

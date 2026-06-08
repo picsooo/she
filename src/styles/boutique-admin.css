@@ -1,0 +1,126 @@
+/**
+ * Boutique Admin — styles isolés du frontend RTL
+ * Chargé uniquement pour les routes /boutique-admin/*
+ */
+
+/* ── Force light mode : empêche le dark mode système d'inverser les couleurs ── */
+html,
+body {
+  color-scheme: light !important;
+  direction: ltr !important;
+  background: #F1F5F9 !important;
+  color: #1A1A1A !important;
+}
+
+/* ── Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  color-scheme: light;
+}
+
+/* Annule le RTL de globals.css si chargé globalement */
+html[dir="ltr"],
+html[dir="ltr"] body,
+html[dir="ltr"] * {
+  direction: ltr;
+}
+
+/* ── Typo ── */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  color: #1A1A1A !important;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D0D0D0; border-radius: 10px; }
+
+/* ── Animations ── */
+@keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse   { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+/* ── Liens ── */
+a { text-decoration: none; color: inherit; }
+
+/* ── Boutons ── */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+.admin-btn-primary { background: #1A1A1A !important; color: #fff !important; }
+.admin-btn-primary:hover { background: #2D2D2D !important; }
+.admin-btn-secondary { background: #fff !important; color: #1A1A1A !important; border: 1px solid #E3E5E7 !important; }
+.admin-btn-secondary:hover { background: #F5F5F5 !important; }
+
+/* ── Navigation ── */
+.admin-nav-item { color: #3D3D3D !important; }
+.admin-nav-item:hover { background: #F5F5F5 !important; }
+.admin-nav-item.active { background: #F2F0FF !important; color: #4A3DBC !important; font-weight: 600 !important; }
+
+/* ── Carte ── */
+.admin-card {
+  background: #fff !important;
+  border: 1px solid #E3E5E7 !important;
+  border-radius: 12px !important;
+  color: #1A1A1A !important;
+}
+
+/* ── Input ── */
+.admin-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #E3E5E7;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff !important;
+  color: #1A1A1A !important;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.admin-input:focus { border-color: #4A3DBC; box-shadow: 0 0 0 3px rgba(74,61,188,0.08); }
+.admin-input::placeholder { color: #9A9A9A !important; }
+
+/* ── Select ── */
+.admin-select {
+  padding: 8px 12px;
+  border: 1px solid #E3E5E7;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff !important;
+  color: #1A1A1A !important;
+  cursor: pointer;
+  outline: none;
+}
+
+/* ── Badge ── */
+.admin-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: inherit;
+}
+
+/* ── Tableau ── */
+.admin-row-hover:hover { background: #FAFAFA !important; cursor: pointer; }

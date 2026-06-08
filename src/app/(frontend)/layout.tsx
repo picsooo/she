@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { IBM_Plex_Sans_Arabic } from 'next/font/google'
+import { Cairo } from 'next/font/google'
 import '@/styles/globals.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
@@ -8,10 +8,10 @@ import { PixelScripts } from '@/components/analytics/PixelScripts'
 import { PixelPageView } from '@/components/analytics/PixelPageView'
 import { getMarketingSettings } from '@/lib/payload-client'
 
-// Police arabe principale — chargée via next/font pour les performances
-const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
-  subsets: ['arabic'],
-  weight: ['300', '400', '500', '600', '700'],
+// Police arabe principale — Cairo : élégante, féminine, moderne
+const cairo = Cairo({
+  subsets: ['arabic', 'latin'],
+  weight: ['300', '400', '500', '600', '700', '800', '900'],
   variable: '--font-arabic',
   display: 'swap',
   preload: true,
@@ -44,7 +44,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
   const marketing = await getMarketingSettings().catch(() => null)
 
   return (
-    <html lang="ar" dir="rtl" className={ibmPlexSansArabic.variable}>
+    <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="min-h-screen bg-white antialiased flex flex-col" suppressHydrationWarning>
         <Header />
         <main className="flex-1">{children}</main>

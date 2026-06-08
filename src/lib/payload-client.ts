@@ -17,15 +17,14 @@ export async function getProducts(options?: {
   category?: string
   status?: string
   sort?: string
+  where?: Where
 }) {
   const payload = await getPayloadClient()
 
-  const where: Where = {
+  // Utiliser le where personnalisé s'il est fourni, sinon construire le filtre standard
+  const where: Where = options?.where ?? {
     status: { equals: options?.status ?? 'published' },
-  }
-
-  if (options?.category) {
-    where.category = { contains: options.category }
+    ...(options?.category ? { category: { contains: options.category } } : {}),
   }
 
   return payload.find({
@@ -34,7 +33,7 @@ export async function getProducts(options?: {
     limit: options?.limit ?? 24,
     page: options?.page ?? 1,
     sort: options?.sort ?? '-createdAt',
-    depth: 2, // résoudre les relations (category, images)
+    depth: 2,
   })
 }
 

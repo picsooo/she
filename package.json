@@ -12,6 +12,8 @@
     "generate:types": "payload generate:types",
     "generate:graphQLSchema": "payload generate:graphQLSchema",
     "import:products": "node --env-file=.env.local --import tsx/esm scripts/import-products.ts",
+    "seed:admin": "node --env-file=.env.local --import tsx/esm scripts/seed-admin.ts",
+    "seed:confirmatrices": "node --env-file=.env.local --import tsx/esm scripts/seed-confirmatrices.ts",
     "setup": "bash scripts/setup.sh"
   },
   "dependencies": {

@@ -1,36 +1,115 @@
 import type { CollectionConfig } from 'payload'
+import { getPayload } from 'payload'
+import configPromise from '@payload-config'
 
-// Statuts de commande — workflow COD algérien
+// ── Statuts de commande — workflow COD algérien complet ───────────────────────
 export const ORDER_STATUSES = [
-  { label: 'جديدة (Nouvelle)', value: 'new' },
-  { label: 'مؤكدة (Confirmée par téléphone)', value: 'confirmed' },
-  { label: 'قيد التوصيل (En livraison)', value: 'shipping' },
-  { label: 'تم التسليم (Livrée)', value: 'delivered' },
-  { label: 'ملغاة (Annulée)', value: 'cancelled' },
+  { label: 'جديدة — Nouvelle',                value: 'new' },
+  { label: 'في الانتظار — En attente',         value: 'pending' },
+  { label: 'قيد المعالجة — En cours',          value: 'in_progress' },
+  { label: 'مؤكدة — Confirmée',               value: 'confirmed' },
+  { label: 'قيد التوصيل — En livraison',       value: 'shipping' },
+  { label: 'تم التسليم — Livrée',              value: 'delivered' },
+  { label: 'فاشلة — Échouée',                 value: 'failed' },
+  { label: 'ملغاة — Annulée',                 value: 'cancelled' },
 ] as const
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]['value']
 
-// Collection des commandes
+// Statuts qui déclenchent un retour de stock
+const STOCK_RETURN_STATUSES: OrderStatus[] = ['failed', 'cancelled']
+// Statut qui déclenche la déduction de stock
+const STOCK_DEDUCT_STATUS: OrderStatus = 'confirmed'
+
+// ── Collection des commandes ──────────────────────────────────────────────────
 export const Orders: CollectionConfig = {
   slug: 'orders',
   admin: {
     useAsTitle: 'orderNumber',
     group: 'Commandes',
-    defaultColumns: ['orderNumber', 'customerName', 'phone', 'wilaya', 'total', 'status', 'createdAt'],
+    defaultColumns: ['orderNumber', 'customerName', 'phone', 'wilaya', 'total', 'status', 'assignedTo', 'createdAt'],
     listSearchableFields: ['orderNumber', 'customerName', 'phone'],
   },
   labels: {
     singular: 'Commande',
     plural: 'Commandes',
   },
-  // Pas de création manuelle depuis l'admin (seulement lecture/mise à jour statut)
   access: {
     create: () => true, // Créé par Server Action checkout
-    read: ({ req }) => !!req.user,
+    read: ({ req }) => {
+      if (!req.user) return false
+      // Les confirmatrices voient seulement leurs commandes assignées
+      if (req.user.role === 'confirmatrice') {
+        return { assignedTo: { equals: req.user.id } }
+      }
+      return true
+    },
     update: ({ req }) => !!req.user,
     delete: ({ req }) => req.user?.role === 'admin',
   },
+
+  hooks: {
+    // Gestion du stock automatique selon changement de statut
+    afterChange: [
+      async ({ doc, previousDoc, operation }) => {
+        if (operation !== 'update') return
+        const prevStatus = previousDoc?.status as OrderStatus | undefined
+        const newStatus = doc.status as OrderStatus
+
+        if (prevStatus === newStatus) return
+
+        try {
+          const payload = await getPayload({ config: configPromise })
+
+          // Confirmation → déduire le stock
+          if (newStatus === STOCK_DEDUCT_STATUS && !doc.stockDecremented) {
+            for (const item of (doc.items ?? [])) {
+              const productId = typeof item.product === 'object' ? item.product.id : item.product
+              if (!productId) continue
+              const product = await payload.findByID({ collection: 'products', id: productId })
+              const variations = product?.variations ?? []
+              const varIdx = item.variationIndex ?? -1
+              if (varIdx < 0 || varIdx >= variations.length) continue
+              const v = variations[varIdx]
+              const newStock = Math.max(0, (v.stock ?? 0) - (item.quantity ?? 1))
+              variations[varIdx] = { ...v, stock: newStock, inStock: newStock > 0 }
+              await payload.update({
+                collection: 'products',
+                id: productId,
+                data: { variations },
+              })
+            }
+            // Marquer le stock comme déduit pour éviter la double déduction
+            await payload.update({ collection: 'orders', id: doc.id, data: { stockDecremented: true } })
+          }
+
+          // Annulation/Échec → remettre le stock si précédemment déduit
+          if (STOCK_RETURN_STATUSES.includes(newStatus) && doc.stockDecremented) {
+            for (const item of (doc.items ?? [])) {
+              const productId = typeof item.product === 'object' ? item.product.id : item.product
+              if (!productId) continue
+              const product = await payload.findByID({ collection: 'products', id: productId })
+              const variations = product?.variations ?? []
+              const varIdx = item.variationIndex ?? -1
+              if (varIdx < 0 || varIdx >= variations.length) continue
+              const v = variations[varIdx]
+              const newStock = (v.stock ?? 0) + (item.quantity ?? 1)
+              variations[varIdx] = { ...v, stock: newStock, inStock: true }
+              await payload.update({
+                collection: 'products',
+                id: productId,
+                data: { variations },
+              })
+            }
+            await payload.update({ collection: 'orders', id: doc.id, data: { stockDecremented: false } })
+          }
+        } catch (err) {
+          console.error('[Orders hook] Erreur gestion stock:', err)
+        }
+      },
+    ],
+  },
+
   fields: [
     // ── Numéro de commande ────────────────────────────────────────────
     {
@@ -41,6 +120,54 @@ export const Orders: CollectionConfig = {
       unique: true,
       index: true,
       admin: { position: 'sidebar' },
+    },
+
+    // ── Statut ────────────────────────────────────────────────────────
+    {
+      name: 'status',
+      label: 'Statut',
+      type: 'select',
+      options: ORDER_STATUSES.map(s => ({ label: s.label, value: s.value })),
+      defaultValue: 'new',
+      required: true,
+      admin: { position: 'sidebar' },
+    },
+
+    // ── Confirmatrice assignée ─────────────────────────────────────────
+    {
+      name: 'assignedTo',
+      label: 'Confirmatrice',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: {
+        position: 'sidebar',
+        description: 'Confirmatrice en charge de cette commande',
+      },
+    },
+
+    // ── Mode de livraison ─────────────────────────────────────────────
+    {
+      name: 'deliveryMode',
+      label: 'Mode de livraison',
+      type: 'select',
+      options: [
+        { label: '🏠 توصيل إلى المنزل (Domicile)', value: 'home' },
+        { label: '🏢 توصيل إلى المكتب (Bureau Yalidine)', value: 'desk' },
+      ],
+      defaultValue: 'home',
+      admin: { position: 'sidebar' },
+    },
+
+    // ── Marge commerciale ─────────────────────────────────────────────
+    {
+      name: 'margin',
+      label: 'Marge (DZD)',
+      type: 'number',
+      defaultValue: 0,
+      admin: {
+        position: 'sidebar',
+        description: 'Marge commerciale définie par l\'admin',
+      },
     },
 
     // ── Informations client ───────────────────────────────────────────
@@ -55,9 +182,7 @@ export const Orders: CollectionConfig = {
       label: 'Téléphone',
       type: 'text',
       required: true,
-      admin: {
-        description: 'Format: 05/06/07 + 8 chiffres',
-      },
+      admin: { description: 'Format: 05/06/07 + 8 chiffres' },
     },
     {
       name: 'wilaya',
@@ -102,25 +227,11 @@ export const Orders: CollectionConfig = {
           label: 'Nom produit (snapshot)',
           type: 'text',
           required: true,
-          admin: {
-            description: 'Copie du nom au moment de la commande',
-          },
+          admin: { description: 'Copie du nom au moment de la commande' },
         },
-        {
-          name: 'variationId',
-          label: 'Index variation',
-          type: 'number',
-        },
-        {
-          name: 'colorAr',
-          label: 'Couleur (arabe)',
-          type: 'text',
-        },
-        {
-          name: 'size',
-          label: 'Taille',
-          type: 'text',
-        },
+        { name: 'variationIndex', label: 'Index variation', type: 'number' },
+        { name: 'colorAr',        label: 'Couleur (arabe)',  type: 'text' },
+        { name: 'size',           label: 'Taille',           type: 'text' },
         {
           name: 'quantity',
           label: 'Quantité',
@@ -157,15 +268,19 @@ export const Orders: CollectionConfig = {
       required: true,
     },
 
-    // ── Statut workflow COD ───────────────────────────────────────────
+    // ── Champs techniques masqués ─────────────────────────────────────
     {
-      name: 'status',
-      label: 'Statut',
-      type: 'select',
-      options: ORDER_STATUSES.map(s => ({ label: s.label, value: s.value })),
-      defaultValue: 'new',
-      required: true,
-      admin: { position: 'sidebar' },
+      name: 'stockDecremented',
+      label: 'Stock déduit',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: { hidden: true },
+    },
+    {
+      name: 'yalidineTrackingId',
+      label: 'Tracking Yalidine',
+      type: 'text',
+      admin: { description: 'ID de suivi Yalidine (rempli automatiquement à l\'envoi)' },
     },
   ],
   timestamps: true,

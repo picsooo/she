@@ -11,78 +11,101 @@ import { trackAddToCart } from '@/lib/tracking'
 import { toRelativeMediaUrl } from '@/lib/utils'
 import type { Product } from '@/payload-types'
 
-interface VariantSelectorProps {
-  product: Product
+interface FreeGiftProduct {
+  productId: string
+  productSlug: string
+  productNameAr: string
+  productImage: string | null
+  variationIndex: number
+  colorAr: string
+  size: string
 }
 
+interface VariantSelectorProps {
+  product: Product
+  // Produit offert gratuitement (ex: chapeau avec burkini)
+  freeGiftProduct?: FreeGiftProduct | null
+}
+
+const norm = (v: string | null | undefined) => v ?? ''
+
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
-export function VariantSelector({ product }: VariantSelectorProps) {
+export function VariantSelector({ product, freeGiftProduct }: VariantSelectorProps) {
   const addItem = useCartStore((s) => s.addItem)
 
   const variations = product.variations ?? []
 
-  // Couleurs uniques
+  // ── Couleurs uniques ────────────────────────────────────────────────
   const colors = useMemo(() => {
     const seen = new Set<string>()
-    return variations
-      .filter((v) => {
-        if (seen.has(v.colorAr ?? '')) return false
-        seen.add(v.colorAr ?? '')
-        return true
-      })
-      .map((v) => ({ colorAr: v.colorAr ?? '', colorFr: v.colorFr ?? '' }))
+    const result: { colorAr: string; colorFr: string }[] = []
+    for (const v of variations) {
+      const key = norm(v.colorAr)
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push({ colorAr: key, colorFr: norm(v.colorFr) })
+      }
+    }
+    return result
   }, [variations])
 
-  // Tailles uniques
+  // ── Tailles uniques (sans UNIQUE ni vide) ──────────────────────────
   const sizes = useMemo(() => {
     const seen = new Set<string>()
-    return variations
-      .filter((v) => {
-        if (seen.has(v.size ?? '')) return false
-        seen.add(v.size ?? '')
-        return true
-      })
-      .map((v) => v.size ?? '')
-      .filter(Boolean)
+    const result: string[] = []
+    for (const v of variations) {
+      const s = norm(v.size)
+      if (s && s !== 'UNIQUE' && !seen.has(s)) {
+        seen.add(s)
+        result.push(s)
+      }
+    }
+    return result
   }, [variations])
 
-  const [selectedColor, setSelectedColor] = useState<string | null>(
-    colors.length === 1 ? colors[0].colorAr : null
-  )
-  const [selectedSize, setSelectedSize] = useState<string | null>(
-    sizes.length === 1 ? sizes[0] : null
-  )
+  const [selectedColor, setSelectedColor] = useState<string>(() => {
+    return colors[0]?.colorAr ?? ''
+  })
+
+  const [selectedSize, setSelectedSize] = useState<string>(() => {
+    const firstColor = colors[0]?.colorAr ?? ''
+    const sizesForFirstColor = variations
+      .filter((v) => norm(v.colorAr) === firstColor && norm(v.size) && norm(v.size) !== 'UNIQUE')
+      .map((v) => norm(v.size))
+    return sizesForFirstColor[0] ?? (sizes[0] ?? '')
+  })
+
   const [added, setAdded] = useState(false)
 
-  // Variation active selon couleur + taille choisies
+  // ── Variation active selon couleur + taille choisies ───────────────
   const activeVariation = useMemo(() => {
-    if (!selectedColor || !selectedSize) return null
-    return variations.find(
-      (v) => v.colorAr === selectedColor && v.size === selectedSize
-    ) ?? null
+    if (variations.length === 0) return null
+    if (variations.length === 1) return variations[0]
+    return (
+      variations.find(
+        (v) => norm(v.colorAr) === selectedColor && norm(v.size) === selectedSize
+      ) ??
+      variations.find((v) => norm(v.colorAr) === selectedColor && v.inStock) ??
+      variations.find((v) => norm(v.colorAr) === selectedColor) ??
+      null
+    )
   }, [variations, selectedColor, selectedSize])
 
-  // Index de la variation active
   const activeVariationIndex = useMemo(() => {
     if (!activeVariation) return -1
-    return variations.findIndex(
-      (v) => v.colorAr === selectedColor && v.size === selectedSize
-    )
-  }, [variations, activeVariation, selectedColor, selectedSize])
+    return variations.indexOf(activeVariation)
+  }, [variations, activeVariation])
 
-  // Tailles disponibles pour la couleur sélectionnée
   const availableSizesForColor = useMemo(() => {
-    if (!selectedColor) return sizes
     return variations
-      .filter((v) => v.colorAr === selectedColor)
-      .map((v) => v.size ?? '')
-      .filter(Boolean)
-  }, [variations, selectedColor, sizes])
+      .filter((v) => norm(v.colorAr) === selectedColor)
+      .map((v) => norm(v.size))
+      .filter((s) => s && s !== 'UNIQUE')
+  }, [variations, selectedColor])
 
   const handleAddToCart = () => {
     if (!activeVariation || activeVariationIndex < 0) return
 
-    // Image principale du produit
     const firstImage = product.images?.[0]?.image
     const imageUrl = toRelativeMediaUrl(
       typeof firstImage === 'object' && firstImage !== null
@@ -97,30 +120,47 @@ export function VariantSelector({ product }: VariantSelectorProps) {
       ? activeVariation.salePrice
       : (activeVariation.regularPrice ?? 0)
 
+    // Ajouter le produit principal au panier
     addItem({
-      productId: product.id,
+      productId: String(product.id),
       productSlug: product.slug ?? '',
       productNameAr: product.nameAr ?? '',
       productImage: imageUrl ?? null,
       variationIndex: activeVariationIndex,
-      colorAr: activeVariation.colorAr ?? '',
-      colorFr: activeVariation.colorFr ?? '',
-      size: activeVariation.size ?? '',
+      colorAr: norm(activeVariation.colorAr),
+      colorFr: norm(activeVariation.colorFr),
+      size: norm(activeVariation.size),
       regularPrice: activeVariation.regularPrice ?? 0,
       salePrice: activeVariation.salePrice,
     })
 
-    // Événement AddToCart vers les pixels marketing
+    // Ajouter le cadeau gratuit (chapeau avec burkini)
+    if (freeGiftProduct) {
+      addItem({
+        productId: freeGiftProduct.productId,
+        productSlug: freeGiftProduct.productSlug,
+        productNameAr: `🎁 ${freeGiftProduct.productNameAr} (مجاني)`,
+        productImage: freeGiftProduct.productImage,
+        variationIndex: freeGiftProduct.variationIndex,
+        colorAr: freeGiftProduct.colorAr,
+        colorFr: '',
+        size: freeGiftProduct.size,
+        regularPrice: 0, // Gratuit
+        salePrice: undefined,
+      })
+    }
+
     trackAddToCart(product.id, product.nameAr ?? '', effectivePrice, 1)
 
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
   }
 
-  // Prix à afficher : variation active ou fourchette
   const displayPrice = activeVariation
     ? { regular: activeVariation.regularPrice ?? 0, sale: activeVariation.salePrice }
     : null
+
+  const canAdd = !!activeVariation && !!activeVariation.inStock && activeVariationIndex >= 0
 
   return (
     <div className="flex flex-col gap-5">
@@ -143,7 +183,7 @@ export function VariantSelector({ product }: VariantSelectorProps) {
       )}
 
       {/* Sélecteur couleur */}
-      {colors.length > 0 && (
+      {colors.length > 1 && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">
             {t.product.selectColor}
@@ -152,15 +192,15 @@ export function VariantSelector({ product }: VariantSelectorProps) {
           <div className="flex flex-wrap gap-2">
             {colors.map(({ colorAr }) => (
               <button
-                key={colorAr}
+                key={colorAr || '__no_color__'}
                 onClick={() => {
                   setSelectedColor(colorAr)
-                  // Reset taille si non dispo dans nouvelle couleur
                   const sizesForNewColor = variations
-                    .filter((v) => v.colorAr === colorAr)
-                    .map((v) => v.size)
+                    .filter((v) => norm(v.colorAr) === colorAr)
+                    .map((v) => norm(v.size))
+                    .filter((s) => s && s !== 'UNIQUE')
                   if (selectedSize && !sizesForNewColor.includes(selectedSize)) {
-                    setSelectedSize(null)
+                    setSelectedSize(sizesForNewColor[0] ?? '')
                   }
                 }}
                 className={cn(
@@ -170,7 +210,7 @@ export function VariantSelector({ product }: VariantSelectorProps) {
                     : 'border-[#EBE6DF] text-foreground hover:border-[#E93D91]'
                 )}
               >
-                {colorAr}
+                {colorAr || '—'}
               </button>
             ))}
           </div>
@@ -185,7 +225,7 @@ export function VariantSelector({ product }: VariantSelectorProps) {
             {sizes.map((size) => {
               const available = availableSizesForColor.includes(size)
               const varForSize = variations.find(
-                (v) => v.colorAr === selectedColor && v.size === size
+                (v) => norm(v.colorAr) === selectedColor && norm(v.size) === size
               )
               const inStock = varForSize?.inStock ?? false
 
@@ -201,12 +241,11 @@ export function VariantSelector({ product }: VariantSelectorProps) {
                       : available
                         ? 'border-[#EBE6DF] text-foreground hover:border-[#E93D91]'
                         : 'border-[#EBE6DF] text-foreground/30 cursor-not-allowed',
-                    available && !inStock && selectedColor && 'opacity-50'
+                    available && !inStock && 'opacity-50'
                   )}
                 >
                   {size}
-                  {/* Barre diagonale si rupture de stock */}
-                  {available && !inStock && selectedColor && (
+                  {available && !inStock && (
                     <span className="absolute inset-0 flex items-center justify-center">
                       <span className="absolute h-px w-full rotate-45 bg-foreground/20" />
                     </span>
@@ -218,14 +257,31 @@ export function VariantSelector({ product }: VariantSelectorProps) {
         </div>
       )}
 
+      {/* Notification cadeau gratuit */}
+      {freeGiftProduct && (
+        <div className="flex items-center gap-2 rounded-xl bg-[#FEF9F0] border border-[#CEA060]/40 px-3 py-2.5">
+          <span className="text-lg">🎁</span>
+          <div>
+            <p className="text-xs font-bold text-[#9F6F3B]">
+              شابو مجاني مع طلبكِ!
+            </p>
+            <p className="text-[10px] text-foreground/50">
+              {freeGiftProduct.productNameAr} يضاف تلقائياً
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Bouton ajouter au panier */}
       <Button
         size="lg"
         onClick={handleAddToCart}
-        disabled={!activeVariation || !activeVariation.inStock || added}
+        disabled={!canAdd || added}
         className="w-full"
       >
-        {added ? '✓ ' + t.product.addedToCart : t.product.addToCart}
+        {added
+          ? `✓ ${freeGiftProduct ? 'تمت الإضافة + الشابو المجاني!' : t.product.addedToCart}`
+          : t.product.addToCart}
       </Button>
     </div>
   )

@@ -13,14 +13,13 @@ import { WILAYAS, getCommunesByWilaya } from '@/lib/algeria-geo'
 import { createOrder } from '@/app/actions/createOrder'
 import Image from 'next/image'
 
-// Page de checkout — une seule page, formulaire simple COD algérien
+type DeliveryMode = 'home' | 'desk'
+
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, getTotalPrice, clearCart } = useCartStore()
+  const subtotal = getTotalPrice()
 
-  const total = getTotalPrice()
-
-  // Formulaire
   const [form, setForm] = useState({
     customerName: '',
     phone: '',
@@ -29,12 +28,30 @@ export default function CheckoutPage() {
     commune: '',
     address: '',
     note: '',
+    deliveryMode: 'home' as DeliveryMode,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [communes, setCommunes] = useState<{ value: string; label: string }[]>([])
 
-  // Mettre à jour la liste des communes quand la wilaya change
+  // Frais de livraison (chargés depuis le serveur via API Payload)
+  const [fees, setFees] = useState({ home: 400, desk: 300 })
+
+  useEffect(() => {
+    // Charger les frais depuis les settings
+    fetch('/api/globals/delivery-settings?depth=0')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data) {
+          setFees({
+            home: data.defaultHomeDeliveryFee ?? 400,
+            desk: data.defaultDeskDeliveryFee ?? 300,
+          })
+        }
+      })
+      .catch(() => {/* utiliser les valeurs par défaut */})
+  }, [])
+
   useEffect(() => {
     if (form.wilayaCode) {
       const list = getCommunesByWilaya(form.wilayaCode)
@@ -50,33 +67,27 @@ export default function CheckoutPage() {
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }))
   }
 
-  // Validation côté client (pré-check avant envoi au serveur)
   const validateClient = () => {
     const newErrors: Record<string, string> = {}
-    if (!form.customerName || form.customerName.length < 3) {
-      newErrors.customerName = t.validation.nameMin
-    }
-    if (!form.phone || !isValidAlgerianPhone(form.phone)) {
-      newErrors.phone = t.validation.phoneInvalid
-    }
+    if (!form.customerName || form.customerName.length < 3) newErrors.customerName = t.validation.nameMin
+    if (!form.phone || !isValidAlgerianPhone(form.phone)) newErrors.phone = t.validation.phoneInvalid
     if (!form.wilayaCode) newErrors.wilayaCode = t.validation.required
     if (!form.commune) newErrors.commune = t.validation.required
-    if (!form.address || form.address.length < 10) newErrors.address = t.validation.addressMin
+    if (!form.address || form.address.length < 5) newErrors.address = t.validation.addressMin
     return newErrors
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     const clientErrors = validateClient()
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
     setLoading(true)
-
-    const orderData = {
+    const result = await createOrder({
       customer: {
         customerName: form.customerName,
         phone: form.phone.replace(/\s/g, ''),
@@ -85,92 +96,84 @@ export default function CheckoutPage() {
         commune: form.commune,
         address: form.address,
         note: form.note || undefined,
+        deliveryMode: form.deliveryMode,
       },
       items: items.map((item) => ({
         productId: item.productId,
         variationIndex: item.variationIndex,
         quantity: item.quantity,
       })),
-    }
-
-    const result = await createOrder(orderData)
+    })
 
     if (result.success) {
       clearCart()
       router.push(`/order-confirmation/${result.orderNumber}`)
     } else {
-      if (result.fieldErrors) {
-        setErrors(result.fieldErrors)
-      }
-      setErrors((prev) => ({ ...prev, _form: result.error }))
+      const newErrors: Record<string, string> = {}
+      if (result.fieldErrors) Object.assign(newErrors, result.fieldErrors)
+      newErrors._form = result.error
+      setErrors(newErrors)
       setLoading(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
-  // Rediriger si panier vide
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-lg px-4 py-24 text-center">
         <p className="text-xl text-foreground/60 mb-6">{t.cart.empty}</p>
-        <a href="/products">
-          <Button>{t.cart.emptyCta}</Button>
-        </a>
+        <a href="/products"><Button>{t.cart.emptyCta}</Button></a>
       </div>
     )
   }
 
-  const wilayaOptions = WILAYAS.map((w) => ({
-    value: w.code,
-    label: w.nameAr,
-  }))
+  const wilayaOptions = WILAYAS.map((w) => ({ value: w.code, label: w.nameAr }))
+  const shippingFee = fees[form.deliveryMode]
+  const total = subtotal + shippingFee
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      {/* Pixel InitiateCheckout — au montage de la page */}
+    <div className="mx-auto max-w-4xl px-4 py-8">
       <TrackInitiateCheckout />
-      <h1 className="section-title mb-8 text-2xl font-bold">{t.checkout.title}</h1>
+
+      <h1 className="mb-2 text-2xl font-bold">{t.checkout.title}</h1>
+      <p className="mb-8 text-sm text-foreground/50">الدفع عند الاستلام — التوصيل لجميع الولايات</p>
+
+      {errors._form && (
+        <div className="mb-6 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+          {errors._form}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-5">
-          {/* ── Formulaire (3/5) ──────────────────────────────────── */}
-          <div className="md:col-span-3 flex flex-col gap-6">
-            {/* Informations personnelles */}
-            <fieldset className="rounded-2xl border border-[#EBE6DF] p-5 flex flex-col gap-4">
-              <legend className="px-2 text-sm font-semibold text-foreground/70">
-                {t.checkout.personalInfo}
-              </legend>
 
-              <Input
-                label={t.checkout.fullName}
-                required
-                value={form.customerName}
-                onChange={(e) => handleChange('customerName', e.target.value)}
-                error={errors.customerName}
-                placeholder="مثال: فاطمة الزهراء بوعلام"
-                autoComplete="name"
-              />
+          {/* ── Formulaire ── */}
+          <div className="md:col-span-3 flex flex-col gap-4">
 
-              <Input
-                label={t.checkout.phone}
-                required
-                type="tel"
-                value={form.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                error={errors.phone}
-                placeholder={t.checkout.phonePlaceholder}
-                hint={t.checkout.phoneHint}
-                autoComplete="tel"
-                inputMode="numeric"
-              />
-            </fieldset>
+            <Input
+              label={t.checkout.fullName}
+              required
+              value={form.customerName}
+              onChange={(e) => handleChange('customerName', e.target.value)}
+              error={errors.customerName}
+              placeholder="مثال: فاطمة الزهراء بوعلام"
+              autoComplete="name"
+            />
 
-            {/* Adresse de livraison */}
-            <fieldset className="rounded-2xl border border-[#EBE6DF] p-5 flex flex-col gap-4">
-              <legend className="px-2 text-sm font-semibold text-foreground/70">
-                عنوان التوصيل
-              </legend>
+            <Input
+              label={t.checkout.phone}
+              required
+              type="tel"
+              value={form.phone}
+              onChange={(e) => handleChange('phone', e.target.value)}
+              error={errors.phone}
+              placeholder={t.checkout.phonePlaceholder}
+              hint={t.checkout.phoneHint}
+              autoComplete="tel"
+              inputMode="numeric"
+            />
 
-              {/* Wilaya */}
+            <div className="grid grid-cols-2 gap-3">
               <Select
                 label={t.checkout.wilaya}
                 required
@@ -186,7 +189,6 @@ export default function CheckoutPage() {
                 options={wilayaOptions}
               />
 
-              {/* Commune — se remplit après sélection wilaya */}
               <Select
                 label={t.checkout.commune}
                 required
@@ -197,76 +199,114 @@ export default function CheckoutPage() {
                 options={communes}
                 disabled={!form.wilayaCode || communes.length === 0}
               />
+            </div>
 
-              <Input
-                label={t.checkout.address}
-                required
-                value={form.address}
-                onChange={(e) => handleChange('address', e.target.value)}
-                error={errors.address}
-                placeholder={t.checkout.addressPlaceholder}
-                autoComplete="street-address"
-              />
+            {/* ── Mode de livraison (bien apparent après commune) ── */}
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-semibold text-foreground">
+                🚚 طريقة التوصيل <span className="text-[#E93D91]">*</span>
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {/* Livraison à domicile */}
+                <button
+                  type="button"
+                  onClick={() => handleChange('deliveryMode', 'home')}
+                  className={`flex items-start gap-3 rounded-2xl border-2 p-4 text-right transition-all ${
+                    form.deliveryMode === 'home'
+                      ? 'border-[#E93D91] bg-[#FFF0F7]'
+                      : 'border-[#EBE6DF] bg-white hover:border-[#E93D91]/40'
+                  }`}
+                >
+                  <span className="text-2xl flex-shrink-0">🏠</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">توصيل إلى المنزل</p>
+                    <p className="text-xs text-foreground/60 mt-0.5">Livraison à domicile</p>
+                    <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">
+                      {formatPrice(fees.home)}
+                    </p>
+                  </div>
+                  {form.deliveryMode === 'home' && (
+                    <span className="h-5 w-5 rounded-full bg-[#E93D91] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                  )}
+                </button>
 
-              {/* Note optionnelle */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-foreground">
-                  {t.checkout.note}
-                </label>
-                <textarea
-                  value={form.note}
-                  onChange={(e) => handleChange('note', e.target.value)}
-                  placeholder={t.checkout.notePlaceholder}
-                  rows={2}
-                  className="w-full rounded-xl border border-[#EBE6DF] bg-white px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 focus:border-[#E93D91] focus:outline-none focus:ring-2 focus:ring-[#E93D91]/20 transition-colors resize-none"
-                />
-              </div>
-            </fieldset>
-
-            {/* Paiement */}
-            <div className="rounded-2xl border-2 border-[#CEA060]/30 bg-[#FEF9F0] p-5">
-              <h3 className="mb-2 font-semibold text-[#9F6F3B]">{t.checkout.paymentMethod}</h3>
-              <div className="flex items-center gap-3">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#E93D91] bg-[#E93D91]">
-                  <div className="h-2 w-2 rounded-full bg-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">{t.checkout.cod}</p>
-                  <p className="text-xs text-foreground/60">{t.checkout.codDescription}</p>
-                </div>
+                {/* Livraison en bureau Yalidine */}
+                <button
+                  type="button"
+                  onClick={() => handleChange('deliveryMode', 'desk')}
+                  className={`flex items-start gap-3 rounded-2xl border-2 p-4 text-right transition-all ${
+                    form.deliveryMode === 'desk'
+                      ? 'border-[#E93D91] bg-[#FFF0F7]'
+                      : 'border-[#EBE6DF] bg-white hover:border-[#E93D91]/40'
+                  }`}
+                >
+                  <span className="text-2xl flex-shrink-0">🏢</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-foreground">توصيل إلى مكتب ياليدين</p>
+                    <p className="text-xs text-foreground/60 mt-0.5">Bureau Yalidine</p>
+                    <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">
+                      {formatPrice(fees.desk)}
+                    </p>
+                  </div>
+                  {form.deliveryMode === 'desk' && (
+                    <span className="h-5 w-5 rounded-full bg-[#E93D91] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Erreur globale */}
-            {errors._form && (
-              <p className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
-                {errors._form}
-              </p>
-            )}
+            <Input
+              label={t.checkout.address}
+              required
+              value={form.address}
+              onChange={(e) => handleChange('address', e.target.value)}
+              error={errors.address}
+              placeholder={
+                form.deliveryMode === 'desk'
+                  ? 'اسم مكتب ياليدين القريب منكِ...'
+                  : t.checkout.addressPlaceholder
+              }
+              autoComplete="street-address"
+            />
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-foreground/60">{t.checkout.note}</label>
+              <textarea
+                value={form.note}
+                onChange={(e) => handleChange('note', e.target.value)}
+                placeholder={t.checkout.notePlaceholder}
+                rows={2}
+                className="w-full rounded-xl border border-[#EBE6DF] bg-white px-4 py-3 text-sm text-foreground placeholder:text-foreground/40 focus:border-[#E93D91] focus:outline-none focus:ring-2 focus:ring-[#E93D91]/20 transition-colors resize-none"
+              />
+            </div>
+
+            <div className="md:hidden mt-2">
+              <Button type="submit" size="lg" className="w-full" loading={loading}>
+                {loading ? t.checkout.processing : t.checkout.placeOrder}
+              </Button>
+            </div>
           </div>
 
-          {/* ── Récapitulatif commande (2/5) ──────────────────────── */}
+          {/* ── Récapitulatif ── */}
           <div className="md:col-span-2">
             <div className="sticky top-24 rounded-2xl border border-[#EBE6DF] p-5">
               <h2 className="mb-4 font-semibold">{t.checkout.orderSummary}</h2>
 
-              {/* Articles */}
               <div className="flex flex-col divide-y divide-[#EBE6DF]">
                 {items.map((item) => {
                   const price = getEffectivePrice(item.regularPrice, item.salePrice)
                   return (
-                    <div
-                      key={`${item.productId}-${item.variationIndex}`}
-                      className="flex gap-3 py-3"
-                    >
-                      {/* Miniature */}
+                    <div key={`${item.productId}-${item.variationIndex}`} className="flex gap-3 py-3">
                       <div className="relative h-14 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-[#F7F5F2]">
                         {item.productImage ? (
                           <Image src={item.productImage} alt={item.productNameAr} fill sizes="48px" className="object-cover" />
                         ) : (
-                          <div className="h-full w-full flex items-center justify-center text-foreground/20 text-xs">؟</div>
+                          <div className="h-full w-full flex items-center justify-center text-foreground/20 text-xs">SHE</div>
                         )}
-                        {/* Badge quantité */}
                         <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E93D91] text-[9px] text-white font-bold">
                           {item.quantity}
                         </span>
@@ -275,21 +315,25 @@ export default function CheckoutPage() {
                         <p className="text-xs font-semibold line-clamp-2 leading-snug">{item.productNameAr}</p>
                         <p className="text-xs text-foreground/50">{item.colorAr}{item.size && item.size !== 'UNIQUE' ? ` · ${item.size}` : ''}</p>
                       </div>
-                      <p className="text-sm font-bold text-foreground flex-shrink-0">{formatPrice(price * item.quantity)}</p>
+                      <p className="text-sm font-bold flex-shrink-0">{formatPrice(price * item.quantity)}</p>
                     </div>
                   )
                 })}
               </div>
 
-              {/* Totaux */}
               <div className="mt-4 flex flex-col gap-2 text-sm border-t border-[#EBE6DF] pt-4">
                 <div className="flex justify-between">
                   <span className="text-foreground/60">{t.cart.subtotal}</span>
-                  <span>{formatPrice(total)}</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-foreground/60">{t.checkout.shippingFee}</span>
-                  <span className="text-foreground/60">يُحدد لاحقاً</span>
+                  <span className="font-semibold text-[#1A1A1A]">
+                    {formatPrice(shippingFee)}
+                    <span className="ms-1 text-xs text-foreground/40">
+                      ({form.deliveryMode === 'desk' ? 'مكتب' : 'منزل'})
+                    </span>
+                  </span>
                 </div>
                 <div className="flex justify-between text-base font-bold border-t border-[#EBE6DF] pt-2 mt-1">
                   <span>{t.cart.total}</span>
@@ -297,17 +341,14 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Bouton confirmer */}
-              <Button
-                type="submit"
-                size="lg"
-                className="mt-5 w-full"
-                loading={loading}
-              >
+              <Button type="submit" size="lg" className="mt-5 w-full hidden md:flex" loading={loading}>
                 {loading ? t.checkout.processing : t.checkout.placeOrder}
               </Button>
+
+              <p className="mt-3 text-center text-xs text-foreground/40">🔒 دفع آمن عند الاستلام</p>
             </div>
           </div>
+
         </div>
       </form>
     </div>

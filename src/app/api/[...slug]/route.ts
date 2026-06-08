@@ -2,11 +2,10 @@ import { REST_DELETE, REST_GET, REST_PATCH, REST_POST, REST_PUT } from '@payload
 import configPromise from '@payload-config'
 import type { NextRequest } from 'next/server'
 
-// Type correspondant au paramètre de la route [...payload]
-type RouteContext = { params: Promise<{ payload: string[] }> }
+// Type correspondant au paramètre de la route [...slug]
+// Payload 3.x attend explicitement le nom "slug" pour le catch-all REST API
+type RouteContext = { params: Promise<{ slug: string[] }> }
 
-// Routes REST API Payload — les handlers Payload 3.x ont un type interne générique
-// différent du nom du catch-all, d'où le cast explicite (bug connu @payloadcms/next + Next.js 16)
 const getHandler = REST_GET(configPromise)
 const postHandler = REST_POST(configPromise)
 const deleteHandler = REST_DELETE(configPromise)

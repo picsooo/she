@@ -34,6 +34,7 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Administrateur', value: 'admin' },
         { label: 'Éditeur', value: 'editor' },
+        { label: 'Confirmatrice', value: 'confirmatrice' },
       ],
       defaultValue: 'editor',
       required: true,

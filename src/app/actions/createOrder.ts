@@ -6,23 +6,77 @@ import { createOrderSchema } from '@/lib/checkout-schema'
 import { generateOrderNumber, getEffectivePrice } from '@/lib/utils'
 import { getProductById, getNextOrderSequence } from '@/lib/payload-client'
 
-// Résultat de la création de commande
 type CreateOrderResult =
   | { success: true; orderNumber: string }
   | { success: false; error: string; fieldErrors?: Record<string, string> }
 
+// Calcule les frais de livraison selon le mode et les paramètres admin
+async function getShippingFee(deliveryMode: 'home' | 'desk', payload: Awaited<ReturnType<typeof getPayload>>): Promise<number> {
+  try {
+    const settings = await payload.findGlobal({ slug: 'delivery-settings' })
+    const fee = deliveryMode === 'desk'
+      ? (settings as { defaultDeskDeliveryFee?: number }).defaultDeskDeliveryFee ?? 300
+      : (settings as { defaultHomeDeliveryFee?: number }).defaultHomeDeliveryFee ?? 400
+    return fee
+  } catch {
+    return deliveryMode === 'desk' ? 300 : 400
+  }
+}
+
+// Auto-assigne la commande à la confirmatrice avec le moins de commandes actives
+async function autoAssignConfirmatrice(payload: Awaited<ReturnType<typeof getPayload>>): Promise<string | undefined> {
+  try {
+    // Récupère tous les comptes confirmatrice
+    const confirmatrices = await payload.find({
+      collection: 'users',
+      where: { role: { equals: 'confirmatrice' } },
+      limit: 20,
+    })
+
+    if (confirmatrices.docs.length === 0) return undefined
+
+    // Compte les commandes actives (non livrées/annulées) par confirmatrice
+    const counts = await Promise.all(
+      confirmatrices.docs.map(async (u) => {
+        const { totalDocs } = await payload.find({
+          collection: 'orders',
+          where: {
+            and: [
+              { assignedTo: { equals: u.id } },
+              { status: { not_in: ['delivered', 'cancelled', 'failed'] } },
+            ],
+          },
+          limit: 0,
+        })
+        return { id: u.id as string, count: totalDocs }
+      })
+    )
+
+    // Assignation à la confirmatrice avec le moins de commandes
+    counts.sort((a, b) => a.count - b.count)
+    return counts[0]?.id
+  } catch (err) {
+    console.error('[autoAssign] Erreur:', err)
+    return undefined
+  }
+}
+
 // Server Action — crée une commande depuis le checkout
-// Validation Zod côté serveur obligatoire (jamais faire confiance au client)
 export async function createOrder(rawData: unknown): Promise<CreateOrderResult> {
-  // 1. Valider les données avec Zod
+  console.log('[createOrder] rawData reçu:', JSON.stringify(rawData, null, 2))
+
   const parsed = createOrderSchema.safeParse(rawData)
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {}
     parsed.error.errors.forEach((err) => {
-      const field = err.path.join('.')
-      fieldErrors[field] = err.message
+      const rawPath = err.path.join('.')
+      const field = rawPath.startsWith('customer.') ? rawPath.slice('customer.'.length) : rawPath
+      if (!fieldErrors[field]) fieldErrors[field] = err.message
     })
-    return { success: false, error: 'بيانات غير صحيحة', fieldErrors }
+    const errorMsg = Object.keys(fieldErrors).length > 0
+      ? Object.values(fieldErrors)[0]
+      : 'تحقق من المعلومات المدخلة'
+    return { success: false, error: errorMsg, fieldErrors }
   }
 
   const { customer, items } = parsed.data
@@ -30,7 +84,7 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
   try {
     const payload = await getPayload({ config: configPromise })
 
-    // 2. Résoudre chaque article et vérifier le stock
+    // Résoudre chaque article et vérifier le stock
     const resolvedItems: Array<{
       product: string
       productName: string
@@ -75,11 +129,19 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       })
     }
 
-    // 3. Générer le numéro de commande unique
+    // Calcul des frais de livraison selon le mode choisi
+    const deliveryMode = customer.deliveryMode ?? 'home'
+    const shippingFee = await getShippingFee(deliveryMode, payload)
+    const total = subtotal + shippingFee
+
+    // Numéro de commande unique
     const sequence = await getNextOrderSequence()
     const orderNumber = generateOrderNumber(sequence)
 
-    // 4. Créer la commande dans Payload
+    // Auto-assignation à la confirmatrice
+    const assignedTo = await autoAssignConfirmatrice(payload)
+
+    // Créer la commande
     await payload.create({
       collection: 'orders',
       data: {
@@ -92,13 +154,15 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         note: customer.note,
         items: resolvedItems,
         subtotal,
-        shippingFee: 0, // TODO: calculer selon wilaya
-        total: subtotal,
+        shippingFee,
+        total,
+        deliveryMode,
         status: 'new',
+        ...(assignedTo ? { assignedTo } : {}),
       },
     })
 
-    // 5. Créer ou mettre à jour le client (upsert sur téléphone)
+    // Upsert client
     const existingCustomer = await payload.find({
       collection: 'customers',
       where: { phone: { equals: customer.phone } },

@@ -7,19 +7,18 @@ import { t } from './translations'
 export const checkoutSchema = z.object({
   customerName: z
     .string()
+    .trim()
     .min(3, t.validation.nameMin)
     .max(100),
 
-  phone: z
-    .string()
-    .regex(/^0[567]\d{8}$/, t.validation.phoneInvalid)
-    .transform((val) => val.replace(/\s/g, '')),
+  // Nettoie espaces/tirets avant validation — accepte 05/06/07/08/09
+  phone: z.preprocess(
+    (val) => (typeof val === 'string' ? val.replace(/[\s\-\.]/g, '') : val),
+    z.string().regex(/^0[5-9]\d{8}$/, t.validation.phoneInvalid)
+  ),
 
-  wilayaCode: z
-    .string()
-    .min(2)
-    .max(2)
-    .regex(/^\d{2}$/),
+  // wilayaCode : "01" à "58" — accepter strings et nombres
+  wilayaCode: z.coerce.string().min(1).max(3),
 
   wilayaName: z.string().min(1, t.validation.required),
 
@@ -27,19 +26,23 @@ export const checkoutSchema = z.object({
 
   address: z
     .string()
-    .min(10, t.validation.addressMin)
+    .trim()
+    .min(3, t.validation.addressMin)
     .max(500),
 
   note: z.string().max(500).optional(),
+
+  // Mode de livraison — home = domicile, desk = bureau Yalidine
+  deliveryMode: z.enum(['home', 'desk']).default('home'),
 })
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
 
-// Schéma d'un article de commande (validé côté serveur)
+// Schéma d'un article — productId peut être string ou number (SQLite retourne des nombres)
 export const orderItemSchema = z.object({
-  productId: z.string().min(1),
-  variationIndex: z.number().int().min(0),
-  quantity: z.number().int().min(1).max(99),
+  productId: z.union([z.string(), z.number()]).transform(String),
+  variationIndex: z.coerce.number().int().min(0),
+  quantity: z.coerce.number().int().min(1).max(99),
 })
 
 export const createOrderSchema = z.object({
