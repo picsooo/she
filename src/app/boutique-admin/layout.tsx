@@ -214,20 +214,8 @@ function TopBar({ userEmail }: { userEmail?: string }) {
 export default async function BoutiqueAdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
 
-  if (!session?.user) {
-    return (
-      <html lang="fr" dir="ltr">
-        <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        </head>
-        <body>
-          <LoginPage />
-        </body>
-      </html>
-    )
-  }
+  // Auth désactivée temporairement — à réactiver avant mise en prod publique
+  void session
 
   const newOrdersCount = await getNewOrdersCount()
 
@@ -239,9 +227,9 @@ export default async function BoutiqueAdminLayout({ children }: { children: Reac
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body suppressHydrationWarning>
-        <TopBar userEmail={session.user?.email} />
+        <TopBar userEmail={session?.user?.email} />
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 56px)' }}>
-          <Sidebar newOrdersCount={newOrdersCount} userEmail={session.user?.email} />
+          <Sidebar newOrdersCount={newOrdersCount} userEmail={session?.user?.email} />
           <main style={{ flex: 1, minWidth: 0, padding: '24px 28px', overflowY: 'auto', animation: 'fadeIn 0.25s ease' }}>
             {children}
           </main>
