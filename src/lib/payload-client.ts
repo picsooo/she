@@ -22,9 +22,10 @@ export async function getProducts(options?: {
   const payload = await getPayloadClient()
 
   // Utiliser le where personnalisé s'il est fourni, sinon construire le filtre standard
+  // Note: pour les champs relation (category), utiliser "in" et non "contains"
   const where: Where = options?.where ?? {
     status: { equals: options?.status ?? 'published' },
-    ...(options?.category ? { category: { contains: options.category } } : {}),
+    ...(options?.category ? { category: { in: [options.category] } } : {}),
   }
 
   return payload.find({

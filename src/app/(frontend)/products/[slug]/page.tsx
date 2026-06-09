@@ -104,14 +104,21 @@ export default async function ProductPage({ params }: PageProps) {
   let freeGiftProduct = null
   if (isBurkini) {
     try {
+      // Chercher le chapeau précisément — "cap" exclut volontairement car
+      // il matche "Burkini Cap Horizon" qui n'est pas un chapeau
       const hatResult = await getProducts({
         where: {
-          or: [
-            { nameAr: { contains: 'شابو' } },
-            { nameFr: { contains: 'chapeau' } },
-            { nameFr: { contains: 'cap' } },
+          and: [
+            {
+              or: [
+                { nameAr: { contains: 'شابو' } },
+                { nameFr: { contains: 'Chapeau' } },
+                { nameFr: { contains: 'chapeau' } },
+                { nameFr: { equals: 'hat' } },
+              ],
+            },
+            { status: { equals: 'published' } },
           ],
-          status: { equals: 'published' },
         },
         limit: 1,
       }).catch(() => ({ docs: [] }))
