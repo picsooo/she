@@ -85,7 +85,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
     setLoading(true); setResult(null)
     let ok = 0
     for (const id of selectedIds) {
-      const r = await fetch(`/api/products/${id}`, {
+      const r = await fetch(`/api/boutique-admin/products/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: bulkStatus }),
       })
@@ -104,7 +104,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
     let ok = 0
     for (const id of selectedIds) {
       // charger le produit complet pour avoir les variations
-      const prod = await fetch(`/api/products/${id}?depth=0`).then(r => r.json())
+      const prod = await fetch(`/api/boutique-admin/products/${id}?depth=0`).then(r => r.json())
       const variations: Variation[] = prod.variations ?? []
       const updated = variations.map(v => {
         const base = { ...v }
@@ -121,7 +121,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
         }
         return base
       })
-      const r = await fetch(`/api/products/${id}`, {
+      const r = await fetch(`/api/boutique-admin/products/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ variations: updated }),
       })
@@ -137,7 +137,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
     setLoading(true); setResult(null)
     let ok = 0
     for (const id of selectedIds) {
-      const prod = await fetch(`/api/products/${id}?depth=0`).then(r => r.json())
+      const prod = await fetch(`/api/boutique-admin/products/${id}?depth=0`).then(r => r.json())
       const variations: Variation[] = prod.variations ?? []
       const updated = variations.map(v => {
         const base = { ...v }
@@ -147,7 +147,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
         base.inStock = (base.stock ?? 0) > 0
         return base
       })
-      const r = await fetch(`/api/products/${id}`, {
+      const r = await fetch(`/api/boutique-admin/products/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ variations: updated }),
       })
@@ -162,7 +162,7 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
     setLoading(true); setResult(null)
     let ok = 0
     for (const id of selectedIds) {
-      const r = await fetch(`/api/products/${id}`, { method: 'DELETE' })
+      const r = await fetch(`/api/boutique-admin/products/${id}`, { method: 'DELETE' })
       if (r.ok) ok++
     }
     setResult(`✅ ${ok} produit(s) supprimé(s)`)
@@ -360,7 +360,7 @@ export default function ProductsPage() {
   const perPage = 15
 
   useEffect(() => {
-    fetch('/api/categories?limit=100&sort=nameAr&depth=0')
+    fetch('/api/boutique-admin/categories?limit=100&sort=nameAr&depth=0')
       .then(r => r.json()).then(d => setCategories(d.docs ?? [])).catch(() => {})
   }, [])
 
@@ -372,7 +372,7 @@ export default function ProductsPage() {
       if (categoryFilter) where.category = { equals: categoryFilter }
       if (search) where.or = [{ nameAr: { like: search } }, { nameFr: { like: search } }, { sku: { like: search } }]
       const params = new URLSearchParams({ limit: String(perPage), page: String(page), sort: sortBy, depth: '2', where: JSON.stringify(where) })
-      const data = await fetch('/api/products?' + params).then(r => r.json())
+      const data = await fetch('/api/boutique-admin/products?' + params).then(r => r.json())
       setProducts(data.docs ?? [])
       setTotal(data.totalDocs ?? 0)
     } finally { setLoading(false) }
@@ -383,13 +383,13 @@ export default function ProductsPage() {
   async function deleteProduct(id: string) {
     if (!confirm('Supprimer ce produit définitivement ?')) return
     setDeletingId(id)
-    await fetch(`/api/products/${id}`, { method: 'DELETE' })
+    await fetch(`/api/boutique-admin/products/${id}`, { method: 'DELETE' })
     setDeletingId(null)
     loadProducts()
   }
 
   async function updateStatus(id: string, status: string) {
-    await fetch(`/api/products/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    await fetch(`/api/boutique-admin/products/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
     loadProducts()
   }
 

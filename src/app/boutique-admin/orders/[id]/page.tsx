@@ -69,7 +69,7 @@ export default function OrderDetailPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/orders/${id}?depth=2`)
+      const res = await fetch(`/api/boutique-admin/orders/${id}?depth=2`)
       if (res.status === 404) { setNotFound(true); return }
       setOrder(await res.json())
     } catch { setNotFound(true) }
@@ -167,7 +167,7 @@ export default function OrderDetailPage() {
         })),
       }
 
-      const res = await fetch(`/api/orders/${order.id}`, {
+      const res = await fetch(`/api/boutique-admin/orders/${order.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -187,7 +187,7 @@ export default function OrderDetailPage() {
     if (!order) return
     setUpdating(true)
     try {
-      const res = await fetch(`/api/orders/${order.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+      const res = await fetch(`/api/boutique-admin/orders/${order.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
       if (!res.ok) throw new Error()
       await load(); showToast('Statut mis à jour ✓')
     } catch { showToast('Erreur lors de la mise à jour', false) }

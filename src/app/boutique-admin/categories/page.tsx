@@ -12,7 +12,7 @@ export default function CategoriesPage() {
 
   async function load() {
     setLoading(true)
-    const data = await fetch('/api/categories?limit=100&sort=nameAr&depth=1').then(r => r.json())
+    const data = await fetch('/api/boutique-admin/categories?limit=100&sort=nameAr&depth=1').then(r => r.json())
     setCats(data.docs ?? [])
     setLoading(false)
   }

@@ -150,8 +150,8 @@ export default function AnalyticsPage() {
     setLoading(true)
     try {
       const from = getFrom(period)
-      let url = '/api/orders?limit=1000&depth=2&sort=-createdAt'
-      if (from) url += `&where[createdAt][greater_than]=${from.toISOString()}`
+      const whereObj = from ? { createdAt: { greater_than: from.toISOString() } } : {}
+      const url = `/api/boutique-admin/orders?limit=1000&depth=2&sort=-createdAt&where=${encodeURIComponent(JSON.stringify(whereObj))}`
       const data = await fetch(url).then(r => r.json())
       setOrders(data.docs ?? [])
     } catch { setOrders([]) }

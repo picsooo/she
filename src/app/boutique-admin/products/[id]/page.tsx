@@ -14,7 +14,7 @@ export default function EditProductPage() {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/products/${id}?depth=2`)
+    fetch(`/api/boutique-admin/products/${id}?depth=2`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => setProduct(data))
       .catch(err => { if (err === 404) setNotFound(true) })

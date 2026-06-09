@@ -75,7 +75,7 @@ export default function OrdersPage() {
         { wilaya: { like: search } },
       ]
       const params = new URLSearchParams({ limit: String(perPage), page: String(page), sort: '-createdAt', depth: '1', where: JSON.stringify(where) })
-      const data = await fetch('/api/orders?' + params).then(r => r.json())
+      const data = await fetch('/api/boutique-admin/orders?' + params).then(r => r.json())
       setOrders(data.docs ?? [])
       setTotal(data.totalDocs ?? 0)
     } finally { setLoading(false) }
@@ -86,14 +86,14 @@ export default function OrdersPage() {
   useEffect(() => {
     Promise.all(
       ['new','confirmed','shipping','delivered','cancelled'].map(s =>
-        fetch(`/api/orders?limit=0&depth=0&where[status][equals]=${s}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
+        fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: s } }))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
       )
     ).then(results => setCounts(Object.fromEntries(results)))
   }, [orders])
 
   async function changeStatus(id: string, status: string) {
     setUpdating(id)
-    await fetch(`/api/orders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    await fetch(`/api/boutique-admin/orders/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
     await load()
     setUpdating(null)
   }

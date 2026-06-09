@@ -35,7 +35,7 @@ async function fetchCountForConf(status: string, dateFrom: string | null, assign
   if (dateFrom) where.updatedAt = { greater_than: dateFrom }
   if (assignedTo) where.assignedTo = { equals: assignedTo }
   const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
-  const res = await fetch('/api/orders?' + params)
+  const res = await fetch('/api/boutique-admin/orders?' + params)
   const data = await res.json()
   return data.totalDocs ?? 0
 }
@@ -45,7 +45,7 @@ async function fetchRevenueForConf(dateFrom: string | null, assignedTo?: string)
   if (dateFrom) where.updatedAt = { greater_than: dateFrom }
   if (assignedTo) where.assignedTo = { equals: assignedTo }
   const params = new URLSearchParams({ limit: '500', depth: '0', where: JSON.stringify(where) })
-  const res = await fetch('/api/orders?' + params)
+  const res = await fetch('/api/boutique-admin/orders?' + params)
   const data = await res.json()
   return (data.docs ?? []).reduce((s: number, o: { total?: number }) => s + (o.total ?? 0), 0)
 }
@@ -65,7 +65,7 @@ function ConfirmatriceDashboard({ user }: { user: UserMe }) {
     setLoading(true)
     if (isAdmin) {
       // Admin : charger toutes les confirmatrices
-      fetch('/api/users?where[role][equals]=confirmatrice&limit=20&depth=0')
+      fetch('/api/boutique-admin/users?where[role][equals]=confirmatrice&limit=20&depth=0')
         .then(r => r.json())
         .then(async (data) => {
           const users: Array<{ id: string; email: string; firstName?: string; lastName?: string }> = data.docs ?? []
@@ -472,7 +472,7 @@ function YalidineStats() {
         if (!isEnabled) { setLoading(false); return }
 
         // Charger les commandes avec un tracking Yalidine
-        const ordersRes = await fetch('/api/orders?limit=0&depth=0&where[yalidineTrackingId][exists]=true')
+        const ordersRes = await fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ yalidineTrackingId: { exists: true } }))}`)
         const data = await ordersRes.json()
 
         // Ventiler par statut
@@ -602,8 +602,8 @@ function AdminDashboard() {
       const limit = Math.min(days * 10, 500)
 
       const [ordersRes, newOrdersRes] = await Promise.all([
-        fetch(`/api/orders?limit=${limit}&sort=-createdAt&depth=1&where[status][not_equals]=cancelled&where[createdAt][greater_than]=${from.toISOString()}`).then(r => r.json()),
-        fetch('/api/orders?limit=0&depth=0&where[status][equals]=new').then(r => r.json()),
+        fetch(`/api/boutique-admin/orders?limit=${limit}&sort=-createdAt&depth=1&where=${encodeURIComponent(JSON.stringify({ status: { not_equals: 'cancelled' }, createdAt: { greater_than: from.toISOString() } }))}`).then(r => r.json()),
+        fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'new' } }))}`).then(r => r.json()),
       ])
 
       const orders: Order[] = ordersRes.docs ?? []
