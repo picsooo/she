@@ -31,12 +31,15 @@ html[dir="ltr"] * {
 
 /* ── Typo ── */
 body,
-button,
 input,
 select,
 textarea {
   font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
   color: #1A1A1A !important;
+}
+/* Les boutons héritent de la typo mais PAS de la couleur (pour ne pas écraser les inline styles) */
+button {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
 /* ── Scrollbar ── */
