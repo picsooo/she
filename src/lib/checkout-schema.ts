@@ -46,6 +46,8 @@ export const orderItemSchema = z.object({
   productId: z.union([z.string(), z.number()]).transform(String),
   variationIndex: z.coerce.number().int().min(0),
   quantity: z.coerce.number().int().min(1).max(99),
+  // isFreeGift : true pour les cadeaux offerts (chapeau avec burkini) — prix forcé à 0
+  isFreeGift: z.boolean().optional().default(false),
 })
 
 export const createOrderSchema = z.object({

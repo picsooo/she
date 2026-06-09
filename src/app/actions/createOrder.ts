@@ -117,7 +117,10 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         return { success: false, error: `تشكيلة غير متوفرة للمنتج: ${product.nameAr}` }
       }
 
-      const unitPrice = getEffectivePrice(variation.regularPrice ?? 0, variation.salePrice)
+      // Les cadeaux offerts (isFreeGift) ont prix 0 — ne pas recalculer depuis la BDD
+      const unitPrice = orderItem.isFreeGift
+        ? 0
+        : getEffectivePrice(variation.regularPrice ?? 0, variation.salePrice)
 
       // Les articles offerts (prix 0) ne sont pas soumis au contrôle de stock
       if (!variation.inStock && unitPrice > 0) {

@@ -104,6 +104,8 @@ export default function CheckoutPage() {
         productId: item.productId,
         variationIndex: item.variationIndex,
         quantity: item.quantity,
+        // Articles à prix 0 = cadeaux offerts (ex: chapeau avec burkini)
+        isFreeGift: item.regularPrice === 0,
       })),
     })
 
