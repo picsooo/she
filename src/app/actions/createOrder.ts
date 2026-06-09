@@ -117,14 +117,15 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         return { success: false, error: `تشكيلة غير متوفرة للمنتج: ${product.nameAr}` }
       }
 
-      if (!variation.inStock) {
+      const unitPrice = getEffectivePrice(variation.regularPrice ?? 0, variation.salePrice)
+
+      // Les articles offerts (prix 0) ne sont pas soumis au contrôle de stock
+      if (!variation.inStock && unitPrice > 0) {
         return {
           success: false,
           error: `المنتج "${product.nameAr}" (${variation.colorAr ?? ''} - ${variation.size ?? ''}) غير متوفر`,
         }
       }
-
-      const unitPrice = getEffectivePrice(variation.regularPrice ?? 0, variation.salePrice)
       subtotal += unitPrice * orderItem.quantity
 
       resolvedItems.push({

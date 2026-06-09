@@ -125,7 +125,11 @@ export default async function ProductPage({ params }: PageProps) {
 
       const hatProduct = hatResult.docs[0] as Product | undefined
       if (hatProduct && hatProduct.variations && hatProduct.variations.length > 0) {
-        const firstVar = hatProduct.variations[0]
+        // Préférer une variation en stock ; sinon prendre la première disponible
+        const allVars = hatProduct.variations
+        const inStockIdx = allVars.findIndex((v) => v.inStock)
+        const chosenIdx = inStockIdx >= 0 ? inStockIdx : 0
+        const chosenVar = allVars[chosenIdx]
         const hatImage = hatProduct.images?.[0]?.image
         freeGiftProduct = {
           productId: String(hatProduct.id),
@@ -136,9 +140,9 @@ export default async function ProductPage({ params }: PageProps) {
               ? (hatImage as Media & { url?: string }).url ?? null
               : null
           ),
-          variationIndex: 0,
-          colorAr: firstVar.colorAr ?? '',
-          size: firstVar.size ?? '',
+          variationIndex: chosenIdx,
+          colorAr: chosenVar.colorAr ?? '',
+          size: chosenVar.size ?? '',
         }
       }
     } catch {
