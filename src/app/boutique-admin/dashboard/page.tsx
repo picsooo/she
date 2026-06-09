@@ -3,6 +3,285 @@ import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
+interface UserMe {
+  id: string; email: string; role?: string; firstName?: string; lastName?: string
+}
+
+interface ConfStats {
+  confirmed: number; delivered: number; cancelled: number; total: number; revenue: number
+}
+
+const FMT_DA = (n: number) => new Intl.NumberFormat('fr-DZ').format(n) + ' DA'
+
+const DATE_PRESETS_CONF = [
+  { label: "Auj.", value: 'today' },
+  { label: '7j',  value: '7d' },
+  { label: '30j', value: '30d' },
+  { label: 'Mois', value: 'month' },
+  { label: 'Tout', value: '' },
+]
+
+function getDateFromConf(preset: string): string | null {
+  const now = new Date()
+  if (preset === 'today') { const d = new Date(now); d.setHours(0,0,0,0); return d.toISOString() }
+  if (preset === '7d')   return new Date(now.getTime() - 7  * 86400000).toISOString()
+  if (preset === '30d')  return new Date(now.getTime() - 30 * 86400000).toISOString()
+  if (preset === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  return null
+}
+
+async function fetchCountForConf(status: string, dateFrom: string | null, assignedTo?: string): Promise<number> {
+  const where: Record<string, unknown> = { status: { equals: status } }
+  if (dateFrom) where.updatedAt = { greater_than: dateFrom }
+  if (assignedTo) where.assignedTo = { equals: assignedTo }
+  const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
+  const res = await fetch('/api/orders?' + params)
+  const data = await res.json()
+  return data.totalDocs ?? 0
+}
+
+async function fetchRevenueForConf(dateFrom: string | null, assignedTo?: string): Promise<number> {
+  const where: Record<string, unknown> = { status: { equals: 'delivered' } }
+  if (dateFrom) where.updatedAt = { greater_than: dateFrom }
+  if (assignedTo) where.assignedTo = { equals: assignedTo }
+  const params = new URLSearchParams({ limit: '500', depth: '0', where: JSON.stringify(where) })
+  const res = await fetch('/api/orders?' + params)
+  const data = await res.json()
+  return (data.docs ?? []).reduce((s: number, o: { total?: number }) => s + (o.total ?? 0), 0)
+}
+
+// ── Dashboard Confirmatrice ────────────────────────────────────────────────────
+function ConfirmatriceDashboard({ user }: { user: UserMe }) {
+  const [datePreset, setDatePreset] = useState('30d')
+  const [stats, setStats] = useState<ConfStats>({ confirmed: 0, delivered: 0, cancelled: 0, total: 0, revenue: 0 })
+  const [loading, setLoading] = useState(true)
+  const [adminStats, setAdminStats] = useState<Array<{ id: string; name: string; email: string } & ConfStats>>([])
+
+  const isAdmin = user.role === 'admin' || user.role === 'editor'
+  const dateFrom = getDateFromConf(datePreset)
+  const displayName = user.firstName ?? user.email?.split('@')[0] ?? 'Admin'
+
+  useEffect(() => {
+    setLoading(true)
+    if (isAdmin) {
+      // Admin : charger toutes les confirmatrices
+      fetch('/api/users?where[role][equals]=confirmatrice&limit=20&depth=0')
+        .then(r => r.json())
+        .then(async (data) => {
+          const users: Array<{ id: string; email: string; firstName?: string; lastName?: string }> = data.docs ?? []
+          const results = await Promise.all(users.map(async u => {
+            const [confirmed, delivered, cancelled, revenue] = await Promise.all([
+              fetchCountForConf('confirmed', dateFrom, u.id),
+              fetchCountForConf('delivered', dateFrom, u.id),
+              fetchCountForConf('cancelled', dateFrom, u.id),
+              fetchRevenueForConf(dateFrom, u.id),
+            ])
+            const where: Record<string, unknown> = { assignedTo: { equals: u.id } }
+            if (dateFrom) where.createdAt = { greater_than: dateFrom }
+            const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
+            const totalRes = await fetch('/api/orders?' + params).then(r => r.json())
+            const total = totalRes.totalDocs ?? 0
+            const name = u.firstName ? `${u.firstName}${u.lastName ? ' ' + u.lastName : ''}` : u.email.split('@')[0]
+            return { id: u.id, name, email: u.email, confirmed, delivered, cancelled, total, revenue }
+          }))
+          setAdminStats(results)
+          setLoading(false)
+        })
+    } else {
+      // Confirmatrice : ses propres stats
+      Promise.all([
+        fetchCountForConf('confirmed', dateFrom, user.id),
+        fetchCountForConf('delivered', dateFrom, user.id),
+        fetchCountForConf('cancelled', dateFrom, user.id),
+        (async () => {
+          const where: Record<string, unknown> = { assignedTo: { equals: user.id } }
+          if (dateFrom) where.createdAt = { greater_than: dateFrom }
+          const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
+          return fetch('/api/orders?' + params).then(r => r.json()).then(d => d.totalDocs ?? 0)
+        })(),
+        fetchRevenueForConf(dateFrom, user.id),
+      ]).then(([confirmed, delivered, cancelled, total, revenue]) => {
+        setStats({ confirmed, delivered, cancelled, total, revenue })
+        setLoading(false)
+      })
+    }
+  }, [user.id, isAdmin, dateFrom])
+
+  const deliveryRate = stats.total > 0 ? Math.round((stats.delivered / stats.total) * 100) : 0
+
+  return (
+    <div style={{ maxWidth: 900, animation: 'fadeIn 0.3s ease' }}>
+      {/* Titre */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1A1A1A', margin: 0 }}>
+            {isAdmin ? 'Suivi confirmatrices' : `Bonjour, ${displayName} 👋`}
+          </h1>
+          <p style={{ color: '#9A9A9A', fontSize: 13, marginTop: 4 }}>
+            {isAdmin ? 'Performance par confirmatrice' : 'Vos statistiques de confirmation'}
+          </p>
+        </div>
+        {/* Filtre période */}
+        <div style={{ display: 'flex', gap: 4, background: '#F5F5F5', borderRadius: 8, padding: 3 }}>
+          {DATE_PRESETS_CONF.map(p => (
+            <button key={p.value} onClick={() => setDatePreset(p.value)} style={{
+              padding: '6px 12px', borderRadius: 6, fontSize: 12,
+              fontWeight: datePreset === p.value ? 700 : 400,
+              background: datePreset === p.value ? '#fff' : 'transparent',
+              color: datePreset === p.value ? '#1A1A1A' : '#6D7175',
+              border: 'none', cursor: 'pointer',
+              boxShadow: datePreset === p.value ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              whiteSpace: 'nowrap',
+            }}>{p.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#9A9A9A' }}>
+          <div style={{ width: 32, height: 32, border: '3px solid #E3E5E7', borderTopColor: '#E93D91', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block', marginBottom: 12 }} />
+          <div>Chargement des statistiques…</div>
+        </div>
+      ) : isAdmin ? (
+        // ── Vue Admin : tableau par confirmatrice ──
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {adminStats.length === 0 ? (
+            <div className="admin-card" style={{ padding: '40px', textAlign: 'center', color: '#9A9A9A' }}>
+              <div style={{ fontSize: 36, marginBottom: 12 }}>👥</div>
+              <div style={{ fontWeight: 600 }}>Aucune confirmatrice configurée</div>
+              <div style={{ fontSize: 12, marginTop: 6 }}>Créez les comptes via <code>/api/admin/setup-confirmatrices</code></div>
+            </div>
+          ) : adminStats.map(c => {
+            const rate = c.total > 0 ? Math.round((c.delivered / c.total) * 100) : 0
+            return (
+              <div key={c.id} className="admin-card" style={{ padding: '18px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  {/* Avatar */}
+                  <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #E93D91, #CEA060)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 800, flexShrink: 0 }}>
+                    {c.name[0]?.toUpperCase()}
+                  </div>
+                  {/* Nom */}
+                  <div style={{ minWidth: 120, flexShrink: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{c.name}</div>
+                    <div style={{ fontSize: 11, color: '#9A9A9A' }}>{c.email}</div>
+                  </div>
+                  {/* Métriques */}
+                  <div style={{ flex: 1, display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {[
+                      { label: 'Assignées', value: c.total,     color: '#6D7175' },
+                      { label: 'Confirmées', value: c.confirmed, color: '#065F46' },
+                      { label: 'Livrées',    value: c.delivered, color: '#1D4ED8' },
+                      { label: 'Annulées',   value: c.cancelled, color: '#991B1B' },
+                    ].map(m => (
+                      <div key={m.label} style={{ minWidth: 55 }}>
+                        <div style={{ fontSize: 11, color: '#9A9A9A' }}>{m.label}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: m.color }}>{m.value}</div>
+                      </div>
+                    ))}
+                    <div style={{ minWidth: 110 }}>
+                      <div style={{ fontSize: 11, color: '#9A9A9A' }}>CA livré</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#9F6F3B' }}>{FMT_DA(c.revenue)}</div>
+                    </div>
+                  </div>
+                  {/* Taux */}
+                  <div style={{ textAlign: 'center', minWidth: 80, flexShrink: 0 }}>
+                    <div style={{ fontSize: 26, fontWeight: 800, color: rate >= 70 ? '#065F46' : rate >= 40 ? '#B45309' : '#991B1B' }}>
+                      {rate}%
+                    </div>
+                    <div style={{ fontSize: 9, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Livraison</div>
+                    <div style={{ marginTop: 5, height: 4, background: '#F1F1F1', borderRadius: 10, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${rate}%`, background: rate >= 70 ? '#10B981' : rate >= 40 ? '#F59E0B' : '#EF4444', borderRadius: 10 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+          {/* Totaux */}
+          {adminStats.length > 0 && (() => {
+            const tot = adminStats.reduce((acc, c) => ({
+              total: acc.total + c.total, confirmed: acc.confirmed + c.confirmed,
+              delivered: acc.delivered + c.delivered, cancelled: acc.cancelled + c.cancelled,
+              revenue: acc.revenue + c.revenue,
+            }), { total: 0, confirmed: 0, delivered: 0, cancelled: 0, revenue: 0 })
+            const totalRate = tot.total > 0 ? Math.round((tot.delivered / tot.total) * 100) : 0
+            return (
+              <div style={{ background: '#1A1A1A', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 180 }}>
+                  TOTAL ({adminStats.length} confirmatrices)
+                </div>
+                {[
+                  { label: 'Assignées',  value: tot.total,     color: '#E0E0E0' },
+                  { label: 'Confirmées', value: tot.confirmed, color: '#34D399' },
+                  { label: 'Livrées',    value: tot.delivered, color: '#60A5FA' },
+                  { label: 'Annulées',   value: tot.cancelled, color: '#F87171' },
+                ].map(m => (
+                  <div key={m.label} style={{ minWidth: 55 }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{m.label}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: m.color }}>{m.value}</div>
+                  </div>
+                ))}
+                <div style={{ minWidth: 110 }}>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>CA livré total</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#FCD34D' }}>{FMT_DA(tot.revenue)}</div>
+                </div>
+                <div style={{ marginLeft: 'auto', textAlign: 'center' }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, color: totalRate >= 70 ? '#34D399' : totalRate >= 40 ? '#FCD34D' : '#F87171' }}>{totalRate}%</div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase' }}>Global</div>
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+      ) : (
+        // ── Vue Confirmatrice : ses propres stats ──
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 24 }}>
+            {[
+              { icon: '📋', label: 'Assignées',  value: stats.total,     color: '#4A3DBC', bg: '#EFF0FF' },
+              { icon: '✅', label: 'Confirmées', value: stats.confirmed, color: '#065F46', bg: '#D1FAE5' },
+              { icon: '🚚', label: 'Livrées',    value: stats.delivered, color: '#1D4ED8', bg: '#DBEAFE' },
+              { icon: '❌', label: 'Annulées',   value: stats.cancelled, color: '#991B1B', bg: '#FEE2E2' },
+            ].map(s => (
+              <div key={s.label} className="admin-card" style={{ padding: '18px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: s.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{s.icon}</div>
+                  <span style={{ fontSize: 11, color: '#9A9A9A', fontWeight: 600 }}>{s.label}</span>
+                </div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+            <div className="admin-card" style={{ padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: '#FEF9F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>💰</div>
+                <span style={{ fontSize: 11, color: '#9A9A9A', fontWeight: 600 }}>CA livré</span>
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#9F6F3B' }}>{FMT_DA(stats.revenue)}</div>
+            </div>
+          </div>
+          {/* Taux de livraison */}
+          <div className="admin-card" style={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1A1A1A', marginBottom: 12 }}>Taux de livraison</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 40, fontWeight: 900, color: deliveryRate >= 70 ? '#065F46' : deliveryRate >= 40 ? '#B45309' : '#991B1B' }}>
+                {deliveryRate}%
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ height: 10, background: '#F1F1F1', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${deliveryRate}%`, background: deliveryRate >= 70 ? '#10B981' : deliveryRate >= 40 ? '#F59E0B' : '#EF4444', borderRadius: 10, transition: 'width 0.8s ease' }} />
+                </div>
+                <div style={{ fontSize: 12, color: '#9A9A9A', marginTop: 6 }}>
+                  {stats.delivered} livrées sur {stats.total} assignées
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface Order {
   id: string; orderNumber: string; customerName: string
   wilaya: string; total: number; status: string; createdAt: string
@@ -305,8 +584,8 @@ function YalidineStats() {
   )
 }
 
-// ── Dashboard ──────────────────────────────────────────────────────────────────
-export default function Dashboard() {
+// ── Dashboard Admin (complet) ─────────────────────────────────────────────────
+function AdminDashboard() {
   const [period,        setPeriod]        = useState<Period>('7d')
   const [showMenu,      setShowMenu]      = useState(false)
   const [chartMode,     setChartMode]     = useState<'revenue' | 'orders'>('revenue')
@@ -537,5 +816,40 @@ export default function Dashboard() {
       {/* Section Yalidine — indépendante du reste, se charge seule */}
       <YalidineStats />
     </div>
+  )
+}
+
+// ── Point d'entrée — détecte le rôle et rend le bon dashboard ─────────────────
+export default function Dashboard() {
+  const [currentUser, setCurrentUser] = useState<UserMe | null | 'loading'>('loading')
+
+  useEffect(() => {
+    fetch('/api/users/me', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => setCurrentUser(d.user ?? null))
+      .catch(() => setCurrentUser(null))
+  }, [])
+
+  if (currentUser === 'loading') {
+    return <div style={{ textAlign: 'center', padding: '80px 0', color: '#9A9A9A' }}>Chargement…</div>
+  }
+
+  // Confirmatrice → ses stats de confirmation
+  if (currentUser?.role === 'confirmatrice') {
+    return <ConfirmatriceDashboard user={currentUser} />
+  }
+
+  // Admin/éditeur → dashboard complet + section confirmatrices
+  return (
+    <>
+      <AdminDashboard />
+      {/* Section confirmatrices pour l'admin — accessible en bas du dashboard */}
+      {currentUser && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ height: 1, background: '#E3E5E7', marginBottom: 24 }} />
+          <ConfirmatriceDashboard user={currentUser} />
+        </div>
+      )}
+    </>
   )
 }

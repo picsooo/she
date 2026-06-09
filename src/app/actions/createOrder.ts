@@ -24,38 +24,46 @@ async function getShippingFee(deliveryMode: 'home' | 'desk', payload: Awaited<Re
   }
 }
 
-// Auto-assigne la commande à la confirmatrice avec le moins de commandes actives
+// Auto-assigne la commande en round-robin strict :
+// chaque nouvelle commande va à la confirmatrice suivante dans la liste ordonnée.
+// Logique : on regarde la dernière commande assignée et on prend la suivante.
 async function autoAssignConfirmatrice(payload: Awaited<ReturnType<typeof getPayload>>): Promise<string | undefined> {
   try {
-    // Récupère tous les comptes confirmatrice
-    const confirmatrices = await payload.find({
+    // Récupère les confirmatrices triées par email (ordre stable)
+    const { docs: confirmatrices } = await payload.find({
       collection: 'users',
       where: { role: { equals: 'confirmatrice' } },
+      sort: 'email',
       limit: 20,
     })
 
-    if (confirmatrices.docs.length === 0) return undefined
+    if (confirmatrices.length === 0) return undefined
+    if (confirmatrices.length === 1) return confirmatrices[0].id as string
 
-    // Compte les commandes actives (non livrées/annulées) par confirmatrice
-    const counts = await Promise.all(
-      confirmatrices.docs.map(async (u) => {
-        const { totalDocs } = await payload.find({
-          collection: 'orders',
-          where: {
-            and: [
-              { assignedTo: { equals: u.id } },
-              { status: { not_in: ['delivered', 'cancelled', 'failed'] } },
-            ],
-          },
-          limit: 0,
-        })
-        return { id: u.id as string, count: totalDocs }
-      })
-    )
+    // Trouve la dernière commande qui a une confirmatrice assignée
+    const { docs: lastOrders } = await payload.find({
+      collection: 'orders',
+      where: { assignedTo: { exists: true } },
+      sort: '-createdAt',
+      limit: 1,
+      depth: 0,
+    })
 
-    // Assignation à la confirmatrice avec le moins de commandes
-    counts.sort((a, b) => a.count - b.count)
-    return counts[0]?.id
+    if (lastOrders.length === 0) {
+      // Première commande → confirmatrice 0
+      return confirmatrices[0].id as string
+    }
+
+    const lastAssignedId = typeof lastOrders[0].assignedTo === 'object'
+      ? (lastOrders[0].assignedTo as { id: string }).id
+      : String(lastOrders[0].assignedTo)
+
+    const confirmatriceIds = confirmatrices.map(u => String(u.id))
+    const lastIdx = confirmatriceIds.indexOf(lastAssignedId)
+
+    // Passe à la suivante (round-robin)
+    const nextIdx = lastIdx === -1 ? 0 : (lastIdx + 1) % confirmatrices.length
+    return confirmatrices[nextIdx].id as string
   } catch (err) {
     console.error('[autoAssign] Erreur:', err)
     return undefined
