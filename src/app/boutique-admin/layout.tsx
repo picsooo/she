@@ -195,8 +195,26 @@ function TopBar({ user }: { user: SessionUser }) {
         <button style={{ width: 34, height: 34, borderRadius: 6, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {Icons.bell}
         </button>
-        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #E93D91, #CEA060)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700, border: '2px solid rgba(255,255,255,0.2)' }}>
-          {displayName[0]?.toUpperCase() ?? 'A'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '4px 10px 4px 6px' }}>
+          <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #E93D91, #CEA060)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}>
+            {displayName[0]?.toUpperCase() ?? 'A'}
+          </div>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {displayName}
+          </span>
+          {/* Bouton déconnexion visible */}
+          <form action="/api/users/logout" method="POST" style={{ margin: 0 }}>
+            <button type="submit" title="Se déconnecter" style={{
+              background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
+              color: '#FCA5A5', borderRadius: 6, padding: '4px 8px',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'all 0.15s',
+            }}>
+              {Icons.logout}
+              <span>Déco</span>
+            </button>
+          </form>
         </div>
       </div>
     </header>
