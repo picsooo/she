@@ -48,9 +48,9 @@ function ModeBtn({ active, onClick, icon, label }: { active: boolean; onClick: (
   return (
     <button onClick={onClick} style={{
       flex: 1, padding: '10px 8px', borderRadius: 10,
-      background: active ? 'rgba(233,61,145,0.2)' : 'transparent',
-      border: active ? '1px solid rgba(233,61,145,0.4)' : '1px solid transparent',
-      color: active ? '#F472B6' : 'rgba(255,255,255,0.4)',
+      background: active ? 'rgba(233,61,145,0.25)' : 'rgba(255,255,255,0.08)',
+      border: active ? '1px solid rgba(233,61,145,0.6)' : '1px solid rgba(255,255,255,0.15)',
+      color: active ? '#FF69B4' : '#FFFFFF',
       fontSize: 13, fontWeight: active ? 700 : 500,
       cursor: 'pointer', transition: 'all 0.2s',
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -161,12 +161,13 @@ function ConfirmatriceForm() {
           {([1, 2, 3] as const).map(n => (
             <button key={n} type="button" onClick={() => setSelected(n)} style={{
               flex: 1, padding: '16px 8px', borderRadius: 14,
-              border: selected === n ? '2px solid #E93D91' : '1.5px solid rgba(255,255,255,0.1)',
-              background: selected === n ? 'rgba(233,61,145,0.15)' : 'rgba(255,255,255,0.04)',
-              color: selected === n ? '#F472B6' : 'rgba(255,255,255,0.5)',
-              fontSize: 22, fontWeight: 800, cursor: 'pointer',
+              border: selected === n ? '2px solid #E93D91' : '2px solid rgba(255,255,255,0.25)',
+              background: selected === n ? 'rgba(233,61,145,0.25)' : 'rgba(255,255,255,0.1)',
+              color: selected === n ? '#FF69B4' : '#FFFFFF',
+              fontSize: 26, fontWeight: 900, cursor: 'pointer',
               transition: 'all 0.2s',
-              boxShadow: selected === n ? '0 0 20px rgba(233,61,145,0.2)' : 'none',
+              boxShadow: selected === n ? '0 0 20px rgba(233,61,145,0.3)' : 'none',
+              textShadow: selected === n ? '0 0 10px rgba(233,61,145,0.5)' : 'none',
             }}>
               0{n}
             </button>
