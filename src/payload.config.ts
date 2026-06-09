@@ -36,10 +36,11 @@ export default buildConfig({
         Icon: '@/components/admin/Icon',
       },
 
-      // Branding au-dessus du formulaire de connexion
-      beforeLogin: ['@/components/admin/BeforeLogin'],
+      // Branding + styles au-dessus du formulaire de connexion
+      // GlobalStyles inclus ici car afterNavLinks ne s'exécute pas sur la page login
+      beforeLogin: ['@/components/admin/BeforeLogin', '@/components/admin/GlobalStyles'],
 
-      // CSS de marque injecté sur toutes les pages admin
+      // CSS de marque injecté sur toutes les pages admin (post-login)
       afterNavLinks: ['@/components/admin/GlobalStyles'],
 
       // Dashboard e-commerce personnalisé

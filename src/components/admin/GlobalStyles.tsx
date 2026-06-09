@@ -563,6 +563,38 @@ label {
   box-shadow: 0 24px 64px rgba(0,0,0,0.4) !important;
 }
 
+/* Inputs sur fond sombre : texte blanc lisible */
+.login input,
+.template-login input,
+.login__form input[type="email"],
+.login__form input[type="password"],
+.login__form input[type="text"] {
+  background: rgba(255,255,255,0.10) !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid rgba(255,255,255,0.18) !important;
+  caret-color: #FFFFFF !important;
+}
+
+.login input::placeholder,
+.template-login input::placeholder {
+  color: rgba(255,255,255,0.40) !important;
+}
+
+.login input:focus,
+.template-login input:focus {
+  background: rgba(255,255,255,0.15) !important;
+  border-color: var(--she-pink) !important;
+  box-shadow: 0 0 0 3px rgba(233,61,145,0.20) !important;
+}
+
+/* Labels sur fond sombre */
+.login label,
+.template-login label,
+.login .field-label,
+.template-login .field-label {
+  color: rgba(255,255,255,0.75) !important;
+}
+
 /* ══════════════════════════════════════════════════════════════════════
    DIVERS — polish final
 ══════════════════════════════════════════════════════════════════════ */
