@@ -22,10 +22,15 @@ export async function getProducts(options?: {
   const payload = await getPayloadClient()
 
   // Utiliser le where personnalisé s'il est fourni, sinon construire le filtre standard
-  // Note: pour les champs relation (category), utiliser "in" et non "contains"
+  // SQLite stocke les FK en INTEGER — convertir la string de l'URL en number pour éviter
+  // le mismatch de type qui fait échouer silencieusement le filtre IN.
+  const catId = options?.category
+    ? (Number.isNaN(Number(options.category)) ? options.category : Number(options.category))
+    : undefined
+
   const where: Where = options?.where ?? {
     status: { equals: options?.status ?? 'published' },
-    ...(options?.category ? { category: { in: [options.category] } } : {}),
+    ...(catId !== undefined ? { category: { in: [catId] } } : {}),
   }
 
   return payload.find({

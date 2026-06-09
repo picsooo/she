@@ -31,7 +31,7 @@ const norm = (v: string | null | undefined) => v ?? ''
 
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
 export function VariantSelector({ product, freeGiftProduct }: VariantSelectorProps) {
-  const addItem = useCartStore((s) => s.addItem)
+  const addItems = useCartStore((s) => s.addItems)
 
   const variations = product.variations ?? []
 
@@ -120,23 +120,26 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
       ? activeVariation.salePrice
       : (activeVariation.regularPrice ?? 0)
 
-    // Ajouter le produit principal au panier
-    addItem({
-      productId: String(product.id),
-      productSlug: product.slug ?? '',
-      productNameAr: product.nameAr ?? '',
-      productImage: imageUrl ?? null,
-      variationIndex: activeVariationIndex,
-      colorAr: norm(activeVariation.colorAr),
-      colorFr: norm(activeVariation.colorFr),
-      size: norm(activeVariation.size),
-      regularPrice: activeVariation.regularPrice ?? 0,
-      salePrice: activeVariation.salePrice,
-    })
+    // Construire la liste des articles à ajouter (produit + cadeau éventuel)
+    // Utilisation de addItems (atomique) pour éviter tout conflit de state Zustand
+    const itemsToAdd: Parameters<typeof addItems>[0] = [
+      {
+        productId: String(product.id),
+        productSlug: product.slug ?? '',
+        productNameAr: product.nameAr ?? '',
+        productImage: imageUrl ?? null,
+        variationIndex: activeVariationIndex,
+        colorAr: norm(activeVariation.colorAr),
+        colorFr: norm(activeVariation.colorFr),
+        size: norm(activeVariation.size),
+        regularPrice: activeVariation.regularPrice ?? 0,
+        salePrice: activeVariation.salePrice,
+      },
+    ]
 
-    // Ajouter le cadeau gratuit (chapeau avec burkini)
+    // Ajouter le cadeau gratuit si présent (chapeau avec burkini)
     if (freeGiftProduct) {
-      addItem({
+      itemsToAdd.push({
         productId: freeGiftProduct.productId,
         productSlug: freeGiftProduct.productSlug,
         productNameAr: `🎁 ${freeGiftProduct.productNameAr} (مجاني)`,
@@ -145,10 +148,12 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
         colorAr: freeGiftProduct.colorAr,
         colorFr: '',
         size: freeGiftProduct.size,
-        regularPrice: 0, // Gratuit
+        regularPrice: 0,
         salePrice: undefined,
       })
     }
+
+    addItems(itemsToAdd)
 
     trackAddToCart(product.id, product.nameAr ?? '', effectivePrice, 1)
 

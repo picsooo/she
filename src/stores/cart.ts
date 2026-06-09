@@ -25,6 +25,8 @@ interface CartState {
 
   // Actions
   addItem: (item: Omit<CartItem, 'quantity'>) => void
+  // Ajoute plusieurs articles en une seule opération atomique (évite les conflits de state)
+  addItems: (items: Omit<CartItem, 'quantity'>[]) => void
   removeItem: (productId: string, variationIndex: number) => void
   updateQuantity: (productId: string, variationIndex: number, quantity: number) => void
   updateVariation: (
@@ -70,6 +72,28 @@ export const useCartStore = create<CartState>()(
             items: [...state.items, { ...newItem, quantity: 1 }],
             isDrawerOpen: true,
           }
+        })
+      },
+
+      // Ajoute plusieurs articles en une seule opération atomique
+      addItems: (newItems) => {
+        set((state) => {
+          let items = [...state.items]
+          for (const newItem of newItems) {
+            const existingIndex = items.findIndex(
+              (item) =>
+                item.productId === newItem.productId &&
+                item.variationIndex === newItem.variationIndex
+            )
+            if (existingIndex >= 0) {
+              items = items.map((item, i) =>
+                i === existingIndex ? { ...item, quantity: item.quantity + 1 } : item
+              )
+            } else {
+              items = [...items, { ...newItem, quantity: 1 }]
+            }
+          }
+          return { items, isDrawerOpen: true }
         })
       },
 
