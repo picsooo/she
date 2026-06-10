@@ -125,6 +125,30 @@ export const Products: CollectionConfig = {
               type: 'checkbox',
               defaultValue: true,
             },
+            {
+              name: 'saleDateFrom',
+              label: 'Promo du',
+              type: 'date',
+              admin: { description: 'Date de début de la promotion', hidden: false },
+            },
+            {
+              name: 'saleDateTo',
+              label: 'Promo au',
+              type: 'date',
+              admin: { description: 'Date de fin de la promotion', hidden: false },
+            },
+            {
+              name: 'variationSku',
+              label: 'SKU variation',
+              type: 'text',
+              admin: { description: 'Référence propre à cette variation (optionnel)' },
+            },
+            {
+              name: 'variationDescription',
+              label: 'Description variation',
+              type: 'textarea',
+              admin: { description: 'Description spécifique à cette variation (optionnel)' },
+            },
             // masqués
             { name: 'colorFr',           type: 'text',   admin: { hidden: true } },
             { name: 'legacyVariationId', type: 'text',   admin: { hidden: true }, index: true },
