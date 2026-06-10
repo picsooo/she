@@ -23,6 +23,7 @@ const norm = (v: string | null | undefined) => v ?? ''
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
 export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
   const addItems = useCartStore((s) => s.addItems)
+  const cartItems = useCartStore((s) => s.items)
   // Chapeau cadeau lu depuis le store global (initialisé dans le layout)
   const freeGiftProduct = useFreeGiftStore((s) => s.chapeau)
   // N'ajouter le chapeau que si c'est un burkini ET que le chapeau existe
@@ -132,20 +133,26 @@ export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
       },
     ]
 
-    // Ajouter le cadeau gratuit si présent (chapeau avec burkini)
+    // Ajouter le chapeau UNIQUEMENT s'il n'est pas déjà dans le panier
+    // (évite l'incrémentation de quantité lors des ré-ajouts)
     if (activeGift) {
-      itemsToAdd.push({
-        productId: activeGift.productId,
-        productSlug: activeGift.productSlug,
-        productNameAr: `🎁 ${activeGift.productNameAr} (مجاني)`,
-        productImage: activeGift.productImage,
-        variationIndex: activeGift.variationIndex,
-        colorAr: activeGift.colorAr,
-        colorFr: '',
-        size: activeGift.size,
-        regularPrice: 0,
-        salePrice: undefined,
-      })
+      const chapeauDejaPresent = cartItems.some(
+        (item) => item.productId === activeGift.productId
+      )
+      if (!chapeauDejaPresent) {
+        itemsToAdd.push({
+          productId: activeGift.productId,
+          productSlug: activeGift.productSlug,
+          productNameAr: `🎁 ${activeGift.productNameAr} (مجاني)`,
+          productImage: activeGift.productImage,
+          variationIndex: activeGift.variationIndex,
+          colorAr: activeGift.colorAr,
+          colorFr: '',
+          size: activeGift.size,
+          regularPrice: 0,
+          salePrice: undefined,
+        })
+      }
     }
 
     addItems(itemsToAdd)

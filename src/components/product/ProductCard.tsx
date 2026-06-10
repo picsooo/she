@@ -139,10 +139,14 @@ export function ProductCard({ product }: ProductCardProps) {
       salePrice: activeVariation!.salePrice,
     }
     // Si c'est un burkini et que le chapeau est disponible, ajouter les deux d'un coup
+    // Le chapeau n'est ajouté que s'il n'est pas déjà dans le panier (évite les doublons de quantité)
     if (chapeau && isProductBurkini(product)) {
-      addItems([
-        mainItem,
-        {
+      const items: Parameters<typeof addItems>[0] = [mainItem]
+      const chapeauDejaPresent = useCartStore.getState().items.some(
+        (item) => item.productId === chapeau.productId
+      )
+      if (!chapeauDejaPresent) {
+        items.push({
           productId: chapeau.productId,
           productSlug: chapeau.productSlug,
           productNameAr: `🎁 ${chapeau.productNameAr} (مجاني)`,
@@ -153,8 +157,9 @@ export function ProductCard({ product }: ProductCardProps) {
           size: chapeau.size,
           regularPrice: 0,
           salePrice: undefined,
-        },
-      ])
+        })
+      }
+      addItems(items)
     } else {
       addItem(mainItem)
     }
