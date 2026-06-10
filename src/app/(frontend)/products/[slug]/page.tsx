@@ -39,6 +39,23 @@ const FAQ_ITEMS = [
 const WHATSAPP_NUMBER = '213550000000'
 
 function isBurkiniProduct(product: Product, categories: Category[]): boolean {
+  // Vérification 1 : catégories populées directement sur le produit (depth:2)
+  // C'est la méthode la plus fiable car les objets sont déjà chargés
+  const directCats = (product.category ?? []).filter(
+    (c): c is Category => typeof c === 'object' && c !== null
+  )
+  for (const cat of directCats) {
+    if ((cat.nameAr ?? '').includes('بوركيني') || (cat.nameFr ?? '').toLowerCase().includes('burkini')) {
+      return true
+    }
+    // Vérifier aussi la catégorie parent (si le produit est dans "Burkini SHE" enfant de "Burkini")
+    const parent = typeof cat.parent === 'object' && cat.parent !== null ? (cat.parent as Category) : null
+    if (parent && ((parent.nameAr ?? '').includes('بوركيني') || (parent.nameFr ?? '').toLowerCase().includes('burkini'))) {
+      return true
+    }
+  }
+
+  // Vérification 2 : fallback via la liste complète des catégories (au cas où depth:2 n'a pas populé)
   const productCatIds = (product.category ?? []).map((c) =>
     typeof c === 'object' ? c.id : c
   )

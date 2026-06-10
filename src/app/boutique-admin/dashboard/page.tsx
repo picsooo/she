@@ -79,7 +79,7 @@ function ConfirmatriceDashboard({ user }: { user: UserMe }) {
             const where: Record<string, unknown> = { assignedTo: { equals: u.id } }
             if (dateFrom) where.createdAt = { greater_than: dateFrom }
             const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
-            const totalRes = await fetch('/api/orders?' + params).then(r => r.json())
+            const totalRes = await fetch('/api/boutique-admin/orders?' + params).then(r => r.json())
             const total = totalRes.totalDocs ?? 0
             const name = u.firstName ? `${u.firstName}${u.lastName ? ' ' + u.lastName : ''}` : u.email.split('@')[0]
             return { id: u.id, name, email: u.email, confirmed, delivered, cancelled, total, revenue }
@@ -813,8 +813,109 @@ function AdminDashboard() {
         </div>
       </div>
 
+      {/* Section confirmatrices — résumé rapide des livraisons */}
+      <ConfSummaryWidget />
+
       {/* Section Yalidine — indépendante du reste, se charge seule */}
       <YalidineStats />
+    </div>
+  )
+}
+
+// ── Widget résumé confirmatrices — affiché dans le dashboard admin ─────────────
+// Charge les stats de livraison de chaque confirmatrice sans filtre de date
+function ConfSummaryWidget() {
+  interface ConfRow { id: string; name: string; confirmed: number; delivered: number; cancelled: number; total: number }
+  const [rows, setRows] = useState<ConfRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/boutique-admin/users?where[role][equals]=confirmatrice&limit=20&depth=0')
+      .then(r => r.json())
+      .then(async (data) => {
+        const users: Array<{ id: string; email: string; firstName?: string; lastName?: string }> = data.docs ?? []
+        const results = await Promise.all(users.map(async u => {
+          const [confirmed, delivered, cancelled, totalRes] = await Promise.all([
+            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'confirmed' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
+            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'delivered' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
+            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'cancelled' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
+            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
+          ])
+          const name = u.firstName ? `${u.firstName} ${u.lastName ?? ''}`.trim() : u.email.split('@')[0]
+          return { id: u.id, name, confirmed, delivered, cancelled, total: totalRes }
+        }))
+        setRows(results)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div style={{ marginTop: 16, padding: '16px 20px', background: '#fff', borderRadius: 12, border: '1px solid #E3E5E7', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ width: 18, height: 18, border: '2px solid #E3E5E7', borderTopColor: '#E93D91', borderRadius: '50%', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+      <span style={{ fontSize: 13, color: '#9A9A9A' }}>Chargement stats confirmatrices…</span>
+    </div>
+  )
+
+  if (rows.length === 0) return null
+
+  return (
+    <div style={{ marginTop: 16, background: '#fff', borderRadius: 12, border: '1px solid #E3E5E7', overflow: 'hidden' }}>
+      {/* En-tête */}
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid #F1F1F1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>👩‍💼</span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#1A1A1A' }}>Suivi confirmatrices</div>
+            <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 1 }}>Toutes périodes confondues</div>
+          </div>
+        </div>
+        <a href="/boutique-admin/dashboard#confirmatrices" style={{ fontSize: 12, color: '#4A3DBC', fontWeight: 500, textDecoration: 'none' }}>
+          Détail complet ↓
+        </a>
+      </div>
+
+      {/* Lignes par confirmatrice */}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${rows.length}, 1fr)`, gap: 0 }}>
+        {rows.map((c, i) => {
+          const rate = c.total > 0 ? Math.round((c.delivered / c.total) * 100) : 0
+          return (
+            <div key={c.id} style={{
+              padding: '16px 20px',
+              borderRight: i < rows.length - 1 ? '1px solid #F1F1F1' : 'none',
+            }}>
+              {/* Nom */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A', marginBottom: 10 }}>
+                {c.name}
+              </div>
+              {/* Compteurs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {[
+                  { label: 'Assignées',  value: c.total,     color: '#6D7175' },
+                  { label: 'Confirmées', value: c.confirmed, color: '#1D4ED8' },
+                  { label: 'Livrées',    value: c.delivered, color: '#065F46' },
+                  { label: 'Annulées',   value: c.cancelled, color: '#991B1B' },
+                ].map(m => (
+                  <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: '#9A9A9A' }}>{m.label}</span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: m.color }}>{m.value}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Barre taux livraison */}
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Taux livraison</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: rate >= 70 ? '#065F46' : rate >= 40 ? '#B45309' : '#991B1B' }}>{rate}%</span>
+                </div>
+                <div style={{ height: 6, background: '#F1F1F1', borderRadius: 10, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${rate}%`, background: rate >= 70 ? '#10B981' : rate >= 40 ? '#F59E0B' : '#EF4444', borderRadius: 10 }} />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

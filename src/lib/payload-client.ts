@@ -28,9 +28,16 @@ export async function getProducts(options?: {
     ? (Number.isNaN(Number(options.category)) ? options.category : Number(options.category))
     : undefined
 
+  // Inclure les sous-catégories pour que "Burkini" montre aussi les produits "Burkini SHE"
+  let categoryIds: (string | number)[] | undefined
+  if (catId !== undefined && !options?.where) {
+    const childIds = await getChildCategoryIds(payload, catId)
+    categoryIds = [catId, ...childIds]
+  }
+
   const where: Where = options?.where ?? {
     status: { equals: options?.status ?? 'published' },
-    ...(catId !== undefined ? { category: { in: [catId] } } : {}),
+    ...(categoryIds !== undefined ? { category: { in: categoryIds } } : {}),
   }
 
   return payload.find({
@@ -84,14 +91,32 @@ export async function getFeaturedProducts(limit = 8) {
   })
 }
 
+// Helper : retourne les IDs des sous-catégories directes d'une catégorie parent
+// Utilisé pour que les filtres par catégorie incluent aussi les produits des sous-catégories
+async function getChildCategoryIds(
+  payload: Awaited<ReturnType<typeof getPayloadClient>>,
+  parentId: string | number
+): Promise<(string | number)[]> {
+  const children = await payload.find({
+    collection: 'categories',
+    where: { parent: { equals: parentId } },
+    limit: 100,
+    depth: 0,
+  })
+  return children.docs.map((c) => c.id)
+}
+
 // Produits d'une catégorie donnée (pour les sections homepage par catégorie)
+// Inclut les produits des sous-catégories (ex: "Burkini SHE" quand on demande "Burkini")
 export async function getProductsByCategory(categoryId: string, limit = 4) {
   const payload = await getPayloadClient()
+  const numId = Number.isNaN(Number(categoryId)) ? categoryId : Number(categoryId)
+  const childIds = await getChildCategoryIds(payload, numId)
   return payload.find({
     collection: 'products',
     where: {
       status: { equals: 'published' },
-      category: { in: [categoryId] },
+      category: { in: [numId, ...childIds] },
     },
     limit,
     sort: '-createdAt',
@@ -127,15 +152,18 @@ export async function getActiveRootCategories() {
     depth: 1,
   })
   // Vérifier en parallèle quelles catégories ont au moins 1 produit
+  // On inclut les sous-catégories : une catégorie est "active" si elle OU ses enfants ont des produits
   const checks = await Promise.all(
-    cats.docs.map((cat) =>
-      payload.find({
+    cats.docs.map(async (cat) => {
+      const childIds = await getChildCategoryIds(payload, cat.id)
+      const r = await payload.find({
         collection: 'products',
-        where: { status: { equals: 'published' }, category: { in: [cat.id] } },
+        where: { status: { equals: 'published' }, category: { in: [cat.id, ...childIds] } },
         limit: 1,
         depth: 0,
-      }).then((r) => ({ cat, hasProducts: r.totalDocs > 0 }))
-    )
+      })
+      return { cat, hasProducts: r.totalDocs > 0 }
+    })
   )
   return { docs: checks.filter((c) => c.hasProducts).map((c) => c.cat) }
 }

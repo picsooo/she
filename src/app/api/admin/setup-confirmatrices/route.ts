@@ -10,7 +10,6 @@ import configPromise from '@payload-config'
 const CONFIRMATRICES = [
   { num: 1, firstName: 'Confirmatrice', lastName: '01', code: 'SHE-CONF-01' },
   { num: 2, firstName: 'Confirmatrice', lastName: '02', code: 'SHE-CONF-02' },
-  { num: 3, firstName: 'Confirmatrice', lastName: '03', code: 'SHE-CONF-03' },
 ]
 
 export async function GET(req: NextRequest) {
