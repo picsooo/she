@@ -325,7 +325,12 @@ export default function ProductForm({ productId, initial }: { productId?: string
         })),
         images: images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
       }
-      const res = await fetch(isEdit ? `/api/products/${productId}` : '/api/products', {
+      // Création → route boutique-admin (overrideAccess, slug auto)
+      // Édition  → route boutique-admin/:id (PATCH avec overrideAccess)
+      const url = isEdit
+        ? `/api/boutique-admin/products/${productId}`
+        : '/api/boutique-admin/products'
+      const res = await fetch(url, {
         method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

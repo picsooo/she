@@ -3,6 +3,29 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import type { Where } from 'payload'
 
+function makeSlug(text: string): string {
+  const base = text.toLowerCase().trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^\w\u0600-\u06FF-]/g, '')
+    .replace(/-+/g, '-').replace(/^-|-$/g, '')
+  return (base || 'product') + '-' + Date.now()
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const data = await req.json()
+    // Garantir un slug unique (timestamp suffix)
+    if (!data.slug) data.slug = makeSlug(data.nameAr || data.nameFr || '')
+    const payload = await getPayload({ config: configPromise })
+    const doc = await payload.create({ collection: 'products', data, overrideAccess: true })
+    return NextResponse.json({ doc }, { status: 201 })
+  } catch (err) {
+    console.error('[boutique-admin/products POST]', err)
+    const message = err instanceof Error ? err.message : 'Erreur serveur'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const payload = await getPayload({ config: configPromise })
