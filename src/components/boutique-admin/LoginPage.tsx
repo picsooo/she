@@ -120,7 +120,7 @@ function AdminForm() {
 
 // ── Formulaire Confirmatrice ──────────────────────────────────────────────────
 function ConfirmatriceForm() {
-  const [selected, setSelected] = useState<1 | 2 | 3 | null>(null)
+  const [selected, setSelected] = useState<1 | 2 | null>(null)
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -158,7 +158,7 @@ function ConfirmatriceForm() {
       <div style={{ marginBottom: 20 }}>
         <label style={LABEL_STYLE}>Votre numéro</label>
         <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-          {([1, 2, 3] as const).map(n => (
+          {([1, 2] as const).map(n => (
             <button key={n} type="button" onClick={() => setSelected(n)} style={{
               flex: 1, padding: '16px 8px', borderRadius: 14,
               border: selected === n ? '2px solid #E93D91' : '2px solid rgba(255,255,255,0.25)',
