@@ -61,11 +61,11 @@ export interface InitialProduct {
 function uid() { return Math.random().toString(36).slice(2) }
 
 function makeSlug(text: string): string {
-  return text.toLowerCase().trim()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^\w\u0600-\u06FF-]/g, '')
+  const ascii = text.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     .replace(/-+/g, '-').replace(/^-|-$/g, '')
-    || String(Date.now())
+  return (ascii || 'product') + '-' + Date.now()
 }
 
 async function uploadFile(file: File): Promise<{ id: string; url: string }> {

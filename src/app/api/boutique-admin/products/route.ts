@@ -4,11 +4,14 @@ import configPromise from '@payload-config'
 import type { Where } from 'payload'
 
 function makeSlug(text: string): string {
-  const base = text.toLowerCase().trim()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^\w\u0600-\u06FF-]/g, '')
+  // Extraire uniquement les caractères ASCII (le texte arabe ne produit rien d'URL-safe)
+  // On ajoute toujours un timestamp pour garantir l'unicité
+  const ascii = text.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // supprimer diacritiques
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')  // ASCII uniquement
     .replace(/-+/g, '-').replace(/^-|-$/g, '')
-  return (base || 'product') + '-' + Date.now()
+  return (ascii || 'product') + '-' + Date.now()
 }
 
 export async function POST(req: NextRequest) {
