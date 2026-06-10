@@ -74,7 +74,7 @@ function computeStats(orders: Order[], primePerOrder: number): ConfStats[] {
     if (!map.has(id)) {
       map.set(id, {
         id,
-        name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || email ?? `Conf ${id}`,
+        name: (`${firstName ?? ''} ${lastName ?? ''}`.trim() || email) ?? `Conf ${id}`,
         email: email ?? '',
         confirmed: 0, delivered: 0, cancelled: 0, total_new: 0, ca: 0, prime: 0,
       })
