@@ -68,13 +68,20 @@ function makeSlug(text: string): string {
   return (ascii || 'product') + '-' + Date.now()
 }
 
+// Payload retourne /api/media/file/... (403 sans auth) → convertir en /media/... (statique public)
+function toPublicUrl(u?: string | null): string {
+  if (!u) return ''
+  return u.replace(/^https?:\/\/[^/]+\/api\/media\/file\//, '/media/')
+          .replace(/^\/api\/media\/file\//, '/media/')
+}
+
 async function uploadFile(file: File): Promise<{ id: string; url: string }> {
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch('/api/media', { method: 'POST', body: fd })
   if (!res.ok) throw new Error('Échec upload')
   const data = await res.json()
-  return { id: data.doc.id, url: data.doc.url }
+  return { id: data.doc.id, url: toPublicUrl(data.doc.url) }
 }
 
 // Sépare une chaîne "val1 | val2 | val3" en tableau propre
@@ -142,7 +149,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
   const [images, setImages] = useState<UploadedImage[]>(
     (initial?.images ?? []).map(img => ({
       _key: uid(), mediaId: img.image?.id,
-      url: img.image?.thumbnailURL ?? img.image?.url,
+      url: toPublicUrl(img.image?.thumbnailURL ?? img.image?.url),
       uploading: false,
     }))
   )
