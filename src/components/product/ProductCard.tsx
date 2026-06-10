@@ -142,7 +142,7 @@ export function ProductCard({ product }: ProductCardProps) {
     // bleu → chapeau bleu, tout autre couleur → chapeau beige
     const isBurkini = isProductBurkini(product)
     if (isBurkini && chapeauVariations.length > 0) {
-      const isBleu = /أزرق|bleu|blue/i.test(activeVariation!.colorAr ?? '')
+      const isBleu = /أزرق|bleu|blue/i.test(activeVariation!.colorAr ?? '') || /bleu|blue/i.test(activeVariation!.colorFr ?? '')
       const targetRegex = isBleu ? /أزرق|bleu|blue/i : /بيج|beige/i
       const chapeau =
         chapeauVariations.find((v) => targetRegex.test(v.colorAr)) ??

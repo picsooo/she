@@ -95,13 +95,15 @@ export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
   // - tout autre couleur (noir, vert…) → chapeau beige
   const activeGift = useMemo(() => {
     if (!isBurkini || chapeauVariations.length === 0) return null
-    const isBleu = /أزرق|bleu|blue/i.test(selectedColor)
+    // Vérifier colorAr ET colorFr pour détecter le bleu (les données peuvent être en arabe ou français)
+    const colorFr = activeVariation?.colorFr ?? ''
+    const isBleu = /أزرق|bleu|blue/i.test(selectedColor) || /bleu|blue/i.test(colorFr)
     const targetRegex = isBleu ? /أزرق|bleu|blue/i : /بيج|beige/i
     return (
       chapeauVariations.find((v) => targetRegex.test(v.colorAr)) ??
       chapeauVariations[0]
     )
-  }, [isBurkini, chapeauVariations, selectedColor])
+  }, [isBurkini, chapeauVariations, selectedColor, activeVariation])
 
   const availableSizesForColor = useMemo(() => {
     return variations
