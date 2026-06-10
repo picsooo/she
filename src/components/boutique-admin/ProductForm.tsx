@@ -60,6 +60,14 @@ export interface InitialProduct {
 
 function uid() { return Math.random().toString(36).slice(2) }
 
+function makeSlug(text: string): string {
+  return text.toLowerCase().trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^\w\u0600-\u06FF-]/g, '')
+    .replace(/-+/g, '-').replace(/^-|-$/g, '')
+    || String(Date.now())
+}
+
 async function uploadFile(file: File): Promise<{ id: string; url: string }> {
   const fd = new FormData()
   fd.append('file', file)
@@ -296,6 +304,8 @@ export default function ProductForm({ productId, initial }: { productId?: string
     try {
       const body = {
         nameAr: nameAr.trim(),
+        // Payload valide "required" avant le hook beforeChange → on génère le slug côté client
+        ...(!isEdit ? { slug: makeSlug(nameAr.trim() || nameFr.trim() || String(Date.now())) } : {}),
         ...(nameFr.trim()    ? { nameFr: nameFr.trim() }                    : {}),
         ...(desc.trim()      ? { descriptionAr: desc.trim() }               : {}),
         ...(shortDesc.trim() ? { shortDescriptionAr: shortDesc.trim() }     : {}),
