@@ -53,6 +53,7 @@ const Icons = {
   logout:     <svg width="16" height="16" fill="none" viewBox="0 0 16 16"><path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   bell:       <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M10 2a6 6 0 016 6v3l1.5 2.5H2.5L4 11V8a6 6 0 016-6zM8 16a2 2 0 004 0" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
   analytics:  <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="3" y="10" width="3" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="8.5" y="6" width="3" height="12" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="14" y="2" width="3" height="16" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>,
+  primes:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v1.5M10 12.5V14M7.5 8.5C7.5 7.4 8.6 6.5 10 6.5s2.5.9 2.5 2c0 2.5-5 2.5-5 5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ function Sidebar({
     { href: '/boutique-admin/products',        label: 'Produits',       icon: Icons.products },
     { href: '/boutique-admin/stock',           label: 'Gestion stock',  icon: Icons.products },
     { href: '/boutique-admin/categories',      label: 'Catégories',     icon: Icons.categories },
+    { href: '/boutique-admin/primes',          label: 'Primes',         icon: Icons.primes },
     { href: '/boutique-admin/settings',        label: 'Paramètres',     icon: Icons.settings },
   ]
 
