@@ -255,8 +255,19 @@ export async function getChapeauGift(): Promise<{
     const hatImage = hat.images?.[0]?.image
     const rawUrl = hatImage && typeof hatImage === 'object'
       ? (hatImage as { url?: string }).url ?? null : null
-    // Normaliser l'URL pour qu'elle soit relative (même comportement que toRelativeMediaUrl)
-    const imageUrl = rawUrl?.startsWith('http') ? rawUrl : rawUrl ? rawUrl : null
+    // Convertir /api/media/file/X → /media/X (même logique que toRelativeMediaUrl côté client)
+    let imageUrl: string | null = null
+    if (rawUrl) {
+      try {
+        const pathname = new URL(rawUrl).pathname
+        const m = pathname.match(/^\/api\/media\/file\/(.+)$/)
+        imageUrl = m ? `/media/${m[1]}` : pathname
+      } catch {
+        imageUrl = rawUrl.startsWith('/api/media/file/')
+          ? `/media/${rawUrl.slice('/api/media/file/'.length)}`
+          : rawUrl
+      }
+    }
     return {
       productId: String(hat.id),
       productSlug: hat.slug ?? '',
