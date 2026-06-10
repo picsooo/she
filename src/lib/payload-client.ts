@@ -92,29 +92,28 @@ export async function getFeaturedProducts(limit = 8) {
 }
 
 // Helper : retourne les IDs des sous-catégories directes d'une catégorie parent.
-// Approche robuste : on récupère toutes les catégories avec depth:1 (parent populé)
-// puis on filtre en JS pour éviter les problèmes de type/syntaxe sur les relations auto-référentielles.
+// depth:0 → parent retourné comme ID brut (number), évite les problèmes de population
+// sur les relations auto-référentielles (Payload 3.x + PostgreSQL).
 // Retourne [] en cas d'erreur pour ne jamais casser l'appel parent.
 async function getChildCategoryIds(
   payload: Awaited<ReturnType<typeof getPayloadClient>>,
   parentId: string | number
 ): Promise<(string | number)[]> {
   try {
-    const parentIdStr = String(parentId)
+    // depth: 0 → parent renvoyé comme ID brut (number) — plus fiable que depth:1
+    // qui peut retourner null/undefined sur les relations auto-référentielles
     const all = await payload.find({
       collection: 'categories',
       limit: 200,
-      depth: 1,
+      depth: 0,
     })
+    const parentIdNum = Number(parentId)
     return all.docs
       .filter((c) => {
         const p = c.parent
-        if (!p) return false
-        // parent peut être un objet populé (depth:1) ou un ID brut
-        const pid = typeof p === 'object' && p !== null
-          ? String((p as { id: unknown }).id)
-          : String(p)
-        return pid === parentIdStr
+        if (p === null || p === undefined) return false
+        // depth:0 → p est un ID brut (number ou string)
+        return Number(p) === parentIdNum
       })
       .map((c) => c.id)
   } catch {
