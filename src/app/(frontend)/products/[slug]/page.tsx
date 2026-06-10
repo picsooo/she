@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getProductBySlug, getRelatedProducts, getCategories, getProducts } from '@/lib/payload-client'
+// Note: getChapeauGift n'est plus appelée ici — elle est dans le layout et injectée via FreeGiftInit/useFreeGiftStore
 import { ProductGallery } from '@/components/product/ProductGallery'
 import { VariantSelector } from '@/components/product/VariantSelector'
 import { ProductCard } from '@/components/product/ProductCard'
@@ -118,37 +119,8 @@ export default async function ProductPage({ params }: PageProps) {
   // Détecter si c'est un burkini pour le cadeau chapeau
   const isBurkini = isBurkiniProduct(product, allCategoriesFull)
 
-  // Si c'est un burkini, chercher le produit chapeau par son slug direct (plus fiable que la requête complexe)
-  let freeGiftProduct = null
-  if (isBurkini) {
-    try {
-      const hatProduct = await getProductBySlug('chapeau').catch(() => null)
-
-      if (hatProduct && hatProduct.variations && hatProduct.variations.length > 0) {
-        // Préférer une variation en stock ; sinon prendre la première disponible
-        const allVars = hatProduct.variations
-        const inStockIdx = allVars.findIndex((v) => v.inStock)
-        const chosenIdx = inStockIdx >= 0 ? inStockIdx : 0
-        const chosenVar = allVars[chosenIdx]
-        const hatImage = hatProduct.images?.[0]?.image
-        freeGiftProduct = {
-          productId: String(hatProduct.id),
-          productSlug: hatProduct.slug ?? '',
-          productNameAr: hatProduct.nameAr ?? 'شابو',
-          productImage: toRelativeMediaUrl(
-            hatImage && typeof hatImage === 'object'
-              ? (hatImage as Media & { url?: string }).url ?? null
-              : null
-          ),
-          variationIndex: chosenIdx,
-          colorAr: chosenVar.colorAr ?? '',
-          size: chosenVar.size ?? '',
-        }
-      }
-    } catch {
-      // pas de chapeau trouvé — pas de cadeau
-    }
-  }
+  // Le chapeau est maintenant géré côté client via useFreeGiftStore (initialisé dans le layout)
+  // On passe seulement isBurkini au VariantSelector
 
   // Suggestions complémentaires pour les burkinis (sacs de plage + pareos)
   let burkiniCrossSell: Product[] = []
@@ -240,7 +212,7 @@ export default async function ProductPage({ params }: PageProps) {
               <StockUrgency inStockCount={inStockCount} />
 
               {/* Sélecteur variations + ajout panier */}
-              <VariantSelector product={product} freeGiftProduct={freeGiftProduct} />
+              <VariantSelector product={product} isBurkini={isBurkini} />
 
               {/* Réassurance */}
               <div className="flex flex-col gap-2 text-sm text-foreground/60 rounded-xl bg-[#F7F5F2] p-3">

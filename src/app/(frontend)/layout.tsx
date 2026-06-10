@@ -6,7 +6,8 @@ import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { PixelScripts } from '@/components/analytics/PixelScripts'
 import { PixelPageView } from '@/components/analytics/PixelPageView'
-import { getMarketingSettings } from '@/lib/payload-client'
+import { getMarketingSettings, getChapeauGift } from '@/lib/payload-client'
+import { FreeGiftInit } from '@/components/FreeGiftInit'
 
 // Police arabe principale — Cairo : élégante, féminine, moderne
 const cairo = Cairo({
@@ -40,8 +41,11 @@ export const viewport: Viewport = {
 
 // Layout principal — tout le frontend est en arabe, RTL
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {
-  // Lire les IDs pixels depuis le Global Payload (admin-configurable)
-  const marketing = await getMarketingSettings().catch(() => null)
+  // Lire les IDs pixels et le produit chapeau (cadeau burkini) en parallèle
+  const [marketing, chapeau] = await Promise.all([
+    getMarketingSettings().catch(() => null),
+    getChapeauGift().catch(() => null),
+  ])
 
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
@@ -51,6 +55,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <Footer />
         {/* Drawer panier */}
         <CartDrawer />
+        {/* Initialise le store cadeau (chapeau gratuit avec burkini) */}
+        <FreeGiftInit chapeau={chapeau} />
         {/* Pixels marketing — injectés uniquement si IDs configurés dans /admin */}
         <PixelScripts
           metaPixelId={marketing?.metaPixelId}

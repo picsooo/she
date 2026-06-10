@@ -232,6 +232,45 @@ export async function getMarketingSettings(): Promise<MarketingSettings | null> 
   }
 }
 
+// Retourne les données du chapeau offert avec les burkinis (cadeau gratuit)
+// Appelée depuis le layout — disponible sur toutes les pages frontend
+export async function getChapeauGift(): Promise<{
+  productId: string; productSlug: string; productNameAr: string
+  productImage: string | null; variationIndex: number; colorAr: string; size: string
+} | null> {
+  try {
+    const payload = await getPayloadClient()
+    const result = await payload.find({
+      collection: 'products',
+      where: { slug: { equals: 'chapeau' }, status: { equals: 'published' } },
+      limit: 1,
+      depth: 1,
+    })
+    const hat = result.docs[0] as Product | undefined
+    if (!hat || !hat.variations || hat.variations.length === 0) return null
+    const allVars = hat.variations
+    const inStockIdx = allVars.findIndex((v) => v.inStock)
+    const chosenIdx = inStockIdx >= 0 ? inStockIdx : 0
+    const chosenVar = allVars[chosenIdx]
+    const hatImage = hat.images?.[0]?.image
+    const rawUrl = hatImage && typeof hatImage === 'object'
+      ? (hatImage as { url?: string }).url ?? null : null
+    // Normaliser l'URL pour qu'elle soit relative (même comportement que toRelativeMediaUrl)
+    const imageUrl = rawUrl?.startsWith('http') ? rawUrl : rawUrl ? rawUrl : null
+    return {
+      productId: String(hat.id),
+      productSlug: hat.slug ?? '',
+      productNameAr: hat.nameAr ?? 'شابو',
+      productImage: imageUrl,
+      variationIndex: chosenIdx,
+      colorAr: chosenVar.colorAr ?? '',
+      size: chosenVar.size ?? '',
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function getNextOrderSequence(): Promise<number> {
   const payload = await getPayloadClient()
   const result = await payload.find({

@@ -7,31 +7,26 @@ import { PriceDisplay } from './PriceDisplay'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/stores/cart'
+import { useFreeGiftStore } from '@/stores/freeGift'
 import { trackAddToCart } from '@/lib/tracking'
 import { toRelativeMediaUrl } from '@/lib/utils'
 import type { Product } from '@/payload-types'
 
-interface FreeGiftProduct {
-  productId: string
-  productSlug: string
-  productNameAr: string
-  productImage: string | null
-  variationIndex: number
-  colorAr: string
-  size: string
-}
-
 interface VariantSelectorProps {
   product: Product
-  // Produit offert gratuitement (ex: chapeau avec burkini)
-  freeGiftProduct?: FreeGiftProduct | null
+  // Indique si ce produit est un burkini — affiche la bannière cadeau et ajoute le chapeau
+  isBurkini?: boolean
 }
 
 const norm = (v: string | null | undefined) => v ?? ''
 
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
-export function VariantSelector({ product, freeGiftProduct }: VariantSelectorProps) {
+export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
   const addItems = useCartStore((s) => s.addItems)
+  // Chapeau cadeau lu depuis le store global (initialisé dans le layout)
+  const freeGiftProduct = useFreeGiftStore((s) => s.chapeau)
+  // N'ajouter le chapeau que si c'est un burkini ET que le chapeau existe
+  const activeGift = isBurkini ? freeGiftProduct : null
 
   const variations = product.variations ?? []
 
@@ -138,16 +133,16 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
     ]
 
     // Ajouter le cadeau gratuit si présent (chapeau avec burkini)
-    if (freeGiftProduct) {
+    if (activeGift) {
       itemsToAdd.push({
-        productId: freeGiftProduct.productId,
-        productSlug: freeGiftProduct.productSlug,
-        productNameAr: `🎁 ${freeGiftProduct.productNameAr} (مجاني)`,
-        productImage: freeGiftProduct.productImage,
-        variationIndex: freeGiftProduct.variationIndex,
-        colorAr: freeGiftProduct.colorAr,
+        productId: activeGift.productId,
+        productSlug: activeGift.productSlug,
+        productNameAr: `🎁 ${activeGift.productNameAr} (مجاني)`,
+        productImage: activeGift.productImage,
+        variationIndex: activeGift.variationIndex,
+        colorAr: activeGift.colorAr,
         colorFr: '',
-        size: freeGiftProduct.size,
+        size: activeGift.size,
         regularPrice: 0,
         salePrice: undefined,
       })
@@ -263,7 +258,7 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
       )}
 
       {/* Notification cadeau gratuit */}
-      {freeGiftProduct && (
+      {activeGift && (
         <div className="flex items-center gap-2 rounded-xl bg-[#FEF9F0] border border-[#CEA060]/40 px-3 py-2.5">
           <span className="text-lg">🎁</span>
           <div>
@@ -271,7 +266,7 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
               شابو مجاني مع طلبكِ!
             </p>
             <p className="text-[10px] text-foreground/50">
-              {freeGiftProduct.productNameAr} يضاف تلقائياً
+              {activeGift.productNameAr} يضاف تلقائياً
             </p>
           </div>
         </div>
@@ -285,7 +280,7 @@ export function VariantSelector({ product, freeGiftProduct }: VariantSelectorPro
         className="w-full"
       >
         {added
-          ? `✓ ${freeGiftProduct ? 'تمت الإضافة + الشابو المجاني!' : t.product.addedToCart}`
+          ? `✓ ${activeGift ? 'تمت الإضافة + الشابو المجاني!' : t.product.addedToCart}`
           : t.product.addToCart}
       </Button>
     </div>

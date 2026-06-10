@@ -8,8 +8,21 @@ import { PriceDisplay } from './PriceDisplay'
 import { t } from '@/lib/translations'
 import { cn, toRelativeMediaUrl, getEffectivePrice } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart'
+import { useFreeGiftStore } from '@/stores/freeGift'
 import { trackAddToCart } from '@/lib/tracking'
-import type { Product } from '@/payload-types'
+import type { Product, Category } from '@/payload-types'
+
+// Détecte si un produit appartient à la catégorie burkini (nom FR ou AR)
+function isProductBurkini(product: Product): boolean {
+  for (const c of (product.category ?? [])) {
+    if (typeof c !== 'object' || c === null) continue
+    const cat = c as Category
+    if ((cat.nameAr ?? '').includes('بوركيني') || (cat.nameFr ?? '').toLowerCase().includes('burkini')) return true
+    const parent = typeof cat.parent === 'object' && cat.parent !== null ? cat.parent as Category : null
+    if (parent && ((parent.nameAr ?? '').includes('بوركيني') || (parent.nameFr ?? '').toLowerCase().includes('burkini'))) return true
+  }
+  return false
+}
 
 interface ProductCardProps {
   product: Product
@@ -17,7 +30,9 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
+  const addItems = useCartStore((s) => s.addItems)
   const openDrawer = useCartStore((s) => s.openDrawer)
+  const chapeau = useFreeGiftStore((s) => s.chapeau)
   const variations = useMemo(() => product.variations ?? [], [product.variations])
 
   // ── Couleurs uniques ────────────────────────────────────────────────
@@ -111,7 +126,7 @@ export function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation()
     if (!canAdd) return
     const price = getEffectivePrice(activeVariation!.regularPrice ?? 0, activeVariation!.salePrice)
-    addItem({
+    const mainItem = {
       productId: String(product.id),
       productSlug: product.slug ?? '',
       productNameAr: product.nameAr ?? '',
@@ -122,7 +137,27 @@ export function ProductCard({ product }: ProductCardProps) {
       size: activeVariation!.size ?? '',
       regularPrice: activeVariation!.regularPrice ?? 0,
       salePrice: activeVariation!.salePrice,
-    })
+    }
+    // Si c'est un burkini et que le chapeau est disponible, ajouter les deux d'un coup
+    if (chapeau && isProductBurkini(product)) {
+      addItems([
+        mainItem,
+        {
+          productId: chapeau.productId,
+          productSlug: chapeau.productSlug,
+          productNameAr: `🎁 ${chapeau.productNameAr} (مجاني)`,
+          productImage: chapeau.productImage,
+          variationIndex: chapeau.variationIndex,
+          colorAr: chapeau.colorAr,
+          colorFr: '',
+          size: chapeau.size,
+          regularPrice: 0,
+          salePrice: undefined,
+        },
+      ])
+    } else {
+      addItem(mainItem)
+    }
     trackAddToCart(product.id, product.nameAr ?? '', price, 1)
     setAdded(true)
     setTimeout(() => { setAdded(false); openDrawer() }, 700)
