@@ -74,12 +74,13 @@ function Sidebar({
 
   // Nav complète pour admin/éditeur, réduite pour confirmatrice
   const NAV_ADMIN = [
-    { href: '/boutique-admin/dashboard',       label: 'Accueil',    icon: Icons.home },
-    { href: '/boutique-admin/orders',          label: 'Commandes',  icon: Icons.orders,    badge: newOrdersCount },
-    { href: '/boutique-admin/orders/analytics',label: 'Analytics',  icon: Icons.analytics },
-    { href: '/boutique-admin/products',        label: 'Produits',   icon: Icons.products },
-    { href: '/boutique-admin/categories',      label: 'Catégories', icon: Icons.categories },
-    { href: '/boutique-admin/settings',        label: 'Paramètres', icon: Icons.settings },
+    { href: '/boutique-admin/dashboard',       label: 'Accueil',        icon: Icons.home },
+    { href: '/boutique-admin/orders',          label: 'Commandes',      icon: Icons.orders,    badge: newOrdersCount },
+    { href: '/boutique-admin/orders/analytics',label: 'Analytics',      icon: Icons.analytics },
+    { href: '/boutique-admin/products',        label: 'Produits',       icon: Icons.products },
+    { href: '/boutique-admin/stock',           label: 'Gestion stock',  icon: Icons.products },
+    { href: '/boutique-admin/categories',      label: 'Catégories',     icon: Icons.categories },
+    { href: '/boutique-admin/settings',        label: 'Paramètres',     icon: Icons.settings },
   ]
 
   const NAV_CONFIRMATRICE = [
