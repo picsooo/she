@@ -118,30 +118,12 @@ export default async function ProductPage({ params }: PageProps) {
   // Détecter si c'est un burkini pour le cadeau chapeau
   const isBurkini = isBurkiniProduct(product, allCategoriesFull)
 
-  // Si c'est un burkini, chercher le produit chapeau/شابو comme cadeau
+  // Si c'est un burkini, chercher le produit chapeau par son slug direct (plus fiable que la requête complexe)
   let freeGiftProduct = null
   if (isBurkini) {
     try {
-      // Chercher le chapeau précisément — "cap" exclut volontairement car
-      // il matche "Burkini Cap Horizon" qui n'est pas un chapeau
-      const hatResult = await getProducts({
-        where: {
-          and: [
-            {
-              or: [
-                { nameAr: { contains: 'شابو' } },
-                { nameFr: { contains: 'Chapeau' } },
-                { nameFr: { contains: 'chapeau' } },
-                { nameFr: { equals: 'hat' } },
-              ],
-            },
-            { status: { equals: 'published' } },
-          ],
-        },
-        limit: 1,
-      }).catch(() => ({ docs: [] }))
+      const hatProduct = await getProductBySlug('chapeau').catch(() => null)
 
-      const hatProduct = hatResult.docs[0] as Product | undefined
       if (hatProduct && hatProduct.variations && hatProduct.variations.length > 0) {
         // Préférer une variation en stock ; sinon prendre la première disponible
         const allVars = hatProduct.variations
