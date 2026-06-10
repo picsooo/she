@@ -343,6 +343,204 @@ function BulkPanel({ selectedIds, onClear, onRefresh }: BulkPanelProps) {
 const FIELD_LABEL: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: '#6D7175', textTransform: 'uppercase', letterSpacing: '0.06em' }
 const APPLY_BTN: React.CSSProperties = { width: '100%', padding: '10px', borderRadius: 9, background: '#E93D91', border: '1.5px solid #E93D91', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', transition: 'opacity 0.15s' }
 
+// ── Modal Stock par produit ───────────────────────────────────────────────────
+interface StockModalProps {
+  product: Product
+  onClose: () => void
+  onSaved: () => void
+}
+
+function StockModal({ product, onClose, onSaved }: StockModalProps) {
+  // Copie locale des variations pour édition
+  const [variations, setVariations] = useState<Variation[]>(
+    (product.variations ?? []).map(v => ({ ...v }))
+  )
+  const [globalQty, setGlobalQty]   = useState('')
+  const [saving,    setSaving]      = useState(false)
+  const [result,    setResult]      = useState<string | null>(null)
+
+  // Grouper les variations par couleur pour l'affichage
+  const colors = [...new Set(variations.map(v => v.colorAr ?? '—'))]
+
+  const setVarStock = (idx: number, qty: number) => {
+    setVariations(prev => prev.map((v, i) =>
+      i === idx ? { ...v, stock: qty, inStock: qty > 0 } : v
+    ))
+  }
+
+  // Appliquer la même quantité à toutes les variations
+  const applyGlobal = () => {
+    const qty = parseInt(globalQty, 10)
+    if (isNaN(qty) || qty < 0) return
+    setVariations(prev => prev.map(v => ({ ...v, stock: qty, inStock: qty > 0 })))
+    setGlobalQty('')
+  }
+
+  // Appliquer une quantité à toutes les variations d'une couleur
+  const applyToColor = (color: string, qty: number) => {
+    setVariations(prev => prev.map(v =>
+      (v.colorAr ?? '—') === color ? { ...v, stock: qty, inStock: qty > 0 } : v
+    ))
+  }
+
+  const save = async () => {
+    setSaving(true); setResult(null)
+    const r = await fetch(`/api/boutique-admin/products/${product.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variations }),
+    })
+    setSaving(false)
+    if (r.ok) {
+      setResult('✅ Stock mis à jour !')
+      onSaved()
+      setTimeout(onClose, 900)
+    } else {
+      setResult('❌ Erreur lors de la sauvegarde')
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{
+        background: '#fff', borderRadius: 18,
+        width: '100%', maxWidth: 600, maxHeight: '90vh',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid #F1F1F1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1A1A1A' }}>📦 Gestion du stock</div>
+            <div style={{ fontSize: 12, color: '#6D7175', marginTop: 3, maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.nameAr}</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9A9A9A', lineHeight: 1, padding: 4 }}>✕</button>
+        </div>
+
+        {/* Zone "Appliquer à toutes les variations" */}
+        <div style={{ padding: '14px 20px', background: '#F8F9FF', borderBottom: '1px solid #E8ECF4', flexShrink: 0 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#4A3DBC', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+            ⚡ Appliquer à toutes les variations
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="number" min={0} value={globalQty}
+              onChange={e => setGlobalQty(e.target.value)}
+              placeholder="Quantité pour tout le produit…"
+              style={{ flex: 1, padding: '9px 12px', borderRadius: 9, border: '1.5px solid #C7D2FE', fontSize: 13, outline: 'none', background: '#fff' }}
+              onKeyDown={e => e.key === 'Enter' && applyGlobal()}
+            />
+            <button onClick={applyGlobal} style={{ padding: '9px 18px', borderRadius: 9, background: '#4A3DBC', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              Appliquer à tout
+            </button>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 11, color: '#6D7175' }}>
+            {variations.length} variation{variations.length > 1 ? 's' : ''} · {variations.filter(v => v.inStock).length} en stock actuellement
+          </div>
+        </div>
+
+        {/* Liste des variations groupées par couleur */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
+          {colors.map(color => {
+            const colorVars = variations.map((v, i) => ({ v, i })).filter(({ v }) => (v.colorAr ?? '—') === color)
+            const colorTotal = colorVars.reduce((s, { v }) => s + (v.stock ?? 0), 0)
+
+            return (
+              <div key={color} style={{ marginBottom: 18 }}>
+                {/* En-tête couleur avec action rapide */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#E93D91' }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1A1A1A' }}>{color}</span>
+                    <span style={{ fontSize: 11, color: '#9A9A9A' }}>({colorTotal} en stock)</span>
+                  </div>
+                  {/* Champ "même quantité pour toute la couleur" */}
+                  <ColorQuickSet color={color} onApply={qty => applyToColor(color, qty)} />
+                </div>
+
+                {/* Variations de cette couleur */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8 }}>
+                  {colorVars.map(({ v, i }) => (
+                    <div key={i} style={{
+                      padding: '10px 12px', borderRadius: 10,
+                      border: `1.5px solid ${v.inStock ? '#A7F3D0' : '#FCA5A5'}`,
+                      background: v.inStock ? '#F0FDF4' : '#FEF2F2',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#6D7175', marginBottom: 6 }}>
+                        {v.size && v.size !== 'UNIQUE' ? v.size : 'Taille unique'}
+                      </div>
+                      <input
+                        type="number" min={0}
+                        value={v.stock ?? 0}
+                        onChange={e => setVarStock(i, parseInt(e.target.value, 10) || 0)}
+                        style={{
+                          width: '100%', padding: '6px 10px', borderRadius: 7,
+                          border: `1.5px solid ${v.inStock ? '#6EE7B7' : '#FCA5A5'}`,
+                          background: '#fff', fontSize: 14, fontWeight: 700,
+                          textAlign: 'center', outline: 'none', boxSizing: 'border-box',
+                          color: v.inStock ? '#065F46' : '#991B1B',
+                        }}
+                      />
+                      <div style={{ fontSize: 10, textAlign: 'center', marginTop: 4, color: v.inStock ? '#10B981' : '#EF4444', fontWeight: 600 }}>
+                        {v.inStock ? '✓ En stock' : '✗ Rupture'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Footer actions */}
+        <div style={{ padding: '14px 20px', borderTop: '1px solid #F1F1F1', display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+          {result && (
+            <div style={{ flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600, background: result.startsWith('✅') ? '#ECFDF5' : '#FEF2F2', color: result.startsWith('✅') ? '#065F46' : '#991B1B' }}>
+              {result}
+            </div>
+          )}
+          {!result && <div style={{ flex: 1 }} />}
+          <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 9, background: '#F5F5F5', border: 'none', color: '#6D7175', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            Annuler
+          </button>
+          <button onClick={save} disabled={saving} style={{ padding: '10px 22px', borderRadius: 9, background: saving ? '#F9A8D4' : '#E93D91', border: 'none', color: '#fff', fontWeight: 700, fontSize: 13, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? '⏳ Sauvegarde…' : '💾 Sauvegarder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Petit champ inline pour définir la même quantité à toute une couleur
+function ColorQuickSet({ color, onApply }: { color: string; onApply: (qty: number) => void }) {
+  const [val, setVal] = useState('')
+  return (
+    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+      <input
+        type="number" min={0} value={val}
+        onChange={e => setVal(e.target.value)}
+        placeholder="Qté"
+        style={{ width: 60, padding: '4px 8px', borderRadius: 7, border: '1.5px solid #E3E5E7', fontSize: 12, outline: 'none', textAlign: 'center' }}
+        onKeyDown={e => { if (e.key === 'Enter' && val !== '') { onApply(parseInt(val, 10) || 0); setVal('') } }}
+      />
+      <button
+        onClick={() => { if (val !== '') { onApply(parseInt(val, 10) || 0); setVal('') } }}
+        style={{ padding: '4px 10px', borderRadius: 7, background: '#FEF3F8', border: '1px solid #FCE7F3', color: '#E93D91', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+      >
+        → {color.length > 8 ? 'couleur' : color}
+      </button>
+    </div>
+  )
+}
+
 // ── Page principale ───────────────────────────────────────────────────────────
 export default function ProductsPage() {
   const [products,        setProducts]       = useState<Product[]>([])
