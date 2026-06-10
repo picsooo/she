@@ -129,6 +129,7 @@ export default async function CatalogPage({ searchParams }: PageProps) {
             </div>
           ) : (
             <ProductsGrid
+              key={`${categoryFilter ?? 'all'}-${sort}`}
               initialProducts={products}
               hasMore={totalPages > 1}
               category={categoryFilter}
