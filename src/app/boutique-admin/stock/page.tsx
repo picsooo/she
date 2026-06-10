@@ -369,7 +369,10 @@ export default function StockPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
           {products.map(p => {
-            const img = p.images?.[0]?.image
+            const imgRaw = p.images?.[0]?.image
+            // Les URLs Payload /api/media/file/ retournent 403 — utiliser /media/ (fichiers statiques public/)
+            const toPublicUrl = (u?: string | null) => u ? u.replace(/^https?:\/\/[^/]+\/api\/media\/file\//, '/media/') : undefined
+            const img = imgRaw ? { ...imgRaw, url: toPublicUrl(imgRaw.url), thumbnailURL: toPublicUrl(imgRaw.thumbnailURL) } : undefined
             const { inStock, total, totalQty } = getStockSummary(p.variations)
             const color = getStockColor(inStock, total)
             const pct = total > 0 ? Math.round((inStock / total) * 100) : 0

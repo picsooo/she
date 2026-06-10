@@ -732,7 +732,10 @@ export default function ProductsPage() {
                     {hasActiveFilters && <button onClick={resetFilters} className="admin-btn admin-btn-secondary" style={{ fontSize: 12 }}>Effacer les filtres</button>}
                   </td></tr>
                 ) : displayProducts.map(p => {
-                  const img      = p.images?.[0]?.image
+                  const imgRaw   = p.images?.[0]?.image
+                  // Les URLs Payload /api/media/file/ retournent 403 — utiliser /media/ (fichiers statiques public/)
+                  const toPublicUrl = (u?: string | null) => u ? u.replace(/^https?:\/\/[^/]+\/api\/media\/file\//, '/media/') : undefined
+                  const img      = imgRaw ? { ...imgRaw, url: toPublicUrl(imgRaw.url), thumbnailURL: toPublicUrl(imgRaw.thumbnailURL) } : undefined
                   const st       = STATUS_STYLE[p.status] ?? STATUS_STYLE.draft
                   const stock    = getStockStatus(p.variations)
                   const price    = getPriceRange(p.variations)
