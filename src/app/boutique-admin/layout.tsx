@@ -54,6 +54,7 @@ const Icons = {
   bell:       <svg width="18" height="18" fill="none" viewBox="0 0 20 20"><path d="M10 2a6 6 0 016 6v3l1.5 2.5H2.5L4 11V8a6 6 0 016-6zM8 16a2 2 0 004 0" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
   analytics:  <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="3" y="10" width="3" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="8.5" y="6" width="3" height="12" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="14" y="2" width="3" height="16" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>,
   primes:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v1.5M10 12.5V14M7.5 8.5C7.5 7.4 8.6 6.5 10 6.5s2.5.9 2.5 2c0 2.5-5 2.5-5 5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+  assign:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="7" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><circle cx="14" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 17c0-3 2-5 5-5s5 2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M14 12l2 2 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ function Sidebar({
   const NAV_ADMIN = [
     { href: '/boutique-admin/dashboard',       label: 'Accueil',        icon: Icons.home },
     { href: '/boutique-admin/orders',          label: 'Commandes',      icon: Icons.orders,    badge: newOrdersCount },
+    { href: '/boutique-admin/assignation',     label: 'Assignation',    icon: Icons.assign },
     { href: '/boutique-admin/orders/analytics',label: 'Analytics',      icon: Icons.analytics },
     { href: '/boutique-admin/products',        label: 'Produits',       icon: Icons.products },
     { href: '/boutique-admin/stock',           label: 'Gestion stock',  icon: Icons.products },
