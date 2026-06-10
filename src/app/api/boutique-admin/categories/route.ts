@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 
+export async function POST(req: NextRequest) {
+  try {
+    const data = await req.json()
+    // Auto-slug depuis le nom
+    if (!data.slug) {
+      const ascii = (data.nameAr || data.name || '').toLowerCase()
+        .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '')
+      data.slug = (ascii || 'category') + '-' + Date.now()
+    }
+    const payload = await getPayload({ config: configPromise })
+    const doc = await payload.create({ collection: 'categories', data, overrideAccess: true })
+    return NextResponse.json({ doc }, { status: 201 })
+  } catch (err) {
+    console.error('[boutique-admin/categories POST]', err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const payload = await getPayload({ config: configPromise })

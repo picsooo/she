@@ -155,9 +155,9 @@ export default function ProductForm({ productId, initial }: { productId?: string
     setTimeout(() => setToast(null), 4000)
   }
 
-  // Charger les catégories
+  // Charger les catégories (route boutique-admin → overrideAccess, pas besoin d'auth)
   useEffect(() => {
-    fetch('/api/categories?limit=100&sort=nameAr&depth=0')
+    fetch('/api/boutique-admin/categories?limit=100&sort=nameAr&depth=0')
       .then(r => r.json()).then(d => setCategories(d.docs ?? [])).catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -177,7 +177,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
     if (!newCatName.trim()) return
     setCreatingCat(true)
     try {
-      const res = await fetch('/api/categories', {
+      const res = await fetch('/api/boutique-admin/categories', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nameAr: newCatName.trim(), name: newCatName.trim() }),
       })
@@ -666,6 +666,54 @@ export default function ProductForm({ productId, initial }: { productId?: string
                       OK
                     </button>
                   </div>
+
+                  {/* ── Prix rapide pour toutes les variations ──────────── */}
+                  {variations.length > 0 && (
+                    <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: 3, padding: '10px 14px', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#6d4c0f' }}>
+                        💰 Définir un prix pour toutes les variations :
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="number" min="0" placeholder="Prix régulier (DA)"
+                          id="bulk-regular"
+                          style={{ ...inp, maxWidth: 160, fontSize: 13 }}
+                        />
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById('bulk-regular') as HTMLInputElement
+                            const v = parseFloat(el?.value ?? '')
+                            if (!isNaN(v) && v > 0) {
+                              setVariations(p => p.map(x => ({ ...x, regularPrice: v })))
+                              if (el) el.value = ''
+                              showToast(`Prix régulier ${v} DA appliqué à ${variations.length} variation(s) ✓`, true)
+                            }
+                          }}
+                          style={{ padding: '6px 14px', background: '#2271b1', border: '1px solid #0a4b78', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Appliquer à tous
+                        </button>
+                        <span style={{ fontSize: 12, color: '#9a7a00' }}>ou</span>
+                        <input
+                          type="number" min="0" placeholder="Prix promo (DA)"
+                          id="bulk-sale"
+                          style={{ ...inp, maxWidth: 160, fontSize: 13 }}
+                        />
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById('bulk-sale') as HTMLInputElement
+                            const v = parseFloat(el?.value ?? '')
+                            if (!isNaN(v) && v > 0) {
+                              setVariations(p => p.map(x => ({ ...x, salePrice: v })))
+                              if (el) el.value = ''
+                              showToast(`Prix promo ${v} DA appliqué à ${variations.length} variation(s) ✓`, true)
+                            }
+                          }}
+                          style={{ padding: '6px 14px', background: '#e93d91', border: '1px solid #c4197a', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Appliquer promo
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {variations.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', border: '1px dashed #c3c4c7', borderRadius: 3, color: '#646970', fontSize: 13 }}>
