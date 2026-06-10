@@ -11,7 +11,10 @@ export const metadata: Metadata = {
   description: 'تصفحي مجموعتنا الكاملة من أزياء المرأة',
 }
 
-export const revalidate = 1800
+// force-dynamic : la page catalogue doit toujours être rendue fraîchement côté serveur
+// car elle filtre par searchParams (catégorie, tri) — le cache ISR causait des résultats incorrects
+// lors des navigations client-side entre catégories
+export const dynamic = 'force-dynamic'
 
 interface PageProps {
   searchParams: Promise<{
