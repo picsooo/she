@@ -32,12 +32,13 @@ export default async function CatalogPage({ searchParams }: PageProps) {
       category: categoryFilter,
       sort,
     }).catch(() => ({ docs: [], totalPages: 1, totalDocs: 0 })),
-    getActiveRootCategories().catch(() => []),
+    getActiveRootCategories().catch(() => ({ docs: [] as unknown[] })),
     getFeaturedProducts(6).catch(() => ({ docs: [] })),
   ])
 
   const products = productsResult.docs as Product[]
-  const categories = (Array.isArray(categoriesResult) ? categoriesResult : []) as Category[]
+  // getActiveRootCategories() retourne { docs: [...] } — extraire le tableau correctement
+  const categories = ((categoriesResult as { docs?: unknown[] })?.docs ?? []) as Category[]
   const featured = featuredResult.docs as Product[]
   const totalPages = (productsResult as { totalPages?: number }).totalPages ?? 1
   const totalDocs = (productsResult as { totalDocs?: number }).totalDocs ?? 0
@@ -98,7 +99,7 @@ export default async function CatalogPage({ searchParams }: PageProps) {
             key={cat.id}
             href={`/products?category=${cat.id}`}
             className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-medium transition-colors ${
-              categoryFilter === cat.id ? 'bg-[#E93D91] text-white' : 'bg-[#F7F5F2] text-foreground/70'
+              categoryFilter === String(cat.id) ? 'bg-[#E93D91] text-white' : 'bg-[#F7F5F2] text-foreground/70'
             }`}
           >
             {cat.nameAr}

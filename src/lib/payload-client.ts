@@ -93,17 +93,22 @@ export async function getFeaturedProducts(limit = 8) {
 
 // Helper : retourne les IDs des sous-catégories directes d'une catégorie parent
 // Utilisé pour que les filtres par catégorie incluent aussi les produits des sous-catégories
+// Retourne [] en cas d'erreur pour ne pas casser l'appel parent
 async function getChildCategoryIds(
   payload: Awaited<ReturnType<typeof getPayloadClient>>,
   parentId: string | number
 ): Promise<(string | number)[]> {
-  const children = await payload.find({
-    collection: 'categories',
-    where: { parent: { equals: parentId } },
-    limit: 100,
-    depth: 0,
-  })
-  return children.docs.map((c) => c.id)
+  try {
+    const children = await payload.find({
+      collection: 'categories',
+      where: { parent: { equals: parentId } },
+      limit: 100,
+      depth: 0,
+    })
+    return children.docs.map((c) => c.id)
+  } catch {
+    return []
+  }
 }
 
 // Produits d'une catégorie donnée (pour les sections homepage par catégorie)
@@ -111,7 +116,7 @@ async function getChildCategoryIds(
 export async function getProductsByCategory(categoryId: string, limit = 4) {
   const payload = await getPayloadClient()
   const numId = Number.isNaN(Number(categoryId)) ? categoryId : Number(categoryId)
-  const childIds = await getChildCategoryIds(payload, numId)
+  const childIds = await getChildCategoryIds(payload, numId) // retourne [] en cas d'erreur
   return payload.find({
     collection: 'products',
     where: {

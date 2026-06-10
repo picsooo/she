@@ -56,11 +56,12 @@ function isBurkiniProduct(product: Product, categories: Category[]): boolean {
   }
 
   // Vérification 2 : fallback via la liste complète des catégories (au cas où depth:2 n'a pas populé)
-  const productCatIds = (product.category ?? []).map((c) =>
-    typeof c === 'object' ? c.id : c
+  // Normaliser les IDs en string pour éviter les comparaisons number vs string (5 !== "5")
+  const productCatIdStrs = (product.category ?? []).map((c) =>
+    typeof c === 'object' ? String(c.id) : String(c)
   )
   return categories.some((cat) =>
-    productCatIds.includes(cat.id) &&
+    productCatIdStrs.includes(String(cat.id)) &&
     ((cat.nameAr ?? '').includes('بوركيني') || (cat.nameFr ?? '').toLowerCase().includes('burkini'))
   )
 }
