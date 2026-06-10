@@ -722,6 +722,35 @@ export default function ProductForm({ productId, initial }: { productId?: string
                     </div>
                   )}
 
+                  {/* ── Quantité rapide pour toutes les variations ──────────── */}
+                  {variations.length > 0 && (
+                    <div style={{ background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: 3, padding: '10px 14px', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#2e7d32' }}>
+                        📦 Définir une quantité pour toutes les variations :
+                      </span>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                          type="number" min="0" placeholder="Quantité en stock"
+                          id="bulk-stock"
+                          style={{ ...inp, maxWidth: 160, fontSize: 13 }}
+                        />
+                        <button
+                          onClick={() => {
+                            const el = document.getElementById('bulk-stock') as HTMLInputElement
+                            const v = parseInt(el?.value ?? '', 10)
+                            if (!isNaN(v) && v >= 0) {
+                              setVariations(p => p.map(x => ({ ...x, stock: v, inStock: v > 0 })))
+                              if (el) el.value = ''
+                              showToast(`Stock ${v} appliqué à ${variations.length} variation(s) ✓`, true)
+                            }
+                          }}
+                          style={{ padding: '6px 14px', background: '#388e3c', border: '1px solid #1b5e20', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          Appliquer à tous
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {variations.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 20px', border: '1px dashed #c3c4c7', borderRadius: 3, color: '#646970', fontSize: 13 }}>
                       <div style={{ fontSize: 28, marginBottom: 8 }}>🎨</div>
