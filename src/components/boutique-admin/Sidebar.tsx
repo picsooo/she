@@ -7,6 +7,7 @@ const NAV = [
   { href: '/boutique-admin/dashboard',  icon: '◈', label: 'Tableau de bord', emoji: '📊' },
   { href: '/boutique-admin/orders',     icon: '◈', label: 'Commandes',        emoji: '📦', badge: true },
   { href: '/boutique-admin/products',   icon: '◈', label: 'Produits',          emoji: '👗' },
+  { href: '/boutique-admin/stock',      icon: '◈', label: 'Gestion stock',     emoji: '📦' },
   { href: '/boutique-admin/categories', icon: '◈', label: 'Catégories',        emoji: '🗂️' },
   { href: '/boutique-admin/settings',   icon: '◈', label: 'Paramètres',        emoji: '⚙️' },
 ]
