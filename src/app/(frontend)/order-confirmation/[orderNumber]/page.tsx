@@ -129,6 +129,16 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
         </div>
       </div>
 
+      {/* Message politique d'échange — en rouge, bien visible */}
+      <div className="mb-6 rounded-2xl border-2 border-red-400 bg-red-50 p-5 text-center">
+        <p className="text-xl font-extrabold text-red-600 leading-relaxed">
+          ⚠️ البضاعة تُستبدل ولا تُسترجع
+        </p>
+        <p className="mt-2 text-sm font-semibold text-red-500">
+          في حال وجود أي مشكل، يمكن استبدال المنتج فقط — لا يتم استرجاع المبلغ
+        </p>
+      </div>
+
       {/* CTA */}
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
         {/* Bouton WhatsApp */}
