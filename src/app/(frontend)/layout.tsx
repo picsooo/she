@@ -55,8 +55,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
         <Footer />
         {/* Drawer panier */}
         <CartDrawer />
-        {/* Initialise le store cadeau (chapeau gratuit avec burkini) */}
-        <FreeGiftInit chapeau={chapeau} />
+        {/* Initialise le store cadeau (toutes les variations du chapeau) */}
+        <FreeGiftInit chapeauVariations={chapeau ?? []} />
         {/* Pixels marketing — injectés uniquement si IDs configurés dans /admin */}
         <PixelScripts
           metaPixelId={marketing?.metaPixelId}

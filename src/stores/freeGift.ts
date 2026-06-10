@@ -14,12 +14,13 @@ export interface FreeGiftData {
 }
 
 interface FreeGiftStore {
-  chapeau: FreeGiftData | null
-  setChapeau: (data: FreeGiftData | null) => void
+  // Toutes les variations du chapeau (bleu, beige…) — choisie dynamiquement selon la couleur du burkini
+  chapeauVariations: FreeGiftData[]
+  setChapeauVariations: (data: FreeGiftData[]) => void
 }
 
 // Store global — initialisé une fois depuis le layout server component
 export const useFreeGiftStore = create<FreeGiftStore>((set) => ({
-  chapeau: null,
-  setChapeau: (data) => set({ chapeau: data }),
+  chapeauVariations: [],
+  setChapeauVariations: (data) => set({ chapeauVariations: data }),
 }))

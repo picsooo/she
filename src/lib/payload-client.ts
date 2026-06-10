@@ -234,10 +234,26 @@ export async function getMarketingSettings(): Promise<MarketingSettings | null> 
 
 // Retourne les données du chapeau offert avec les burkinis (cadeau gratuit)
 // Appelée depuis le layout — disponible sur toutes les pages frontend
+// Helper : convertit une URL /api/media/file/X → /media/X
+function normalizeMediaUrl(rawUrl: string | null | undefined): string | null {
+  if (!rawUrl) return null
+  try {
+    const pathname = new URL(rawUrl).pathname
+    const m = pathname.match(/^\/api\/media\/file\/(.+)$/)
+    return m ? `/media/${m[1]}` : pathname
+  } catch {
+    return rawUrl.startsWith('/api/media/file/')
+      ? `/media/${rawUrl.slice('/api/media/file/'.length)}`
+      : rawUrl
+  }
+}
+
+// Retourne TOUTES les variations du chapeau — la bonne variation est choisie côté client
+// selon la couleur du burkini sélectionnée (bleu → chapeau bleu, autres → chapeau beige).
 export async function getChapeauGift(): Promise<{
   productId: string; productSlug: string; productNameAr: string
   productImage: string | null; variationIndex: number; colorAr: string; size: string
-} | null> {
+}[]> {
   try {
     const payload = await getPayloadClient()
     const result = await payload.find({
@@ -247,38 +263,25 @@ export async function getChapeauGift(): Promise<{
       depth: 1,
     })
     const hat = result.docs[0] as Product | undefined
-    if (!hat || !hat.variations || hat.variations.length === 0) return null
-    const allVars = hat.variations
-    const inStockIdx = allVars.findIndex((v) => v.inStock)
-    const chosenIdx = inStockIdx >= 0 ? inStockIdx : 0
-    const chosenVar = allVars[chosenIdx]
+    if (!hat || !hat.variations || hat.variations.length === 0) return []
+
     const hatImage = hat.images?.[0]?.image
     const rawUrl = hatImage && typeof hatImage === 'object'
       ? (hatImage as { url?: string }).url ?? null : null
-    // Convertir /api/media/file/X → /media/X (même logique que toRelativeMediaUrl côté client)
-    let imageUrl: string | null = null
-    if (rawUrl) {
-      try {
-        const pathname = new URL(rawUrl).pathname
-        const m = pathname.match(/^\/api\/media\/file\/(.+)$/)
-        imageUrl = m ? `/media/${m[1]}` : pathname
-      } catch {
-        imageUrl = rawUrl.startsWith('/api/media/file/')
-          ? `/media/${rawUrl.slice('/api/media/file/'.length)}`
-          : rawUrl
-      }
-    }
-    return {
+    const imageUrl = normalizeMediaUrl(rawUrl)
+
+    // Retourner toutes les variations avec leur index
+    return hat.variations.map((v, idx) => ({
       productId: String(hat.id),
       productSlug: hat.slug ?? '',
       productNameAr: hat.nameAr ?? 'شابو',
       productImage: imageUrl,
-      variationIndex: chosenIdx,
-      colorAr: chosenVar.colorAr ?? '',
-      size: chosenVar.size ?? '',
-    }
+      variationIndex: idx,
+      colorAr: v.colorAr ?? '',
+      size: v.size ?? '',
+    }))
   } catch {
-    return null
+    return []
   }
 }
 

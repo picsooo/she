@@ -32,7 +32,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
   const addItems = useCartStore((s) => s.addItems)
   const openDrawer = useCartStore((s) => s.openDrawer)
-  const chapeau = useFreeGiftStore((s) => s.chapeau)
+  const chapeauVariations = useFreeGiftStore((s) => s.chapeauVariations)
   const variations = useMemo(() => product.variations ?? [], [product.variations])
 
   // ── Couleurs uniques ────────────────────────────────────────────────
@@ -138,9 +138,15 @@ export function ProductCard({ product }: ProductCardProps) {
       regularPrice: activeVariation!.regularPrice ?? 0,
       salePrice: activeVariation!.salePrice,
     }
-    // Si c'est un burkini et que le chapeau est disponible, ajouter les deux d'un coup
-    // Le chapeau n'est ajouté que s'il n'est pas déjà dans le panier (évite les doublons de quantité)
-    if (chapeau && isProductBurkini(product)) {
+    // Si c'est un burkini, choisir le chapeau selon la couleur sélectionnée :
+    // bleu → chapeau bleu, tout autre couleur → chapeau beige
+    const isBurkini = isProductBurkini(product)
+    if (isBurkini && chapeauVariations.length > 0) {
+      const isBleu = /أزرق|bleu|blue/i.test(activeVariation!.colorAr ?? '')
+      const targetRegex = isBleu ? /أزرق|bleu|blue/i : /بيج|beige/i
+      const chapeau =
+        chapeauVariations.find((v) => targetRegex.test(v.colorAr)) ??
+        chapeauVariations[0]
       const items: Parameters<typeof addItems>[0] = [mainItem]
       const chapeauDejaPresent = useCartStore.getState().items.some(
         (item) => item.productId === chapeau.productId

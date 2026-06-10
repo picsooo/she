@@ -24,10 +24,8 @@ const norm = (v: string | null | undefined) => v ?? ''
 export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
   const addItems = useCartStore((s) => s.addItems)
   const cartItems = useCartStore((s) => s.items)
-  // Chapeau cadeau lu depuis le store global (initialisé dans le layout)
-  const freeGiftProduct = useFreeGiftStore((s) => s.chapeau)
-  // N'ajouter le chapeau que si c'est un burkini ET que le chapeau existe
-  const activeGift = isBurkini ? freeGiftProduct : null
+  // Toutes les variations du chapeau cadeau depuis le store global
+  const chapeauVariations = useFreeGiftStore((s) => s.chapeauVariations)
 
   const variations = product.variations ?? []
 
@@ -91,6 +89,19 @@ export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
     if (!activeVariation) return -1
     return variations.indexOf(activeVariation)
   }, [variations, activeVariation])
+
+  // Choisit la variation chapeau selon la couleur du burkini sélectionné :
+  // - bleu (أزرق / bleu / blue) → chapeau bleu
+  // - tout autre couleur (noir, vert…) → chapeau beige
+  const activeGift = useMemo(() => {
+    if (!isBurkini || chapeauVariations.length === 0) return null
+    const isBleu = /أزرق|bleu|blue/i.test(selectedColor)
+    const targetRegex = isBleu ? /أزرق|bleu|blue/i : /بيج|beige/i
+    return (
+      chapeauVariations.find((v) => targetRegex.test(v.colorAr)) ??
+      chapeauVariations[0]
+    )
+  }, [isBurkini, chapeauVariations, selectedColor])
 
   const availableSizesForColor = useMemo(() => {
     return variations
@@ -273,7 +284,7 @@ export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
               شابو مجاني مع طلبكِ!
             </p>
             <p className="text-[10px] text-foreground/50">
-              {activeGift.productNameAr} يضاف تلقائياً
+              {activeGift.productNameAr}{activeGift.colorAr ? ` — ${activeGift.colorAr}` : ''} يضاف تلقائياً
             </p>
           </div>
         </div>
