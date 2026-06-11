@@ -55,13 +55,25 @@ export default function CheckoutPage() {
   // true pendant le chargement des frais Yalidine
   const [feesLoading, setFeesLoading] = useState(false)
 
+  // Bureaux Yalidine pour la wilaya sélectionnée
+  const [centers, setCenters] = useState<Array<{ center_id: number; name: string; address: string; commune_name: string; phone: string }>>([])
+  const [centersLoading, setCentersLoading] = useState(false)
+
   useEffect(() => {
     if (form.wilayaCode) {
       const list = getCommunesByWilaya(form.wilayaCode)
       setCommunes(list.map((c) => ({ value: c.nameAr, label: c.nameAr })))
       setForm((prev) => ({ ...prev, commune: '' }))
+      // Charger les bureaux Yalidine pour cette wilaya
+      setCentersLoading(true)
+      fetch(`/api/yalidine/centers?wilayaCode=${encodeURIComponent(form.wilayaCode)}`)
+        .then(r => r.ok ? r.json() : { centers: [] })
+        .then(data => setCenters(data.centers ?? []))
+        .catch(() => setCenters([]))
+        .finally(() => setCentersLoading(false))
     } else {
       setCommunes([])
+      setCenters([])
     }
   }, [form.wilayaCode])
 
@@ -122,6 +134,7 @@ export default function CheckoutPage() {
         address: form.address,
         note: form.note || undefined,
         deliveryMode: form.deliveryMode,
+        shippingFee: fees[form.deliveryMode],
       },
       items: items.map((item) => ({
         productId: item.productId,
@@ -284,6 +297,28 @@ export default function CheckoutPage() {
                   )}
                 </button>
               </div>
+
+              {/* Bureaux Yalidine — visible uniquement si mode desk et wilaya sélectionnée */}
+              {form.deliveryMode === 'desk' && form.wilayaCode && (
+                <div className="rounded-xl border border-[#EBE6DF] bg-[#F7F5F2] p-3 text-sm">
+                  <p className="font-semibold mb-2 text-foreground">🏢 مكاتب ياليدين في ولايتك</p>
+                  {centersLoading ? (
+                    <p className="text-foreground/50 text-xs">جار التحميل…</p>
+                  ) : centers.length === 0 ? (
+                    <p className="text-foreground/50 text-xs">لا توجد مكاتب متاحة في هذه الولاية</p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {centers.map(c => (
+                        <li key={c.center_id} className="flex flex-col gap-0.5">
+                          <span className="font-medium text-foreground">{c.name}</span>
+                          <span className="text-foreground/60 text-xs">{c.address}{c.commune_name ? ` — ${c.commune_name}` : ''}</span>
+                          {c.phone && <span className="text-foreground/50 text-xs">📞 {c.phone}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
 
             <Input

@@ -142,9 +142,12 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       })
     }
 
-    // Calcul des frais de livraison selon le mode choisi
+    // Frais de livraison : utiliser le tarif Yalidine passé depuis le checkout
+    // s'il est disponible, sinon fallback sur les tarifs par défaut des settings
     const deliveryMode = customer.deliveryMode ?? 'home'
-    const shippingFee = await getShippingFee(deliveryMode, payload)
+    const shippingFee = customer.shippingFee != null
+      ? customer.shippingFee
+      : await getShippingFee(deliveryMode, payload)
     const total = subtotal + shippingFee
 
     // Numéro de commande unique

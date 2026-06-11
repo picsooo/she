@@ -37,6 +37,10 @@ export const checkoutSchema = z.object({
 
   // Mode de livraison — home = domicile, desk = bureau Yalidine
   deliveryMode: z.enum(['home', 'desk']).default('home'),
+
+  // Frais de livraison calculés côté client (depuis Yalidine ou valeur par défaut)
+  // Le serveur les utilise directement pour éviter un second appel Yalidine
+  shippingFee: z.coerce.number().min(0).optional(),
 })
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>

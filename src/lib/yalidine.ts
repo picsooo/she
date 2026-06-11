@@ -102,6 +102,18 @@ export interface YalidineWilaya {
   is_deliverable: number
 }
 
+/** Centre / bureau Yalidine */
+export interface YalidineCenter {
+  center_id: number
+  name: string
+  address: string
+  commune_name: string
+  wilaya_id: number
+  wilaya_name: string
+  phone: string
+  gps: string | null
+}
+
 // ── Mapping statuts Yalidine → statuts commande She's ────────────────────────
 
 /**
@@ -241,6 +253,14 @@ export class YalidineClient {
   /** Liste des wilayas Yalidine (58 wilayas) */
   async getWilayas(): Promise<{ data: YalidineWilaya[] }> {
     return this.request<{ data: YalidineWilaya[] }>('/wilayas/?page_size=100')
+  }
+
+  /**
+   * Récupérer les centres (bureaux) Yalidine pour une wilaya donnée.
+   * wilayaId = code numérique (ex: 16 pour Alger)
+   */
+  async getCenters(wilayaId: number): Promise<{ data: YalidineCenter[] }> {
+    return this.request<{ data: YalidineCenter[] }>(`/centers/?wilaya_id=${wilayaId}&page_size=100`)
   }
 
   /** Vérifier que les credentials sont valides */
