@@ -29,6 +29,7 @@ export function ProductGallery({ images, productName, controlledIndex, onIndexCh
   const setActiveIndex = (idx: number) => {
     setInternalIndex(idx)
     ctx?.setActiveIndex(idx)
+    ctx?.setOverrideImageUrl(null) // cliquer sur une thumbnail annule l'override
     onIndexChange?.(idx)
   }
 
@@ -40,7 +41,11 @@ export function ProductGallery({ images, productName, controlledIndex, onIndexCh
     )
   }
 
-  const activeImage = images[activeIndex]
+  // Si une image de variation est forcée (overrideImageUrl), l'afficher en principal
+  const overrideUrl = ctx?.overrideImageUrl
+  const activeImage = overrideUrl
+    ? { url: overrideUrl, alt: productName }
+    : images[activeIndex] ?? images[0]
 
   return (
     <div className="flex flex-col gap-3">

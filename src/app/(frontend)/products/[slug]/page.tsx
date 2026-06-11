@@ -192,7 +192,7 @@ export default async function ProductPage({ params }: PageProps) {
 
         {/* ── Contenu principal ── */}
         <div className="flex-1 min-w-0">
-          <ProductGalleryProvider product={product} imageUrls={galleryImages.map(i => i.url)}>
+          <ProductGalleryProvider product={product}>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {/* Galerie — réagit aux changements de couleur via contexte */}
             <ProductGallery images={galleryImages} productName={product.nameAr ?? ''} />

@@ -2,8 +2,9 @@
 
 /**
  * Contexte partagé entre ProductGallery et VariantSelector.
- * Quand l'utilisateur sélectionne une couleur, l'index actif de la galerie
- * se met à jour vers l'image correspondante (i-ème couleur → i-ème image).
+ * Quand l'utilisateur sélectionne une couleur :
+ *  - Si la variation a une image spécifique (variationImageUrl) → override direct
+ *  - Sinon → fallback index (i-ème couleur → i-ème image principale)
  */
 
 import { createContext, useContext, useState, useMemo } from 'react'
@@ -12,11 +13,10 @@ import type { Product } from '@/payload-types'
 interface GalleryContextValue {
   activeIndex: number
   setActiveIndex: (idx: number) => void
-  // Cherche l'image par URL et l'active si trouvée
-  setActiveByUrl: (url: string) => void
+  // Override URL : si défini, la galerie affiche cette image plutôt que celle de activeIndex
+  overrideImageUrl: string | null
+  setOverrideImageUrl: (url: string | null) => void
   uniqueColors: string[]
-  // URLs de toutes les images de la galerie (pour la recherche par URL)
-  imageUrls: string[]
 }
 
 const GalleryContext = createContext<GalleryContextValue | null>(null)
@@ -27,17 +27,12 @@ export function useGalleryContext() {
 
 interface ProviderProps {
   product: Product
-  // URLs des images de la galerie (dans le même ordre que ProductGallery)
-  imageUrls?: string[]
   children: React.ReactNode
 }
 
-/**
- * Wrapper provider à placer autour du grid produit.
- * Partage l'état activeIndex entre la galerie et le sélecteur.
- */
-export function ProductGalleryProvider({ product, imageUrls = [], children }: ProviderProps) {
-  const [activeIndex, setActiveIndex] = useState(0)
+export function ProductGalleryProvider({ product, children }: ProviderProps) {
+  const [activeIndex,      setActiveIndex]      = useState(0)
+  const [overrideImageUrl, setOverrideImageUrl] = useState<string | null>(null)
 
   const uniqueColors = useMemo(() => {
     const seen = new Set<string>()
@@ -49,14 +44,8 @@ export function ProductGalleryProvider({ product, imageUrls = [], children }: Pr
     return result
   }, [product.variations])
 
-  // Cherche l'image par URL (partielle ou complète) et l'active
-  const setActiveByUrl = (url: string) => {
-    const idx = imageUrls.findIndex(u => u === url || u.includes(url) || url.includes(u))
-    if (idx >= 0) setActiveIndex(idx)
-  }
-
   return (
-    <GalleryContext.Provider value={{ activeIndex, setActiveIndex, setActiveByUrl, uniqueColors, imageUrls }}>
+    <GalleryContext.Provider value={{ activeIndex, setActiveIndex, overrideImageUrl, setOverrideImageUrl, uniqueColors }}>
       {children}
     </GalleryContext.Provider>
   )

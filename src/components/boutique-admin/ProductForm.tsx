@@ -361,20 +361,29 @@ export default function ProductForm({ productId, initial }: { productId?: string
   }
 
   // ── Upload image de variation ────────────────────────────────────────────
+  // Propage automatiquement l'image à TOUTES les variations de la même couleur
   async function handleVarImageFile(files: FileList | null) {
     const key = varImageTargetKey.current
     if (!files?.length || !key) return
     const file = files[0]
     const localUrl = URL.createObjectURL(file)
+    // Marquer l'upload en cours sur la variation cible
     updateVar(key, { variationImageUrl: localUrl, variationImageUploading: true })
     try {
       const { id, url } = await uploadFile(file)
-      updateVar(key, { variationImageId: id, variationImageUrl: url, variationImageUploading: false })
+      // Récupérer la couleur de la variation cible
+      const targetColorAr = variations.find(v => v._key === key)?.colorAr ?? ''
+      // Propager à toutes les variations de la même couleur
+      setVariations(prev => prev.map(v => {
+        if ((v.colorAr ?? '') === targetColorAr) {
+          return { ...v, variationImageId: id, variationImageUrl: url, variationImageUploading: false }
+        }
+        return v
+      }))
     } catch {
       updateVar(key, { variationImageUploading: false })
       showToast('Échec upload image de variation', false)
     }
-    // Reset input pour permettre re-sélection du même fichier
     if (varImageInputRef.current) varImageInputRef.current.value = ''
   }
 

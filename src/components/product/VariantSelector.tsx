@@ -220,15 +220,17 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
                 onClick={() => {
                   setSelectedColor(colorAr)
                   onColorChange?.(colorAr)
-                  // Synchroniser la galerie : priorité à l'image spécifique de la variation,
-                  // sinon fallback sur l'index de la couleur dans la liste
+                  // Synchroniser la galerie :
+                  // - Si la variation a une image spécifique → override direct (toujours la bonne photo)
+                  // - Sinon → fallback index (i-ème couleur → i-ème image principale)
                   if (galleryCtx) {
                     const varWithImg = variations.find(
                       (v) => norm(v.colorAr) === colorAr && v.variationImageUrl
                     )
                     if (varWithImg?.variationImageUrl) {
-                      galleryCtx.setActiveByUrl(varWithImg.variationImageUrl)
+                      galleryCtx.setOverrideImageUrl(varWithImg.variationImageUrl)
                     } else {
+                      galleryCtx.setOverrideImageUrl(null)
                       const idx = galleryCtx.uniqueColors.indexOf(colorAr)
                       if (idx >= 0) galleryCtx.setActiveIndex(idx)
                     }
