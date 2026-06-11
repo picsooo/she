@@ -354,9 +354,9 @@ export default function ProductForm({ productId, initial }: { productId?: string
       try {
         const { id, url } = await uploadFile(img.file!)
         setImages(p => p.map(x => x._key === img._key ? { ...x, mediaId: id, url, uploading: false, file: undefined } : x))
-      } catch {
+      } catch (err) {
         setImages(p => p.filter(x => x._key !== img._key))
-        showToast('Échec upload image', false)
+        showToast('Échec upload: ' + (err instanceof Error ? err.message : String(err)), false)
       }
     }
   }
@@ -381,9 +381,9 @@ export default function ProductForm({ productId, initial }: { productId?: string
         }
         return v
       }))
-    } catch {
+    } catch (err) {
       updateVar(key, { variationImageUploading: false })
-      showToast('Échec upload image de variation', false)
+      showToast('Échec upload: ' + (err instanceof Error ? err.message : String(err)), false)
     }
     if (varImageInputRef.current) varImageInputRef.current.value = ''
   }
