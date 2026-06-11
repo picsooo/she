@@ -287,25 +287,29 @@ export default function ProductForm({ productId, initial }: { productId?: string
     }
   }
 
-  // Interval auto-save toutes les 30 secondes
+  // Auto-save déclenché 5s après chaque modification (debounce)
+  // Plus réactif que l'interval 30s — sauvegarde avant que l'utilisateur ne quitte
   useEffect(() => {
     if (isEdit) return
-    const id = setInterval(serverAutoSave, 30000)
-    return () => clearInterval(id)
+    const t = setTimeout(() => { serverAutoSave() }, 5000)
+    return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit])
+  }, [nameAr, nameFr, desc, shortDesc, purchNote, sku, visibility,
+      selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images])
 
-  // Sauvegarde keepalive quand la confirmatrice ferme/quitte la page
+  // Sauvegarde keepalive + alerte "Voulez-vous vraiment quitter ?" quand la page se ferme
   useEffect(() => {
     if (isEdit) return
-    function handleBeforeUnload() {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
       const name = formStateRef.current.nameAr.trim()
-      if (!name) return  // Formulaire vierge → rien à sauvegarder
+      if (!name) return  // Formulaire vierge → pas d'alerte, rien à sauvegarder
+      // Déclencher le dialogue natif "Quitter le site ?" (texte personnalisé ignoré par les navigateurs modernes)
+      e.preventDefault()
+      // keepalive: true → le navigateur complète la requête même après fermeture de la page
       const body = buildBody('draft')
       const url = draftIdRef.current
         ? `/api/boutique-admin/products/${draftIdRef.current}`
         : '/api/boutique-admin/products'
-      // keepalive: true → le navigateur complète la requête même après fermeture de la page
       fetch(url, {
         method: draftIdRef.current ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
