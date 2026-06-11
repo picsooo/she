@@ -110,9 +110,6 @@ function parsePipe(s: string): string[] {
 
 const VARS_PER_PAGE = 10
 
-// Clé localStorage pour le brouillon de création produit
-const DRAFT_KEY = 'she_new_product_draft'
-
 // ── Composant principal ───────────────────────────────────────────────────────
 export default function ProductForm({ productId, initial }: { productId?: string; initial?: InitialProduct }) {
   const router = useRouter()
@@ -202,81 +199,124 @@ export default function ProductForm({ productId, initial }: { productId?: string
   const [saving, setSaving] = useState(false)
   const [toast,  setToast]  = useState<{ msg: string; ok: boolean } | null>(null)
 
-  // ── Brouillon auto-sauvegardé (uniquement en mode création) ────────────────
-  // Affiche un bandeau "Reprendre le brouillon" si un brouillon existe au chargement
-  const [draftBanner, setDraftBanner] = useState<boolean>(() => {
-    if (typeof window === 'undefined' || !!productId) return false
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY)
-      if (!raw) return false
-      const d = JSON.parse(raw)
-      // Ignorer si le brouillon est vide (juste un formulaire vierge)
-      return Boolean(d?.nameAr?.trim())
-    } catch { return false }
+  // ── Auto-save serveur (uniquement en mode création — comme WordPress) ────────
+  // Toutes les 30s si le nom est rempli → crée/met à jour un vrai brouillon serveur
+  // La confirmatrice retrouve le brouillon dans la liste produits si elle quitte
+  const draftIdRef    = useRef<string | null>(null)  // ID serveur du brouillon créé
+  const autoSavingRef = useRef(false)
+  const [autoSaveLabel, setAutoSaveLabel] = useState<string>('')
+
+  // Ref vers l'état courant du formulaire — permet d'accéder aux valeurs à jour dans beforeunload
+  const formStateRef = useRef({
+    nameAr, nameFr, desc, shortDesc, purchNote, sku, visibility,
+    selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images,
   })
-  // Indique si le brouillon a déjà été restauré (pour ne pas écraser avec le formulaire vide initial)
-  const draftApplied = useRef(false)
+  useEffect(() => {
+    formStateRef.current = {
+      nameAr, nameFr, desc, shortDesc, purchNote, sku, visibility,
+      selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images,
+    }
+  }, [nameAr, nameFr, desc, shortDesc, purchNote, sku, visibility,
+      selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images])
 
-  function applyDraft() {
+  // Construit le body de sauvegarde (partagé entre auto-save et handleSave)
+  function buildBody(targetStatus: 'published' | 'draft' = 'draft', s = formStateRef.current) {
+    return {
+      nameAr: s.nameAr.trim() || 'Brouillon',
+      ...(!draftIdRef.current && !productId ? { slug: makeSlug(s.nameAr.trim() || String(Date.now())) } : {}),
+      ...(s.nameFr.trim()    ? { nameFr: s.nameFr.trim() }              : {}),
+      ...(s.desc.trim()      ? { descriptionAr: s.desc.trim() }         : {}),
+      ...(s.shortDesc.trim() ? { shortDescriptionAr: s.shortDesc.trim() } : {}),
+      ...(s.purchNote.trim() ? { purchaseNote: s.purchNote.trim() }     : {}),
+      status: targetStatus, sku: s.sku.trim() || undefined,
+      visibility: s.visibility,
+      category: s.selCats,
+      customAttributes: s.customAttrs.map(a => ({
+        name: a.name, nameAr: a.nameAr, values: a.valuesRaw,
+        visible: a.visible, forVariations: a.forVariations,
+      })),
+      variations: s.variations.map(v => ({
+        ...(v.id ? { id: v.id } : {}),
+        colorAr: v.colorAr || '', size: v.size || '',
+        regularPrice: Number(v.regularPrice) || 0,
+        ...(v.salePrice !== '' && v.salePrice != null ? { salePrice: Number(v.salePrice) } : {}),
+        ...(v.saleDateFrom ? { saleDateFrom: v.saleDateFrom } : {}),
+        ...(v.saleDateTo   ? { saleDateTo:   v.saleDateTo   } : {}),
+        stock: Number(v.stock) || 0, inStock: v.inStock,
+        ...(v.variationSku         ? { variationSku: v.variationSku }               : {}),
+        ...(v.variationDescription ? { variationDescription: v.variationDescription } : {}),
+        ...(v.variationImageId     ? { variationImageId: v.variationImageId }         : {}),
+        ...(v.variationImageUrl    ? { variationImageUrl: v.variationImageUrl }       : {}),
+      })),
+      images: s.images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
+    }
+  }
+
+  async function serverAutoSave() {
+    if (isEdit) return
+    if (autoSavingRef.current) return
+    const name = formStateRef.current.nameAr.trim()
+    if (!name) return  // Ne pas créer de brouillon si pas encore de nom
+    autoSavingRef.current = true
+    setAutoSaveLabel('Sauvegarde…')
     try {
-      const raw = localStorage.getItem(DRAFT_KEY)
-      if (!raw) return
-      const d = JSON.parse(raw)
-      if (d.nameAr   !== undefined) setNameAr(d.nameAr)
-      if (d.nameFr   !== undefined) setNameFr(d.nameFr)
-      if (d.desc     !== undefined) setDesc(d.desc)
-      if (d.shortDesc !== undefined) setShortDesc(d.shortDesc)
-      if (d.purchNote !== undefined) setPurchNote(d.purchNote)
-      if (d.sku      !== undefined) setSku(d.sku)
-      if (d.status   !== undefined) setStatus(d.status)
-      if (d.visibility !== undefined) setVisibility(d.visibility)
-      if (d.selCats  !== undefined) setSelCats(d.selCats)
-      if (d.colorsRaw !== undefined) setColorsRaw(d.colorsRaw)
-      if (d.sizesRaw  !== undefined) setSizesRaw(d.sizesRaw)
-      if (d.attrSaved !== undefined) setAttrSaved(d.attrSaved)
-      if (d.customAttrs !== undefined) setCustomAttrs(d.customAttrs)
-      if (d.variations !== undefined) setVariations(d.variations)
-      if (d.images    !== undefined) setImages(d.images)
-      if (d.tab       !== undefined) setTab(d.tab)
-    } catch { /* ignorer si JSON corrompu */ }
-    setDraftBanner(false)
-    draftApplied.current = true
+      const body = buildBody('draft')
+      if (draftIdRef.current) {
+        // Mettre à jour le brouillon existant
+        await fetch(`/api/boutique-admin/products/${draftIdRef.current}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      } else {
+        // Créer le brouillon pour la première fois
+        const res = await fetch('/api/boutique-admin/products', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          draftIdRef.current = data.doc?.id ?? data.id ?? null
+        }
+      }
+      const now = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+      setAutoSaveLabel(`Brouillon sauvegardé à ${now}`)
+    } catch {
+      setAutoSaveLabel('')
+    } finally {
+      autoSavingRef.current = false
+    }
   }
 
-  function discardDraft() {
-    try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
-    setDraftBanner(false)
-    draftApplied.current = true
-  }
-
-  function clearDraft() {
-    try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
-  }
-
-  // Auto-save : on sauvegarde dans localStorage à chaque changement (debounce 2s)
-  // Seulement en mode création, pas en édition
+  // Interval auto-save toutes les 30 secondes
   useEffect(() => {
     if (isEdit) return
-    // Ne pas sauvegarder si le brouillon n'a pas encore été accepté/refusé
-    if (draftBanner) return
-    const t = setTimeout(() => {
-      try {
-        const draft = {
-          nameAr, nameFr, desc, shortDesc, purchNote, sku, status,
-          visibility, selCats, colorsRaw, sizesRaw, attrSaved,
-          customAttrs, tab,
-          // Variations : on sauvegarde tout sauf le flag uploading (transitoire)
-          variations: variations.map(v => ({ ...v, variationImageUploading: false })),
-          // Images : sauvegarder uniquement les déjà uploadées (mediaId + url)
-          images: images.filter(i => i.mediaId).map(i => ({ _key: i._key, mediaId: i.mediaId, url: i.url, uploading: false })),
-        }
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-      } catch { /* quota storage ou env SSR */ }
-    }, 2000)
-    return () => clearTimeout(t)
+    const id = setInterval(serverAutoSave, 30000)
+    return () => clearInterval(id)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nameAr, nameFr, desc, shortDesc, purchNote, sku, status, visibility,
-      selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images, tab, draftBanner])
+  }, [isEdit])
+
+  // Sauvegarde keepalive quand la confirmatrice ferme/quitte la page
+  useEffect(() => {
+    if (isEdit) return
+    function handleBeforeUnload() {
+      const name = formStateRef.current.nameAr.trim()
+      if (!name) return  // Formulaire vierge → rien à sauvegarder
+      const body = buildBody('draft')
+      const url = draftIdRef.current
+        ? `/api/boutique-admin/products/${draftIdRef.current}`
+        : '/api/boutique-admin/products'
+      // keepalive: true → le navigateur complète la requête même après fermeture de la page
+      fetch(url, {
+        method: draftIdRef.current ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {})
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit])
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok })
@@ -475,14 +515,16 @@ export default function ProductForm({ productId, initial }: { productId?: string
     const finalStatus = targetStatus ?? status
     setSaving(true)
     try {
+      // buildBody utilise formStateRef mais nameAr vient d'être validé ci-dessus
+      // On reconstruit le body avec les valeurs React actuelles (état React = valeurs UI)
       const body = {
         nameAr: nameAr.trim(),
-        // Payload valide "required" avant le hook beforeChange → on génère le slug côté client
-        ...(!isEdit ? { slug: makeSlug(nameAr.trim() || nameFr.trim() || String(Date.now())) } : {}),
-        ...(nameFr.trim()    ? { nameFr: nameFr.trim() }                    : {}),
-        ...(desc.trim()      ? { descriptionAr: desc.trim() }               : {}),
-        ...(shortDesc.trim() ? { shortDescriptionAr: shortDesc.trim() }     : {}),
-        ...(purchNote.trim() ? { purchaseNote: purchNote.trim() }           : {}),
+        // Si un brouillon serveur existe déjà → on PATCH le même doc, pas de nouveau slug
+        ...(!productId && !draftIdRef.current ? { slug: makeSlug(nameAr.trim() || nameFr.trim() || String(Date.now())) } : {}),
+        ...(nameFr.trim()    ? { nameFr: nameFr.trim() }              : {}),
+        ...(desc.trim()      ? { descriptionAr: desc.trim() }         : {}),
+        ...(shortDesc.trim() ? { shortDescriptionAr: shortDesc.trim() } : {}),
+        ...(purchNote.trim() ? { purchaseNote: purchNote.trim() }     : {}),
         status: finalStatus, sku: sku.trim() || undefined,
         visibility,
         category: selCats,
@@ -505,13 +547,14 @@ export default function ProductForm({ productId, initial }: { productId?: string
         })),
         images: images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
       }
-      // Création → route boutique-admin (overrideAccess, slug auto)
-      // Édition  → route boutique-admin/:id (PATCH avec overrideAccess)
-      const url = isEdit
-        ? `/api/boutique-admin/products/${productId}`
+      // Si un brouillon auto-sauvé existe → PATCH ce brouillon (évite les doublons)
+      // Sinon : édition normale (productId) ou nouvelle création
+      const effectiveId = productId ?? draftIdRef.current
+      const url = effectiveId
+        ? `/api/boutique-admin/products/${effectiveId}`
         : '/api/boutique-admin/products'
       const res = await fetch(url, {
-        method: isEdit ? 'PATCH' : 'POST',
+        method: effectiveId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
@@ -521,7 +564,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
         return
       }
       setStatus(finalStatus)
-      if (!isEdit) clearDraft() // Brouillon effacé après création réussie
+      setAutoSaveLabel('')  // Effacer le label auto-save après sauvegarde manuelle
       showToast(isEdit ? 'Produit mis à jour ✓' : 'Produit créé ✓', true)
       setTimeout(() => router.push('/boutique-admin/products'), 900)
     } catch { showToast('Erreur réseau', false) }
@@ -581,32 +624,17 @@ export default function ProductForm({ productId, initial }: { productId?: string
         </div>
       )}
 
-      {/* Bandeau brouillon récupéré — affiché uniquement en mode création si un brouillon existe */}
-      {!isEdit && draftBanner && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff8e1',
-          border: '1px solid #ffe082', borderRadius: 4, padding: '10px 16px', marginBottom: 14 }}>
-          <span style={{ fontSize: 18 }}>📝</span>
-          <span style={{ flex: 1, fontSize: 13, color: '#5d4037' }}>
-            <strong>Brouillon récupéré</strong> — Vous aviez commencé à ajouter un produit. Voulez-vous reprendre ?
-          </span>
-          <button onClick={applyDraft}
-            style={{ padding: '5px 14px', background: '#2271b1', color: '#fff', border: 'none',
-              borderRadius: 3, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-            Reprendre
-          </button>
-          <button onClick={discardDraft}
-            style={{ padding: '5px 12px', background: '#f6f7f7', color: '#d63638', border: '1px solid #d63638',
-              borderRadius: 3, fontSize: 13, cursor: 'pointer' }}>
-            Ignorer
-          </button>
+      {/* Breadcrumb + indicateur auto-save */}
+      <div style={{ marginBottom: 6, fontSize: 12, color: '#646970', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div>
+          <Link href="/boutique-admin/products" style={{ color: '#2271b1', textDecoration: 'none' }}>Produits</Link>
+          {' › '}
+          <span>{isEdit ? 'Modifier le produit' : 'Ajouter un produit'}</span>
         </div>
-      )}
-
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 6, fontSize: 12, color: '#646970' }}>
-        <Link href="/boutique-admin/products" style={{ color: '#2271b1', textDecoration: 'none' }}>Produits</Link>
-        {' › '}
-        <span>{isEdit ? 'Modifier le produit' : 'Ajouter un produit'}</span>
+        {/* Indicateur auto-save serveur (mode création uniquement) */}
+        {!isEdit && autoSaveLabel && (
+          <span style={{ fontSize: 11, color: '#646970', fontStyle: 'italic' }}>{autoSaveLabel}</span>
+        )}
       </div>
       <h1 style={{ fontSize: 23, fontWeight: 400, color: '#1d2327', margin: '0 0 16px' }}>
         {isEdit ? 'Modifier le produit' : 'Ajouter un produit'}
