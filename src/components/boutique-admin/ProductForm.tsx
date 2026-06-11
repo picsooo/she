@@ -110,6 +110,9 @@ function parsePipe(s: string): string[] {
 
 const VARS_PER_PAGE = 10
 
+// Clé localStorage pour le brouillon de création produit
+const DRAFT_KEY = 'she_new_product_draft'
+
 // ── Composant principal ───────────────────────────────────────────────────────
 export default function ProductForm({ productId, initial }: { productId?: string; initial?: InitialProduct }) {
   const router = useRouter()
@@ -198,6 +201,82 @@ export default function ProductForm({ productId, initial }: { productId?: string
 
   const [saving, setSaving] = useState(false)
   const [toast,  setToast]  = useState<{ msg: string; ok: boolean } | null>(null)
+
+  // ── Brouillon auto-sauvegardé (uniquement en mode création) ────────────────
+  // Affiche un bandeau "Reprendre le brouillon" si un brouillon existe au chargement
+  const [draftBanner, setDraftBanner] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !!productId) return false
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return false
+      const d = JSON.parse(raw)
+      // Ignorer si le brouillon est vide (juste un formulaire vierge)
+      return Boolean(d?.nameAr?.trim())
+    } catch { return false }
+  })
+  // Indique si le brouillon a déjà été restauré (pour ne pas écraser avec le formulaire vide initial)
+  const draftApplied = useRef(false)
+
+  function applyDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.nameAr   !== undefined) setNameAr(d.nameAr)
+      if (d.nameFr   !== undefined) setNameFr(d.nameFr)
+      if (d.desc     !== undefined) setDesc(d.desc)
+      if (d.shortDesc !== undefined) setShortDesc(d.shortDesc)
+      if (d.purchNote !== undefined) setPurchNote(d.purchNote)
+      if (d.sku      !== undefined) setSku(d.sku)
+      if (d.status   !== undefined) setStatus(d.status)
+      if (d.visibility !== undefined) setVisibility(d.visibility)
+      if (d.selCats  !== undefined) setSelCats(d.selCats)
+      if (d.colorsRaw !== undefined) setColorsRaw(d.colorsRaw)
+      if (d.sizesRaw  !== undefined) setSizesRaw(d.sizesRaw)
+      if (d.attrSaved !== undefined) setAttrSaved(d.attrSaved)
+      if (d.customAttrs !== undefined) setCustomAttrs(d.customAttrs)
+      if (d.variations !== undefined) setVariations(d.variations)
+      if (d.images    !== undefined) setImages(d.images)
+      if (d.tab       !== undefined) setTab(d.tab)
+    } catch { /* ignorer si JSON corrompu */ }
+    setDraftBanner(false)
+    draftApplied.current = true
+  }
+
+  function discardDraft() {
+    try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+    setDraftBanner(false)
+    draftApplied.current = true
+  }
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+  }
+
+  // Auto-save : on sauvegarde dans localStorage à chaque changement (debounce 2s)
+  // Seulement en mode création, pas en édition
+  useEffect(() => {
+    if (isEdit) return
+    // Ne pas sauvegarder si le brouillon n'a pas encore été accepté/refusé
+    if (draftBanner) return
+    const t = setTimeout(() => {
+      try {
+        const draft = {
+          nameAr, nameFr, desc, shortDesc, purchNote, sku, status,
+          visibility, selCats, colorsRaw, sizesRaw, attrSaved,
+          customAttrs, tab,
+          // Variations : on sauvegarde tout sauf le flag uploading (transitoire)
+          variations: variations.map(v => ({ ...v, variationImageUploading: false })),
+          // Images : sauvegarder uniquement les déjà uploadées (mediaId + url)
+          images: images.filter(i => i.mediaId).map(i => ({ _key: i._key, mediaId: i.mediaId, url: i.url, uploading: false })),
+        }
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+      } catch { /* quota storage ou env SSR */ }
+    }, 2000)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameAr, nameFr, desc, shortDesc, purchNote, sku, status, visibility,
+      selCats, colorsRaw, sizesRaw, attrSaved, customAttrs, variations, images, tab, draftBanner])
 
   function showToast(msg: string, ok: boolean) {
     setToast({ msg, ok })
@@ -442,6 +521,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
         return
       }
       setStatus(finalStatus)
+      if (!isEdit) clearDraft() // Brouillon effacé après création réussie
       showToast(isEdit ? 'Produit mis à jour ✓' : 'Produit créé ✓', true)
       setTimeout(() => router.push('/boutique-admin/products'), 900)
     } catch { showToast('Erreur réseau', false) }
@@ -498,6 +578,27 @@ export default function ProductForm({ productId, initial }: { productId?: string
           color: toast.ok ? '#0f5132' : '#842029', fontWeight: 600, fontSize: 13,
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Bandeau brouillon récupéré — affiché uniquement en mode création si un brouillon existe */}
+      {!isEdit && draftBanner && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff8e1',
+          border: '1px solid #ffe082', borderRadius: 4, padding: '10px 16px', marginBottom: 14 }}>
+          <span style={{ fontSize: 18 }}>📝</span>
+          <span style={{ flex: 1, fontSize: 13, color: '#5d4037' }}>
+            <strong>Brouillon récupéré</strong> — Vous aviez commencé à ajouter un produit. Voulez-vous reprendre ?
+          </span>
+          <button onClick={applyDraft}
+            style={{ padding: '5px 14px', background: '#2271b1', color: '#fff', border: 'none',
+              borderRadius: 3, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+            Reprendre
+          </button>
+          <button onClick={discardDraft}
+            style={{ padding: '5px 12px', background: '#f6f7f7', color: '#d63638', border: '1px solid #d63638',
+              borderRadius: 3, fontSize: 13, cursor: 'pointer' }}>
+            Ignorer
+          </button>
         </div>
       )}
 
