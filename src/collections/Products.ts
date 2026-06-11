@@ -248,20 +248,14 @@ export const Products: CollectionConfig = {
     },
 
     // ════════════════════════════════════════════════════════════════
-    // ATTRIBUTS PERSONNALISÉS (créés par le marchand dans ProductForm)
+    // ATTRIBUTS PERSONNALISÉS — stockés en JSON (pas de table séparée)
+    // Format : [{ name, nameAr, values, visible, forVariations }]
     // ════════════════════════════════════════════════════════════════
     {
       name: 'customAttributes',
       label: 'Attributs personnalisés',
-      type: 'array',
-      admin: { hidden: true }, // géré via ProductForm, pas l'admin Payload
-      fields: [
-        { name: 'name',          type: 'text',     label: 'Nom (FR)'       },
-        { name: 'nameAr',        type: 'text',     label: 'Nom (AR)'       },
-        { name: 'values',        type: 'text',     label: 'Valeurs (pipe)' },
-        { name: 'visible',       type: 'checkbox', label: 'Visible',       defaultValue: true  },
-        { name: 'forVariations', type: 'checkbox', label: 'Pour variations', defaultValue: false },
-      ],
+      type: 'json',
+      admin: { hidden: true },
     },
 
     // ════════════════════════════════════════════════════════════════
