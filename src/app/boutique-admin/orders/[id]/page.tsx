@@ -1005,7 +1005,7 @@ export default function OrderDetailPage() {
       <div className="admin-card" style={{ padding: '20px 24px' }}>
         <div style={CARD_TITLE}>⚡ Changer le statut</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {STATUSES.map(s => {
+          {STATUSES.filter(s => ['new', 'confirmed', 'cancelled'].includes(s.value)).map(s => {
             const isCurrent = s.value === order.status
             return (
               <button
