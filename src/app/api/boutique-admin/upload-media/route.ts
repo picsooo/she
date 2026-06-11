@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       .replace(/^https?:\/\/[^/]+\/api\/media\/file\//, '/media/')
       .replace(/^\/api\/media\/file\//, '/media/')
 
+    console.log('[upload-media] rawUrl:', rawUrl, '→ publicUrl:', publicUrl)
     return NextResponse.json({ id: String(result.id), url: publicUrl })
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
