@@ -5,7 +5,7 @@
  */
 import React, { useEffect, useState } from 'react'
 
-interface Category { id: string; nameAr: string; name?: string; description?: string; parent?: { id: string; nameAr?: string } | null }
+interface Category { id: string | number; nameAr: string; name?: string; description?: string; parent?: { id: string | number; nameAr?: string } | null }
 
 const input: React.CSSProperties = {
   width: '100%', padding: '8px 10px', borderRadius: 3,
@@ -20,8 +20,8 @@ const hint: React.CSSProperties = { fontSize: 11, color: '#646970', marginTop: 3
 export default function CategoriesPage() {
   const [cats,        setCats]        = useState<Category[]>([])
   const [loading,     setLoading]     = useState(true)
-  const [deletingId,  setDeletingId]  = useState<string | null>(null)
-  const [editingId,   setEditingId]   = useState<string | null>(null)
+  const [deletingId,  setDeletingId]  = useState<string | number | null>(null)
+  const [editingId,   setEditingId]   = useState<string | number | null>(null)
   const [toast,       setToast]       = useState<{ msg: string; ok: boolean } | null>(null)
 
   // Champs du formulaire
@@ -252,7 +252,7 @@ export default function CategoriesPage() {
                       {c.description ? <span style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{c.description}</span> : <span style={{ color: '#bbb' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 12, color: '#646970', fontFamily: 'monospace', borderRight: '1px solid #f0f0f1' }}>
-                      {c.id.slice(-8)}
+                      {String(c.id).slice(-8)}
                     </td>
                     <td style={{ padding: '10px 12px', fontSize: 12, color: '#646970', borderRight: '1px solid #f0f0f1' }}>
                       {c.parent?.nameAr ? <span>{c.parent.nameAr}</span> : <span style={{ color: '#bbb' }}>—</span>}
