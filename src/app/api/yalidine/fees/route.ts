@@ -48,7 +48,10 @@ export async function GET(req: NextRequest) {
 
     if (!fees) return NextResponse.json({ home: null, desk: null, source: 'timeout' })
 
-    const communeData = fees.per_commune?.[commune.nameFr]
+    // Les clés de per_commune sont des IDs numériques — chercher par commune_name
+    const communeData = Object.values(fees.per_commune ?? {}).find(
+      c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()
+    )
     if (!communeData) return NextResponse.json({ home: null, desk: null, source: 'commune_not_found' })
 
     return NextResponse.json({
