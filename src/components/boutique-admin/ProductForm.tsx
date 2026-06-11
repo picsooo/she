@@ -99,7 +99,8 @@ async function uploadFile(file: File): Promise<{ id: string; url: string }> {
   const res = await fetch('/api/boutique-admin/upload-media', { method: 'POST', body: fd })
   const data = await res.json()
   if (!res.ok) throw new Error(data?.error ?? 'Échec upload')
-  return { id: data.doc.id, url: toPublicUrl(data.doc.url) }
+  // Notre route renvoie { id, url } directement (pas le format Payload REST { doc: { id, url } })
+  return { id: data.id, url: data.url }
 }
 
 // Sépare une chaîne "val1 | val2 | val3" en tableau propre
