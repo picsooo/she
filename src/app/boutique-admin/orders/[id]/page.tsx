@@ -30,7 +30,19 @@ interface DeliverySettings {
   freeDeliveryThreshold?: number
 }
 
+// Variation d'un produit du catalogue
+interface CatalogVariation {
+  colorAr?: string; colorFr?: string; size?: string
+  regularPrice?: number; salePrice?: number; inStock?: boolean
+}
+// Produit simplifié du catalogue (pour la recherche)
+interface CatalogProduct {
+  id: string; nameAr?: string; nameFr?: string
+  variations?: CatalogVariation[]
+}
+
 interface EditableItem {
+  productId?: string          // ID du produit (pour charger les variations)
   productName?: string
   colorAr?: string
   size?: string
@@ -38,6 +50,9 @@ interface EditableItem {
   unitPrice: number
   product?: OrderItem['product']
   variationIndex?: number
+  // Variations disponibles (chargées depuis le catalogue)
+  availableColors?: string[]
+  availableSizes?: { size: string; inStock: boolean }[]
 }
 
 const STATUSES = [
@@ -74,6 +89,13 @@ export default function OrderDetailPage() {
   const [editPhone,        setEditPhone]        = useState('')
   const [editPhone2,       setEditPhone2]       = useState('')
   const [editAddress,      setEditAddress]      = useState('')
+
+  // ── Catalogue produits (chargé une fois au premier enterEditMode) ────────────
+  const [catalog,        setCatalog]        = useState<CatalogProduct[]>([])
+  const [catalogLoaded,  setCatalogLoaded]  = useState(false)
+  // Index de l'article en cours de "changement de produit" (-1 = aucun)
+  const [changingProductIdx, setChangingProductIdx] = useState(-1)
+  const [productSearch,      setProductSearch]      = useState('')
 
   // ── État Yalidine ─────────────────────────────────────────────────────────────
   const [yalidineLoading,   setYalidineLoading]   = useState(false)
@@ -112,7 +134,33 @@ export default function OrderDetailPage() {
     setToast({ msg, ok }); setTimeout(() => setToast(null), 3500)
   }
 
-  const enterEditMode = () => {
+  // Calcule les couleurs et tailles dispo depuis les variations d'un produit catalogue
+  function getOptionsFromProduct(prod: CatalogProduct) {
+    const variations = prod.variations ?? []
+    const colorsSet = new Set<string>()
+    const colors: string[] = []
+    for (const v of variations) {
+      const c = v.colorAr ?? ''
+      if (c && !colorsSet.has(c)) { colorsSet.add(c); colors.push(c) }
+    }
+    return { availableColors: colors }
+  }
+
+  function getSizesForColor(prod: CatalogProduct, colorAr: string) {
+    return (prod.variations ?? [])
+      .filter(v => (v.colorAr ?? '') === colorAr)
+      .filter(v => v.size && v.size !== 'UNIQUE')
+      .map(v => ({ size: v.size!, inStock: v.inStock ?? false }))
+  }
+
+  function getPriceForVariation(prod: CatalogProduct, colorAr: string, size: string) {
+    const v = (prod.variations ?? []).find(v => (v.colorAr ?? '') === colorAr && (v.size ?? '') === size)
+      ?? (prod.variations ?? []).find(v => (v.colorAr ?? '') === colorAr)
+    if (!v) return 0
+    return v.salePrice && v.salePrice > 0 ? v.salePrice : (v.regularPrice ?? 0)
+  }
+
+  const enterEditMode = async () => {
     if (!order) return
     setEditNote(order.note ?? '')
     setEditDelivery((order.deliveryMode as 'home' | 'office') ?? 'home')
@@ -120,16 +168,42 @@ export default function OrderDetailPage() {
     setEditPhone(order.phone)
     setEditPhone2(order.phone2 ?? '')
     setEditAddress(order.address ?? '')
+
+    // Charger le catalogue une seule fois
+    let cat = catalog
+    if (!catalogLoaded) {
+      try {
+        const res = await fetch('/api/boutique-admin/products?limit=200&depth=1&sort=nameAr')
+        if (res.ok) {
+          const data = await res.json()
+          cat = data.docs ?? []
+          setCatalog(cat)
+          setCatalogLoaded(true)
+        }
+      } catch { /* silencieux */ }
+    }
+
     setEditItems(
-      (order.items ?? []).map(item => ({
-        productName:    item.productName,
-        colorAr:        item.colorAr,
-        size:           item.size,
-        quantity:       item.quantity ?? 1,
-        unitPrice:      item.unitPrice ?? item.price ?? 0,
-        product:        item.product,
-        variationIndex: item.variationIndex,
-      }))
+      (order.items ?? []).map(item => {
+        const productId = typeof item.product === 'object' && item.product
+          ? String((item.product as { id?: string | number }).id ?? '')
+          : ''
+        const catalogProd = cat.find(p => p.id === productId)
+        const availableColors = catalogProd ? getOptionsFromProduct(catalogProd).availableColors : []
+        const availableSizes  = catalogProd ? getSizesForColor(catalogProd, item.colorAr ?? '') : []
+        return {
+          productId,
+          productName:    item.productName,
+          colorAr:        item.colorAr,
+          size:           item.size,
+          quantity:       item.quantity ?? 1,
+          unitPrice:      item.unitPrice ?? item.price ?? 0,
+          product:        item.product,
+          variationIndex: item.variationIndex,
+          availableColors,
+          availableSizes,
+        }
+      })
     )
     loadDeliverySettings()
     setEditMode(true)
@@ -154,6 +228,56 @@ export default function OrderDetailPage() {
 
   const removeItem = (idx: number) => {
     setEditItems(prev => prev.filter((_, i) => i !== idx))
+    if (changingProductIdx === idx) setChangingProductIdx(-1)
+  }
+
+  // Sélectionne un produit du catalogue pour l'article à l'index targetIdx
+  // (targetIdx === editItems.length → nouvel article)
+  const selectProductFromCatalog = (prod: CatalogProduct, targetIdx: number) => {
+    const { availableColors } = getOptionsFromProduct(prod)
+    const firstColor = availableColors[0] ?? ''
+    const sizes = getSizesForColor(prod, firstColor)
+    const firstSize = sizes.find(s => s.inStock)?.size ?? sizes[0]?.size ?? ''
+    const price = getPriceForVariation(prod, firstColor, firstSize)
+    const newItem: EditableItem = {
+      productId:      prod.id,
+      productName:    prod.nameAr ?? prod.nameFr ?? '',
+      colorAr:        firstColor,
+      size:           firstSize,
+      quantity:       1,
+      unitPrice:      price,
+      availableColors,
+      availableSizes: sizes,
+    }
+    if (targetIdx < editItems.length) {
+      setEditItems(prev => prev.map((it, i) => i === targetIdx ? newItem : it))
+    } else {
+      setEditItems(prev => [...prev, newItem])
+    }
+    setChangingProductIdx(-1)
+    setProductSearch('')
+  }
+
+  // Gère le changement de couleur — recharge les tailles et met à jour le prix
+  const handleColorChange = (idx: number, newColor: string) => {
+    setEditItems(prev => prev.map((it, i) => {
+      if (i !== idx) return it
+      const prod = catalog.find(p => p.id === it.productId)
+      const newSizes  = prod ? getSizesForColor(prod, newColor) : []
+      const firstSize = newSizes.find(s => s.inStock)?.size ?? newSizes[0]?.size ?? ''
+      const newPrice  = prod ? getPriceForVariation(prod, newColor, firstSize) : it.unitPrice
+      return { ...it, colorAr: newColor, availableSizes: newSizes, size: firstSize, unitPrice: newPrice > 0 ? newPrice : it.unitPrice }
+    }))
+  }
+
+  // Gère le changement de taille — met à jour le prix si dispo
+  const handleSizeChange = (idx: number, newSize: string) => {
+    setEditItems(prev => prev.map((it, i) => {
+      if (i !== idx) return it
+      const prod = catalog.find(p => p.id === it.productId)
+      const newPrice = prod ? getPriceForVariation(prod, it.colorAr ?? '', newSize) : it.unitPrice
+      return { ...it, size: newSize, unitPrice: newPrice > 0 ? newPrice : it.unitPrice }
+    }))
   }
 
   const saveEdit = async () => {
@@ -520,59 +644,206 @@ export default function OrderDetailPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {editItems.map((item, idx) => (
-                <div key={idx} style={{ background: '#F9FAFB', border: '1px solid #C7D2FE', borderRadius: 10, padding: '14px 16px' }}>
-                  {/* Ligne 1 : nom + supprimer */}
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#EEF2FF', color: '#4A3DBC', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {idx + 1}
+                <div key={idx}>
+                  <div style={{ background: '#F9FAFB', border: `1px solid ${changingProductIdx === idx ? '#4A3DBC' : '#C7D2FE'}`, borderRadius: 10, padding: '14px 16px' }}>
+                    {/* Ligne 1 : nom produit + bouton changer + supprimer */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: 6, background: '#EEF2FF', color: '#4A3DBC', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {idx + 1}
+                      </div>
+                      <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1A1A1A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.productName || <span style={{ color: '#9A9A9A' }}>Produit non défini</span>}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setChangingProductIdx(changingProductIdx === idx ? -1 : idx)
+                          setProductSearch('')
+                        }}
+                        style={{
+                          padding: '4px 10px', borderRadius: 6, border: '1px solid #C7D2FE',
+                          background: changingProductIdx === idx ? '#EEF2FF' : '#fff',
+                          color: '#4A3DBC', fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+                        }}
+                      >
+                        🔄 Changer
+                      </button>
+                      <button onClick={() => removeItem(idx)} style={{
+                        width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5',
+                        background: '#FEE2E2', color: '#991B1B', fontSize: 14,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>✕</button>
                     </div>
-                    <input
-                      value={item.productName ?? ''}
-                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, productName: e.target.value } : it))}
-                      placeholder="Nom du produit"
-                      className="admin-input"
-                      style={{ flex: 1, fontSize: 13, fontWeight: 600 }}
-                    />
-                    <button onClick={() => removeItem(idx)} style={{
-                      width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5',
-                      background: '#FEE2E2', color: '#991B1B', fontSize: 14,
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>✕</button>
-                  </div>
-                  {/* Ligne 2 : couleur + taille + qté + prix */}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <input
-                      value={item.colorAr ?? ''}
-                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, colorAr: e.target.value } : it))}
-                      placeholder="🎨 Couleur (ar)"
-                      className="admin-input"
-                      dir="rtl"
-                      style={{ width: 130, fontSize: 12 }}
-                    />
-                    <input
-                      value={item.size ?? ''}
-                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, size: e.target.value } : it))}
-                      placeholder="📐 Taille"
-                      className="admin-input"
-                      style={{ width: 100, fontSize: 12 }}
-                    />
-                    <input
-                      type="number"
-                      value={item.unitPrice}
-                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: Number(e.target.value) } : it))}
-                      placeholder="Prix"
-                      className="admin-input"
-                      style={{ width: 100, fontSize: 12 }}
-                    />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: '1px solid #E3E5E7', borderRadius: 8, overflow: 'hidden' }}>
-                      <button onClick={() => changeQty(idx, -1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>−</button>
-                      <span style={{ padding: '0 10px', fontSize: 13, fontWeight: 700, color: '#1A1A1A', minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
-                      <button onClick={() => changeQty(idx, +1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>+</button>
+
+                    {/* Panneau recherche produit */}
+                    {changingProductIdx === idx && (
+                      <div style={{ marginBottom: 10, background: '#EEF2FF', borderRadius: 8, padding: '10px 12px' }}>
+                        <input
+                          autoFocus
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          placeholder="Rechercher un produit…"
+                          className="admin-input"
+                          style={{ width: '100%', fontSize: 13, marginBottom: 8 }}
+                        />
+                        <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {catalog
+                            .filter(p => {
+                              const q = productSearch.toLowerCase()
+                              return !q || (p.nameAr ?? '').toLowerCase().includes(q) || (p.nameFr ?? '').toLowerCase().includes(q)
+                            })
+                            .slice(0, 30)
+                            .map(p => (
+                              <button
+                                key={p.id}
+                                onClick={() => selectProductFromCatalog(p, idx)}
+                                style={{
+                                  textAlign: 'left', padding: '7px 10px', borderRadius: 6,
+                                  border: '1px solid #C7D2FE', background: '#fff',
+                                  color: '#1A1A1A', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                                }}
+                              >
+                                <span>{p.nameAr ?? p.nameFr ?? '—'}</span>
+                                <span style={{ fontSize: 10, color: '#9A9A9A', flexShrink: 0 }}>{p.nameFr ?? ''}</span>
+                              </button>
+                            ))}
+                          {catalog.filter(p => {
+                            const q = productSearch.toLowerCase()
+                            return !q || (p.nameAr ?? '').toLowerCase().includes(q) || (p.nameFr ?? '').toLowerCase().includes(q)
+                          }).length === 0 && (
+                            <div style={{ fontSize: 12, color: '#9A9A9A', textAlign: 'center', padding: 8 }}>Aucun produit trouvé</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ligne 2 : couleur (select) + taille (select) + prix + qté */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {/* Couleur */}
+                      {item.availableColors && item.availableColors.length > 0 ? (
+                        <select
+                          value={item.colorAr ?? ''}
+                          onChange={e => handleColorChange(idx, e.target.value)}
+                          className="admin-input"
+                          dir="rtl"
+                          style={{ width: 140, fontSize: 12 }}
+                        >
+                          {item.availableColors.map(c => (
+                            <option key={c} value={c}>{c || '—'}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={item.colorAr ?? ''}
+                          onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, colorAr: e.target.value } : it))}
+                          placeholder="🎨 Couleur"
+                          className="admin-input"
+                          dir="rtl"
+                          style={{ width: 130, fontSize: 12 }}
+                        />
+                      )}
+
+                      {/* Taille */}
+                      {item.availableSizes && item.availableSizes.length > 0 ? (
+                        <select
+                          value={item.size ?? ''}
+                          onChange={e => handleSizeChange(idx, e.target.value)}
+                          className="admin-input"
+                          style={{ width: 120, fontSize: 12 }}
+                        >
+                          {item.availableSizes.map(s => (
+                            <option key={s.size} value={s.size}>
+                              {s.size}{!s.inStock ? ' (épuisé)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={item.size ?? ''}
+                          onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, size: e.target.value } : it))}
+                          placeholder="📐 Taille"
+                          className="admin-input"
+                          style={{ width: 100, fontSize: 12 }}
+                        />
+                      )}
+
+                      {/* Prix */}
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: Number(e.target.value) } : it))}
+                        placeholder="Prix"
+                        className="admin-input"
+                        style={{ width: 100, fontSize: 12 }}
+                      />
+
+                      {/* Quantité */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: '1px solid #E3E5E7', borderRadius: 8, overflow: 'hidden' }}>
+                        <button onClick={() => changeQty(idx, -1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>−</button>
+                        <span style={{ padding: '0 10px', fontSize: 13, fontWeight: 700, color: '#1A1A1A', minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
+                        <button onClick={() => changeQty(idx, +1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>+</button>
+                      </div>
+
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#007A5C', marginLeft: 'auto' }}>{fmt(item.unitPrice * item.quantity)}</div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#007A5C', marginLeft: 'auto' }}>{fmt(item.unitPrice * item.quantity)}</div>
                   </div>
                 </div>
               ))}
+
+              {/* Ajouter un article — panneau de recherche */}
+              {changingProductIdx === editItems.length ? (
+                <div style={{ background: '#EEF2FF', border: '1px solid #4A3DBC', borderRadius: 10, padding: '14px 16px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#4A3DBC', marginBottom: 8 }}>➕ Ajouter un article</div>
+                  <input
+                    autoFocus
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    placeholder="Rechercher un produit…"
+                    className="admin-input"
+                    style={{ width: '100%', fontSize: 13, marginBottom: 8 }}
+                  />
+                  <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                    {catalog
+                      .filter(p => {
+                        const q = productSearch.toLowerCase()
+                        return !q || (p.nameAr ?? '').toLowerCase().includes(q) || (p.nameFr ?? '').toLowerCase().includes(q)
+                      })
+                      .slice(0, 30)
+                      .map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => selectProductFromCatalog(p, editItems.length)}
+                          style={{
+                            textAlign: 'left', padding: '7px 10px', borderRadius: 6,
+                            border: '1px solid #C7D2FE', background: '#fff',
+                            color: '#1A1A1A', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                          }}
+                        >
+                          <span>{p.nameAr ?? p.nameFr ?? '—'}</span>
+                          <span style={{ fontSize: 10, color: '#9A9A9A', flexShrink: 0 }}>{p.nameFr ?? ''}</span>
+                        </button>
+                      ))}
+                  </div>
+                  <button
+                    onClick={() => { setChangingProductIdx(-1); setProductSearch('') }}
+                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #E3E5E7', background: '#fff', fontSize: 12, cursor: 'pointer', color: '#6D7175' }}
+                  >
+                    Annuler
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setChangingProductIdx(editItems.length); setProductSearch('') }}
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: 10, border: '2px dashed #C7D2FE',
+                    background: '#F8F9FF', color: '#4A3DBC', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  ➕ Ajouter un article
+                </button>
+              )}
             </div>
           )
         ) : (
