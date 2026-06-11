@@ -203,6 +203,12 @@ export const Orders: CollectionConfig = {
       required: true,
     },
     {
+      name: 'phone2',
+      label: 'Téléphone 2 (optionnel)',
+      type: 'text',
+      admin: { description: 'Second numéro de téléphone — ajouté par l\'admin' },
+    },
+    {
       name: 'note',
       label: 'Note client',
       type: 'textarea',

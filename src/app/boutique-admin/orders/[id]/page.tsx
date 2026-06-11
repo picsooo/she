@@ -12,13 +12,12 @@ interface OrderItem {
 }
 
 interface Order {
-  id: string; orderNumber: string; customerName: string; phone: string
+  id: string; orderNumber: string; customerName: string; phone: string; phone2?: string
   wilaya: string; commune?: string; address?: string; note?: string
   subtotal?: number; shippingFee?: number; total: number
   status: string; createdAt: string; updatedAt: string
   items?: OrderItem[]
   deliveryMode?: string
-  // Champs Yalidine
   yalidineTrackingId?: string
   yalidineLabelUrl?: string
   yalidineStatus?: string
@@ -31,14 +30,12 @@ interface DeliverySettings {
   freeDeliveryThreshold?: number
 }
 
-// Article en cours d'édition — copie mutable
 interface EditableItem {
   productName?: string
   colorAr?: string
   size?: string
   quantity: number
   unitPrice: number
-  // Pour conserver les champs originaux lors du PATCH
   product?: OrderItem['product']
   variationIndex?: number
 }
@@ -72,9 +69,14 @@ export default function OrderDetailPage() {
   const [delivery,       setDelivery]       = useState<DeliverySettings>({})
   const [loadingDelivery,setLoadingDelivery]= useState(false)
 
+  // ── Édition infos client ──────────────────────────────────────────────────────
+  const [editCustomerName, setEditCustomerName] = useState('')
+  const [editPhone,        setEditPhone]        = useState('')
+  const [editPhone2,       setEditPhone2]       = useState('')
+  const [editAddress,      setEditAddress]      = useState('')
+
   // ── État Yalidine ─────────────────────────────────────────────────────────────
   const [yalidineLoading,   setYalidineLoading]   = useState(false)
-  // Formulaire de modification Yalidine (actif si yalidineStatus === "En préparation")
   const [yalidineEditPrice, setYalidineEditPrice] = useState('')
   const [yalidineEditList,  setYalidineEditList]  = useState('')
   const [yalidineEditMode,  setYalidineEditMode]  = useState(false)
@@ -90,14 +92,19 @@ export default function OrderDetailPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Charger les tarifs de livraison depuis le global Payload
   const loadDeliverySettings = useCallback(async () => {
     if (loadingDelivery) return
     setLoadingDelivery(true)
     try {
-      const res = await fetch('/api/globals/delivery-settings?depth=0')
-      if (res.ok) setDelivery(await res.json())
-    } catch { /* silencieux — on affiche 0 DA par défaut */ }
+      const res = await fetch('/api/boutique-admin/settings')
+      if (res.ok) {
+        const data = await res.json()
+        setDelivery({
+          homeDeliveryFee:   data.delivery?.defaultHomeDeliveryFee,
+          officeDeliveryFee: data.delivery?.defaultDeskDeliveryFee,
+        })
+      }
+    } catch { /* silencieux */ }
     finally { setLoadingDelivery(false) }
   }, [loadingDelivery])
 
@@ -105,11 +112,14 @@ export default function OrderDetailPage() {
     setToast({ msg, ok }); setTimeout(() => setToast(null), 3500)
   }
 
-  // Entrer en mode édition : copier l'état courant
   const enterEditMode = () => {
     if (!order) return
     setEditNote(order.note ?? '')
     setEditDelivery((order.deliveryMode as 'home' | 'office') ?? 'home')
+    setEditCustomerName(order.customerName)
+    setEditPhone(order.phone)
+    setEditPhone2(order.phone2 ?? '')
+    setEditAddress(order.address ?? '')
     setEditItems(
       (order.items ?? []).map(item => ({
         productName:    item.productName,
@@ -127,32 +137,25 @@ export default function OrderDetailPage() {
 
   const cancelEdit = () => setEditMode(false)
 
-  // Calcul dynamique des frais selon le mode choisi
   const computedShippingFee = (): number => {
     if (editDelivery === 'office') return delivery.officeDeliveryFee ?? 0
     return delivery.homeDeliveryFee ?? 0
   }
-
   const computedSubtotal = (): number =>
     editItems.reduce((s, item) => s + item.unitPrice * item.quantity, 0)
-
   const computedTotal = (): number => computedSubtotal() + computedShippingFee()
 
-  // Modifier la quantité d'un article
   const changeQty = (idx: number, delta: number) => {
     setEditItems(prev => prev.map((item, i) => {
       if (i !== idx) return item
-      const q = Math.max(1, item.quantity + delta)
-      return { ...item, quantity: q }
+      return { ...item, quantity: Math.max(1, item.quantity + delta) }
     }))
   }
 
-  // Supprimer un article
   const removeItem = (idx: number) => {
     setEditItems(prev => prev.filter((_, i) => i !== idx))
   }
 
-  // Sauvegarder via PATCH
   const saveEdit = async () => {
     if (!order) return
     setUpdating(true)
@@ -162,6 +165,10 @@ export default function OrderDetailPage() {
       const total       = subtotal + shippingFee
 
       const body = {
+        customerName: editCustomerName.trim(),
+        phone:        editPhone.trim(),
+        phone2:       editPhone2.trim() || null,
+        address:      editAddress.trim(),
         deliveryMode: editDelivery,
         shippingFee,
         subtotal,
@@ -195,7 +202,6 @@ export default function OrderDetailPage() {
     }
   }
 
-  // Envoyer la commande à Yalidine
   const sendToYalidine = async () => {
     if (!order) return
     if (!confirm(`Envoyer la commande ${order.orderNumber} à Yalidine ?`)) return
@@ -210,7 +216,20 @@ export default function OrderDetailPage() {
     finally { setYalidineLoading(false) }
   }
 
-  // Modifier le colis chez Yalidine (seulement si "En préparation")
+  const deleteFromYalidine = async () => {
+    if (!order) return
+    if (!confirm(`Supprimer le colis ${order.yalidineTrackingId} de Yalidine ? (impossible si déjà ramassé)`)) return
+    setYalidineLoading(true)
+    try {
+      const res = await fetch(`/api/boutique-admin/orders/${order.id}/delete-yalidine`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) { showToast(data.error ?? 'Erreur suppression Yalidine', false); return }
+      await load()
+      showToast('Colis supprimé de Yalidine ✓')
+    } catch { showToast('Erreur réseau', false) }
+    finally { setYalidineLoading(false) }
+  }
+
   const updateYalidine = async () => {
     if (!order) return
     const bodyData: { price?: number; product_list?: string } = {}
@@ -304,7 +323,6 @@ export default function OrderDetailPage() {
           </div>
         </div>
 
-        {/* Bouton mode édition */}
         {!editMode ? (
           <button onClick={enterEditMode} className="admin-btn" style={{
             padding: '8px 18px', background: '#1A1A1A', color: '#fff', border: 'none',
@@ -330,10 +348,9 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      {/* Bannière mode édition */}
       {editMode && (
         <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '12px 18px', marginBottom: 16, color: '#4A3DBC', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span>✏️</span> Mode édition actif — modifiez les articles, le mode de livraison ou la note, puis cliquez sur « Enregistrer ».
+          <span>✏️</span> Mode édition — modifiez le client, les articles, le mode de livraison ou la note, puis cliquez sur « Enregistrer ».
         </div>
       )}
 
@@ -369,11 +386,7 @@ export default function OrderDetailPage() {
                     </span>
                   </div>
                   {i < STATUS_TIMELINE.length - 1 && (
-                    <div style={{
-                      flex: 1, height: 2, margin: '-14px 4px 14px',
-                      background: i < timelineIdx ? '#E3E5E7' : '#F1F5F9',
-                      borderRadius: 2, overflow: 'hidden',
-                    }}>
+                    <div style={{ flex: 1, height: 2, margin: '-14px 4px 14px', background: i < timelineIdx ? '#E3E5E7' : '#F1F5F9', borderRadius: 2, overflow: 'hidden' }}>
                       {i < timelineIdx && <div style={{ height: '100%', width: '100%', background: `linear-gradient(90deg, ${STATUSES.find(s => s.value === STATUS_TIMELINE[i])!.dot}, ${STATUSES.find(s => s.value === STATUS_TIMELINE[i+1])!.dot})` }} />}
                     </div>
                   )}
@@ -392,43 +405,49 @@ export default function OrderDetailPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
-        {/* Client */}
+        {/* ── Infos client ─────────────────────────────────────────────────────── */}
         <div className="admin-card" style={{ padding: '20px 24px' }}>
           <div style={CARD_TITLE}>👤 Client</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <InfoRow icon="🙍‍♀️" label="Nom"       value={order.customerName} />
-            <InfoRow icon="📱" label="Téléphone" value={<a href={`tel:${order.phone}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone}</a>} />
-            <InfoRow icon="📍" label="Wilaya"    value={order.wilaya} />
-            {order.commune && <InfoRow icon="🏘️" label="Commune"  value={order.commune} />}
-            {order.address && <InfoRow icon="🏠" label="Adresse"  value={order.address} />}
-
-            {/* Note — éditable en mode édition */}
-            {editMode ? (
-              <div style={{ marginTop: 4 }}>
+          {editMode ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <EditField label="Nom complet" value={editCustomerName} onChange={setEditCustomerName} />
+              <EditField label="Téléphone 1" value={editPhone} onChange={setEditPhone} type="tel" />
+              <EditField label="Téléphone 2 (optionnel)" value={editPhone2} onChange={setEditPhone2} type="tel" placeholder="Ajouter un 2ème numéro" />
+              <EditField label="Adresse" value={editAddress} onChange={setEditAddress} />
+              <div>
                 <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Note client</div>
                 <textarea
                   value={editNote}
                   onChange={e => setEditNote(e.target.value)}
-                  rows={3}
-                  placeholder="Note optionnelle du client…"
+                  rows={2}
+                  placeholder="Note optionnelle…"
                   className="admin-input"
                   style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 13 }}
                 />
               </div>
-            ) : order.note ? (
-              <div style={{ marginTop: 4, padding: '10px 12px', background: '#FFFBEB', borderRadius: 8, borderLeft: '3px solid #CEA060' }}>
-                <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Note client</div>
-                <div style={{ fontSize: 13, color: '#6D7175', fontStyle: 'italic' }}>{order.note}</div>
-              </div>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <InfoRow icon="🙍‍♀️" label="Nom"       value={order.customerName} />
+              <InfoRow icon="📱" label="Téléphone" value={<a href={`tel:${order.phone}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone}</a>} />
+              {order.phone2 && <InfoRow icon="📱" label="Tél. 2" value={<a href={`tel:${order.phone2}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone2}</a>} />}
+              <InfoRow icon="📍" label="Wilaya"    value={order.wilaya} />
+              {order.commune && <InfoRow icon="🏘️" label="Commune"  value={order.commune} />}
+              {order.address && <InfoRow icon="🏠" label="Adresse"  value={order.address} />}
+              {order.note ? (
+                <div style={{ marginTop: 4, padding: '10px 12px', background: '#FFFBEB', borderRadius: 8, borderLeft: '3px solid #CEA060' }}>
+                  <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Note client</div>
+                  <div style={{ fontSize: 13, color: '#6D7175', fontStyle: 'italic' }}>{order.note}</div>
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
 
-        {/* Récap financier — dynamique en mode édition */}
+        {/* ── Récap financier ──────────────────────────────────────────────────── */}
         <div className="admin-card" style={{ padding: '20px 24px' }}>
           <div style={CARD_TITLE}>💳 Récapitulatif</div>
 
-          {/* Mode livraison — éditable */}
           {editMode && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Mode de livraison</div>
@@ -459,7 +478,6 @@ export default function OrderDetailPage() {
             </div>
           )}
 
-          {/* Mode livraison actuel (lecture seule) */}
           {!editMode && order.deliveryMode && (
             <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6D7175' }}>
               {order.deliveryMode === 'office' ? '🏢 Bureau Yalidine' : '🏠 Livraison domicile'}
@@ -489,11 +507,10 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      {/* Articles */}
+      {/* ── Articles ─────────────────────────────────────────────────────────── */}
       <div className="admin-card" style={{ padding: '20px 24px', marginBottom: 16 }}>
         <div style={CARD_TITLE}>🛍️ Articles commandés ({editMode ? editItems.length : items.length})</div>
 
-        {/* ── Vue édition ─────────────────────────────────────────────────────── */}
         {editMode ? (
           editItems.length === 0 ? (
             <div style={{ padding: '24px 0', textAlign: 'center', color: '#9A9A9A', fontSize: 13 }}>
@@ -501,53 +518,64 @@ export default function OrderDetailPage() {
               Aucun article — la commande sera vide si vous sauvegardez.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {editItems.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#F9FAFB', border: '1px solid #C7D2FE', borderRadius: 10, padding: '12px 16px' }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: '#EEF2FF', color: '#4A3DBC', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {idx + 1}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: '#1A1A1A', fontSize: 14, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.productName ?? '—'}
+                <div key={idx} style={{ background: '#F9FAFB', border: '1px solid #C7D2FE', borderRadius: 10, padding: '14px 16px' }}>
+                  {/* Ligne 1 : nom + supprimer */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#EEF2FF', color: '#4A3DBC', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {idx + 1}
                     </div>
-                    <div style={{ fontSize: 11, color: '#9A9A9A', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {item.colorAr && <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: 6 }}>🎨 {item.colorAr}</span>}
-                      {item.size && item.size !== 'UNIQUE' && <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: 6 }}>📐 {item.size}</span>}
+                    <input
+                      value={item.productName ?? ''}
+                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, productName: e.target.value } : it))}
+                      placeholder="Nom du produit"
+                      className="admin-input"
+                      style={{ flex: 1, fontSize: 13, fontWeight: 600 }}
+                    />
+                    <button onClick={() => removeItem(idx)} style={{
+                      width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5',
+                      background: '#FEE2E2', color: '#991B1B', fontSize: 14,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>✕</button>
+                  </div>
+                  {/* Ligne 2 : couleur + taille + qté + prix */}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input
+                      value={item.colorAr ?? ''}
+                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, colorAr: e.target.value } : it))}
+                      placeholder="🎨 Couleur (ar)"
+                      className="admin-input"
+                      dir="rtl"
+                      style={{ width: 130, fontSize: 12 }}
+                    />
+                    <input
+                      value={item.size ?? ''}
+                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, size: e.target.value } : it))}
+                      placeholder="📐 Taille"
+                      className="admin-input"
+                      style={{ width: 100, fontSize: 12 }}
+                    />
+                    <input
+                      type="number"
+                      value={item.unitPrice}
+                      onChange={e => setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, unitPrice: Number(e.target.value) } : it))}
+                      placeholder="Prix"
+                      className="admin-input"
+                      style={{ width: 100, fontSize: 12 }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: '1px solid #E3E5E7', borderRadius: 8, overflow: 'hidden' }}>
+                      <button onClick={() => changeQty(idx, -1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>−</button>
+                      <span style={{ padding: '0 10px', fontSize: 13, fontWeight: 700, color: '#1A1A1A', minWidth: 24, textAlign: 'center' }}>{item.quantity}</span>
+                      <button onClick={() => changeQty(idx, +1)} style={{ width: 30, height: 30, border: 'none', background: '#F5F5F5', color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>+</button>
                     </div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#007A5C', marginLeft: 'auto' }}>{fmt(item.unitPrice * item.quantity)}</div>
                   </div>
-                  {/* Contrôles quantité */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, border: '1px solid #E3E5E7', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
-                    <button onClick={() => changeQty(idx, -1)} style={{
-                      width: 30, height: 30, border: 'none', background: '#F5F5F5',
-                      color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                    }}>−</button>
-                    <span style={{ padding: '0 10px', fontSize: 13, fontWeight: 700, color: '#1A1A1A', minWidth: 24, textAlign: 'center' }}>
-                      {item.quantity}
-                    </span>
-                    <button onClick={() => changeQty(idx, +1)} style={{
-                      width: 30, height: 30, border: 'none', background: '#F5F5F5',
-                      color: '#1A1A1A', fontSize: 16, fontWeight: 700, cursor: 'pointer',
-                    }}>+</button>
-                  </div>
-                  <div style={{ fontSize: 12, color: '#9A9A9A', flexShrink: 0 }}>{fmt(item.unitPrice)} / u.</div>
-                  <div style={{ fontWeight: 800, color: '#007A5C', fontSize: 14, flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
-                    {fmt(item.unitPrice * item.quantity)}
-                  </div>
-                  {/* Supprimer */}
-                  <button onClick={() => removeItem(idx)} title="Supprimer l'article" style={{
-                    width: 28, height: 28, borderRadius: 6, border: '1px solid #FCA5A5',
-                    background: '#FEE2E2', color: '#991B1B', fontSize: 14,
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    ✕
-                  </button>
                 </div>
               ))}
             </div>
           )
         ) : (
-          /* ── Vue lecture ──────────────────────────────────────────────────── */
           items.length === 0 ? (
             <div style={{ padding: '24px 0', textAlign: 'center', color: '#9A9A9A', fontSize: 13 }}>Aucun article</div>
           ) : (
@@ -556,26 +584,19 @@ export default function OrderDetailPage() {
                 const name      = item.productName ?? (item.product?.nameAr) ?? '—'
                 const price     = item.unitPrice ?? item.price ?? 0
                 const qty       = item.quantity ?? 1
-                const lineTotal = price * qty
                 return (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#F9FAFB', border: '1px solid #E3E5E7', borderRadius: 10, padding: '12px 16px' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 7, background: '#FCE7F3', color: '#E93D91', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {idx + 1}
-                    </div>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: '#FCE7F3', color: '#E93D91', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{idx + 1}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 600, color: '#1A1A1A', fontSize: 14, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {name}
-                      </div>
+                      <div style={{ fontWeight: 600, color: '#1A1A1A', fontSize: 14, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
                       <div style={{ fontSize: 11, color: '#9A9A9A', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {item.colorAr && <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: 6 }}>🎨 {item.colorAr}</span>}
                         {item.size && item.size !== 'UNIQUE' && <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: 6 }}>📐 {item.size}</span>}
                       </div>
                     </div>
-                    <div style={{ padding: '4px 12px', borderRadius: 7, background: '#F1F5F9', color: '#6D7175', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
-                      × {qty}
-                    </div>
+                    <div style={{ padding: '4px 12px', borderRadius: 7, background: '#F1F5F9', color: '#6D7175', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>× {qty}</div>
                     <div style={{ fontSize: 12, color: '#9A9A9A', flexShrink: 0 }}>{fmt(price)} / u.</div>
-                    <div style={{ fontWeight: 800, color: '#007A5C', fontSize: 14, flexShrink: 0 }}>{fmt(lineTotal)}</div>
+                    <div style={{ fontWeight: 800, color: '#007A5C', fontSize: 14, flexShrink: 0 }}>{fmt(price * qty)}</div>
                   </div>
                 )
               })}
@@ -589,9 +610,7 @@ export default function OrderDetailPage() {
         <div style={CARD_TITLE}>🚚 Yalidine — Expédition</div>
 
         {order.yalidineTrackingId ? (
-          /* Colis déjà envoyé */
           <div>
-            {/* Info tracking */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
               <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 180 }}>
                 <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Numéro de suivi</div>
@@ -611,24 +630,33 @@ export default function OrderDetailPage() {
               )}
             </div>
 
-            {/* Bouton bordereau */}
-            {order.yalidineLabelUrl && (
-              <a
-                href={order.yalidineLabelUrl}
-                target="_blank"
-                rel="noreferrer"
-                style={{
+            {/* Boutons : bordereau + supprimer de Yalidine */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+              {order.yalidineLabelUrl && (
+                <a href={order.yalidineLabelUrl} target="_blank" rel="noreferrer" style={{
                   display: 'inline-flex', alignItems: 'center', gap: 8,
                   padding: '8px 18px', borderRadius: 8, border: '1.5px solid #E3E5E7',
                   background: '#fff', color: '#1A1A1A', fontSize: 13, fontWeight: 600,
-                  textDecoration: 'none', marginBottom: 16,
+                  textDecoration: 'none',
+                }}>
+                  🖨️ Imprimer le bordereau
+                </a>
+              )}
+              <button
+                onClick={deleteFromYalidine}
+                disabled={yalidineLoading}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, border: '1.5px solid #FCA5A5',
+                  background: '#FEE2E2', color: '#991B1B', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+                  opacity: yalidineLoading ? 0.6 : 1,
                 }}
               >
-                🖨️ Imprimer le bordereau
-              </a>
-            )}
+                🗑️ Supprimer de Yalidine
+              </button>
+            </div>
 
-            {/* Formulaire modification — uniquement si "En préparation" */}
+            {/* Modification colis — uniquement si "En préparation" */}
             {order.yalidineStatus === 'En préparation' && (
               <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
                 {!yalidineEditMode ? (
@@ -657,48 +685,16 @@ export default function OrderDetailPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <div>
-                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                          Montant COD (DZD)
-                        </label>
-                        <input
-                          type="number"
-                          value={yalidineEditPrice}
-                          onChange={e => setYalidineEditPrice(e.target.value)}
-                          className="admin-input"
-                          style={{ width: '100%', maxWidth: 200 }}
-                          placeholder="Ex: 5800"
-                        />
+                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Montant COD (DZD)</label>
+                        <input type="number" value={yalidineEditPrice} onChange={e => setYalidineEditPrice(e.target.value)} className="admin-input" style={{ width: '100%', maxWidth: 200 }} placeholder="Ex: 5800" />
                       </div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                          Liste des articles
-                        </label>
-                        <textarea
-                          value={yalidineEditList}
-                          onChange={e => setYalidineEditList(e.target.value)}
-                          rows={2}
-                          className="admin-input"
-                          style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }}
-                          placeholder="Ex: Robe Caftan T42 (Beige) x1, Ceinture x1"
-                        />
+                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Liste des articles</label>
+                        <textarea value={yalidineEditList} onChange={e => setYalidineEditList(e.target.value)} rows={2} className="admin-input" style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} placeholder="Ex: Robe T42 (Beige) x1" />
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button
-                          onClick={() => setYalidineEditMode(false)}
-                          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #E3E5E7', background: '#fff', cursor: 'pointer', fontSize: 13 }}
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          onClick={updateYalidine}
-                          disabled={yalidineLoading}
-                          style={{
-                            padding: '8px 18px', borderRadius: 8, border: 'none',
-                            background: '#B45309', color: '#fff', fontSize: 13, fontWeight: 700,
-                            cursor: 'pointer', opacity: yalidineLoading ? 0.6 : 1,
-                            display: 'inline-flex', alignItems: 'center', gap: 8,
-                          }}
-                        >
+                        <button onClick={() => setYalidineEditMode(false)} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #E3E5E7', background: '#fff', cursor: 'pointer', fontSize: 13 }}>Annuler</button>
+                        <button onClick={updateYalidine} disabled={yalidineLoading} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#B45309', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: yalidineLoading ? 0.6 : 1, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                           {yalidineLoading && <span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />}
                           💾 Envoyer les modifications
                         </button>
@@ -710,7 +706,6 @@ export default function OrderDetailPage() {
             )}
           </div>
         ) : (
-          /* Pas encore envoyé */
           <div>
             <p style={{ fontSize: 13, color: '#6D7175', marginBottom: 14 }}>
               Ce colis n&apos;a pas encore été envoyé à Yalidine. Cliquez sur le bouton pour créer le colis et obtenir le numéro de suivi.
@@ -774,6 +769,22 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: R
       <span style={{ flexShrink: 0, opacity: 0.5 }}>{icon}</span>
       <span style={{ color: '#9A9A9A', flexShrink: 0, minWidth: 80 }}>{label}</span>
       <span style={{ color: '#1A1A1A', fontWeight: 500 }}>{value}</span>
+    </div>
+  )
+}
+
+function EditField({ label, value, onChange, type = 'text', placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="admin-input"
+        style={{ width: '100%', fontSize: 13 }}
+      />
     </div>
   )
 }
