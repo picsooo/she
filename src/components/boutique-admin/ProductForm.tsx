@@ -154,6 +154,8 @@ export default function ProductForm({ productId, initial }: { productId?: string
   // Inputs pour ajouter une couleur/taille personnalisée
   const [customColorInput, setCustomColorInput] = useState('')
   const [customSizeInput,  setCustomSizeInput]  = useState('')
+  // Inputs par attribut personnalisé (keyed par _key) pour l'ajout de tags
+  const [attrTagInputs, setAttrTagInputs] = useState<Record<string, string>>({})
 
   // ── Attributs personnalisés ─────────────────────────────────────────────────
   const [customAttrs, setCustomAttrs] = useState<CustomAttr[]>(
@@ -785,7 +787,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 170, overflowY: 'auto' }}>
                           {COLOR_SUGGESTIONS.filter(c => !parsePipe(colorsRaw).includes(c)).map(c => (
                             <button key={c}
-                              onClick={() => { const curr = parsePipe(colorsRaw); setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + c : c); setAttrSaved(false) }}
+                              onClick={() => { const curr = parsePipe(colorsRaw); setColorsRaw(curr.length ? c + ' | ' + curr.join(' | ') : c); setAttrSaved(true) }}
                               style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid #c3c4c7', background: '#fff', color: '#1d2327', fontFamily: 'inherit' }}>
                               {c}
                             </button>
@@ -795,10 +797,10 @@ export default function ProductForm({ productId, initial }: { productId?: string
                         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                           <input dir="rtl" value={customColorInput} onChange={e => setCustomColorInput(e.target.value)}
                             placeholder="Autre couleur (بالعربية)…"
-                            onKeyDown={e => { if (e.key === 'Enter' && customColorInput.trim()) { const v = customColorInput.trim(); const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomColorInput('') } }}
+                            onKeyDown={e => { if (e.key === 'Enter' && customColorInput.trim()) { const v = customColorInput.trim(); const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomColorInput('') } }}
                             style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
                           <button
-                            onClick={() => { const v = customColorInput.trim(); if (!v) return; const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomColorInput('') }}
+                            onClick={() => { const v = customColorInput.trim(); if (!v) return; const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomColorInput('') }}
                             style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
                             + Ajouter
                           </button>
@@ -836,7 +838,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                   {available.map(s => (
                                     <button key={s}
-                                      onClick={() => { const curr = parsePipe(sizesRaw); setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + s : s); setAttrSaved(false) }}
+                                      onClick={() => { const curr = parsePipe(sizesRaw); setSizesRaw(curr.length ? s + ' | ' + curr.join(' | ') : s); setAttrSaved(true) }}
                                       style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid #c3c4c7', background: '#fff', color: '#1d2327', fontFamily: 'inherit' }}>
                                       {s}
                                     </button>
@@ -850,10 +852,10 @@ export default function ProductForm({ productId, initial }: { productId?: string
                         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                           <input value={customSizeInput} onChange={e => setCustomSizeInput(e.target.value)}
                             placeholder="Autre taille…"
-                            onKeyDown={e => { if (e.key === 'Enter' && customSizeInput.trim()) { const v = customSizeInput.trim(); const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomSizeInput('') } }}
+                            onKeyDown={e => { if (e.key === 'Enter' && customSizeInput.trim()) { const v = customSizeInput.trim(); const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomSizeInput('') } }}
                             style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
                           <button
-                            onClick={() => { const v = customSizeInput.trim(); if (!v) return; const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomSizeInput('') }}
+                            onClick={() => { const v = customSizeInput.trim(); if (!v) return; const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomSizeInput('') }}
                             style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
                             + Ajouter
                           </button>
@@ -862,64 +864,90 @@ export default function ProductForm({ productId, initial }: { productId?: string
                     </div>
                   </div>
 
-                  {/* ── Attributs personnalisés (ex: Matière, Marque…) ─────── */}
+                  {/* ── Attributs personnalisés (ex: Matière, Marque…) — tag input ── */}
                   {customAttrs.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#50575e', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                         Attributs personnalisés
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {customAttrs.map((attr, idx) => (
-                          <div key={attr._key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto auto auto', gap: 8, alignItems: 'start', padding: '10px', background: '#fafffe', border: '1px solid #e5e5e5', borderRadius: 4 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              <input value={attr.nameAr}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
-                                placeholder="الاسم بالعربية" dir="rtl"
-                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 12, background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                              <input value={attr.name}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
-                                placeholder="Nom FR (optionnel)"
-                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 11, color: '#646970', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {customAttrs.map((attr, idx) => {
+                          const vals = parsePipe(attr.valuesRaw)
+                          const inputVal = attrTagInputs[attr._key] ?? ''
+                          function addTag(v: string) {
+                            const t = v.trim(); if (!t || vals.includes(t)) return
+                            // Nouvelle valeur en tête de liste
+                            setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: t + (a.valuesRaw.trim() ? ' | ' + a.valuesRaw : '') } : a))
+                            setAttrTagInputs(p => ({ ...p, [attr._key]: '' }))
+                          }
+                          return (
+                            <div key={attr._key} style={{ border: '1px solid #c3c4c7', borderRadius: 4, overflow: 'hidden' }}>
+                              {/* En-tête attribut */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f6f7f7', borderBottom: '1px solid #c3c4c7' }}>
+                                <input value={attr.nameAr}
+                                  onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
+                                  placeholder="الاسم بالعربية" dir="rtl"
+                                  style={{ flex: 1, padding: '4px 8px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 13, background: '#fff', fontFamily: 'inherit' }} />
+                                <input value={attr.name}
+                                  onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
+                                  placeholder="Nom FR (optionnel)"
+                                  style={{ flex: 1, padding: '4px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, color: '#646970', background: '#fff', fontFamily: 'inherit' }} />
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#646970', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  <input type="checkbox" checked={attr.visible}
+                                    onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
+                                    style={{ accentColor: '#2271b1', cursor: 'pointer' }} />
+                                  Visible
+                                </label>
+                                <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
+                                  style={{ padding: '3px 10px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                  ✕ Supprimer
+                                </button>
+                              </div>
+                              {/* Valeurs en tags */}
+                              <div style={{ padding: '10px 12px' }}>
+                                {vals.length > 0 && (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                                    {vals.map(v => (
+                                      <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: '#e8f0fe', border: '1px solid #c3d4f7', borderRadius: 20, fontSize: 12 }}>
+                                        {v}
+                                        <button onClick={() => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: parsePipe(a.valuesRaw).filter(x => x !== v).join(' | ') } : a))}
+                                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5a7abb', fontSize: 14, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' }}>
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <input value={inputVal}
+                                    onChange={e => setAttrTagInputs(p => ({ ...p, [attr._key]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') { addTag(inputVal) } }}
+                                    placeholder="Tapez une valeur et appuyez Entrée…"
+                                    style={{ flex: 1, padding: '5px 10px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 13, fontFamily: 'inherit' }} />
+                                  <button onClick={() => addTag(inputVal)}
+                                    style={{ padding: '5px 12px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
+                                    + Ajouter
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <textarea value={attr.valuesRaw}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: e.target.value } : a))}
-                                placeholder="valeur1 | valeur2 | valeur3" rows={2}
-                                style={{ width: '100%', padding: '6px 8px', border: '1px solid #8c8f94', borderRadius: 3, background: '#fff', fontSize: 13, resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                              <p style={{ fontSize: 11, color: '#646970', margin: '2px 0 0' }}>Séparez les valeurs avec |</p>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 4 }}>
-                              <input type="checkbox" checked={attr.visible}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
-                                style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                              <span style={{ fontSize: 10, color: '#646970' }}>Visible</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 4 }}>
-                              <input type="checkbox" checked={attr.forVariations}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, forVariations: e.target.checked } : a))}
-                                style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                              <span style={{ fontSize: 10, color: '#646970' }}>Variations</span>
-                            </div>
-                            <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
-                              style={{ padding: '4px 8px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                              ✕ Suppr.
-                            </button>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {/* Bouton Enregistrer les attributs */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {/* Boutons bas */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    {/* Nouvel attribut ajouté EN HAUT de la liste */}
                     <button
-                      onClick={() => setCustomAttrs(p => [...p, { _key: uid(), name: '', nameAr: '', valuesRaw: '', visible: true, forVariations: false }])}
+                      onClick={() => { setCustomAttrs(p => [{ _key: uid(), name: '', nameAr: '', valuesRaw: '', visible: true, forVariations: false }, ...p]) }}
                       style={{ padding: '7px 14px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, color: '#2271b1', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                       + Ajouter un attribut
                     </button>
                     <button onClick={saveAttributes}
                       style={{ padding: '8px 16px', background: '#2271b1', border: '1px solid #0a4b78', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                      Enregistrer les attributs
+                      ✓ Enregistrer les attributs
                     </button>
                   </div>
 
