@@ -7,6 +7,7 @@ interface DeliverySettings {
   yalidineApiId?: string
   yalidineApiToken?: string
   yalidineCenterId?: string
+  yalidineFromWilayaName?: string
   autoSendOnConfirm?: boolean
   defaultHomeDeliveryFee?: number
   defaultDeskDeliveryFee?: number
@@ -143,10 +144,12 @@ export default function SettingsPage() {
     }
     setTesting(true); setTestResult(null)
     try {
-      const res = await fetch('https://api.yalidine.app/v1/wilayas/?page_size=1', {
-        headers: { 'X-API-ID': delivery.yalidineApiId!, 'X-API-TOKEN': delivery.yalidineApiToken! },
-      })
-      setTestResult(res.ok ? 'ok' : 'fail')
+      // Appel via proxy serveur pour éviter le blocage CORS du navigateur
+      const res = await fetch(
+        `/api/boutique-admin/yalidine-test?apiId=${encodeURIComponent(delivery.yalidineApiId!)}&apiToken=${encodeURIComponent(delivery.yalidineApiToken!)}`
+      )
+      const data = await res.json()
+      setTestResult(data.ok ? 'ok' : 'fail')
     } catch { setTestResult('fail') }
     finally { setTesting(false) }
   }
@@ -208,6 +211,13 @@ export default function SettingsPage() {
             placeholder="Ex: 1  (fourni par Yalidine)"
             hint="L'ID de votre agence/centre Yalidine depuis lequel partent vos colis."
             mono
+          />
+          <Field
+            label="Wilaya d'expédition (nom français)"
+            value={delivery.yalidineFromWilayaName ?? ''}
+            onChange={v => setDelivery(d => ({ ...d, yalidineFromWilayaName: v }))}
+            placeholder="Ex: Alger"
+            hint="Votre wilaya de départ pour les envois Yalidine — doit correspondre exactement au nom français (ex: Alger, Oran, Blida…)"
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>

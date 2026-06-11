@@ -66,7 +66,7 @@ export default function CategoriesPage() {
 
       if (editingId) {
         // Mise à jour
-        const res = await fetch(`/api/categories/${editingId}`, {
+        const res = await fetch(`/api/boutique-admin/categories/${editingId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -75,7 +75,7 @@ export default function CategoriesPage() {
         showToast('Catégorie mise à jour ✓', true)
       } else {
         // Création
-        const res = await fetch('/api/categories', {
+        const res = await fetch('/api/boutique-admin/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -93,7 +93,7 @@ export default function CategoriesPage() {
     if (!confirm('Supprimer cette catégorie définitivement ?')) return
     setDeletingId(id)
     try {
-      await fetch(`/api/categories/${id}`, { method: 'DELETE' })
+      await fetch(`/api/boutique-admin/categories/${id}`, { method: 'DELETE' })
       showToast('Catégorie supprimée', true)
       await load()
     } catch { showToast('Erreur suppression', false) }
