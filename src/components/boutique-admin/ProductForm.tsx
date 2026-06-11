@@ -150,6 +150,14 @@ export default function ProductForm({ productId, initial }: { productId?: string
     }))
   )
 
+  // ── Suggestions d'attributs personnalisés (persistées en localStorage) ───────
+  // Clé : { nameAr: string; name: string } — sauvegardé à chaque "Enregistrer les attributs"
+  const SAVED_ATTRS_KEY = 'she_saved_custom_attrs'
+  const [savedAttrSuggestions, setSavedAttrSuggestions] = useState<Array<{ nameAr: string; name: string }>>(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem(SAVED_ATTRS_KEY) ?? '[]') } catch { return [] }
+  })
+
   // ── Visibilité (public / privé) ─────────────────────────────────────────────
   const [visibility, setVisibility] = useState<'public' | 'private'>(initial?.visibility ?? 'public')
 
@@ -233,6 +241,24 @@ export default function ProductForm({ productId, initial }: { productId?: string
     }
     setAttrSaved(true)
     showToast(`Attributs enregistrés — ${colors.length} couleur(s), ${sizes.length} taille(s)`, true)
+
+    // Sauvegarder les noms des attributs personnalisés dans localStorage
+    const newEntries = customAttrs
+      .filter(a => a.nameAr.trim())
+      .map(a => ({ nameAr: a.nameAr.trim(), name: a.name.trim() }))
+    if (newEntries.length > 0) {
+      setSavedAttrSuggestions(prev => {
+        // Fusionner en évitant les doublons sur nameAr
+        const merged = [...prev]
+        for (const entry of newEntries) {
+          if (!merged.find(s => s.nameAr === entry.nameAr)) {
+            merged.push(entry)
+          }
+        }
+        try { localStorage.setItem(SAVED_ATTRS_KEY, JSON.stringify(merged)) } catch { /* ignore */ }
+        return merged
+      })
+    }
   }
 
   // ── Générer les variations (Step 2 WooCommerce — "Generate variations") ─────
@@ -727,6 +753,58 @@ export default function ProductForm({ productId, initial }: { productId?: string
                   {attrSaved && (
                     <div style={{ marginTop: 10, padding: '8px 12px', background: '#d1e7dd', border: '1px solid #badbcc', borderRadius: 3, fontSize: 12, color: '#0f5132' }}>
                       ✓ Attributs enregistrés. Allez dans l&apos;onglet <button onClick={() => setTab('variations')} style={{ background: 'none', border: 'none', color: '#0f5132', fontWeight: 700, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0 }}>Variations</button> pour générer les combinaisons.
+                    </div>
+                  )}
+
+                  {/* ── Suggestions d'attributs personnalisés ───────────────── */}
+                  {savedAttrSuggestions.length > 0 && (
+                    <div style={{ marginTop: 14, padding: '10px 12px', background: '#f0f6fc', border: '1px solid #c8d8ea', borderRadius: 4 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#2271b1', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Attributs ajoutés manuellement
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {savedAttrSuggestions.map(s => {
+                          const alreadyAdded = customAttrs.some(a => a.nameAr === s.nameAr)
+                          return (
+                            <button
+                              key={s.nameAr}
+                              type="button"
+                              disabled={alreadyAdded}
+                              onClick={() => {
+                                if (!alreadyAdded) {
+                                  setCustomAttrs(p => [...p, { _key: uid(), name: s.name, nameAr: s.nameAr, valuesRaw: '', visible: true, forVariations: false }])
+                                  setAttrSaved(false)
+                                }
+                              }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: alreadyAdded ? 'default' : 'pointer',
+                                background: alreadyAdded ? '#e5e7eb' : '#fff',
+                                border: `1px solid ${alreadyAdded ? '#d1d5db' : '#2271b1'}`,
+                                color: alreadyAdded ? '#9ca3af' : '#2271b1',
+                                fontWeight: 500,
+                                display: 'flex', alignItems: 'center', gap: 4,
+                              }}
+                            >
+                              {!alreadyAdded && <span style={{ fontSize: 10 }}>+</span>}
+                              <span dir="rtl">{s.nameAr}</span>
+                              {s.name && <span style={{ color: '#9ca3af', fontWeight: 400 }}>({s.name})</span>}
+                              {alreadyAdded && <span style={{ fontSize: 10 }}>✓</span>}
+                            </button>
+                          )
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm('Effacer toutes les suggestions ?')) {
+                              setSavedAttrSuggestions([])
+                              try { localStorage.removeItem(SAVED_ATTRS_KEY) } catch { /* ignore */ }
+                            }
+                          }}
+                          style={{ padding: '4px 8px', borderRadius: 20, fontSize: 11, cursor: 'pointer', background: 'none', border: '1px solid #fca5a5', color: '#b91c1c', marginLeft: 4 }}
+                        >
+                          Effacer tout
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
