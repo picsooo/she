@@ -47,6 +47,7 @@ export async function getProducts(options?: {
     page: options?.page ?? 1,
     sort: options?.sort ?? '-createdAt',
     depth: 2,
+    overrideAccess: true,
   })
 }
 
@@ -61,6 +62,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     },
     limit: 1,
     depth: 2,
+    overrideAccess: true,
   })
 
   return (result.docs[0] as Product) ?? null
@@ -73,6 +75,7 @@ export async function getProductById(id: string): Promise<Product | null> {
       collection: 'products',
       id,
       depth: 2,
+      overrideAccess: true,
     })
     return product as Product
   } catch {
@@ -88,6 +91,7 @@ export async function getFeaturedProducts(limit = 8) {
     sort: '-createdAt',
     limit,
     depth: 2,
+    overrideAccess: true,
   })
 }
 
@@ -106,6 +110,7 @@ async function getChildCategoryIds(
       collection: 'categories',
       limit: 200,
       depth: 0,
+      overrideAccess: true,
     })
     const parentIdNum = Number(parentId)
     return all.docs
@@ -136,6 +141,7 @@ export async function getProductsByCategory(categoryId: string, limit = 4) {
     limit,
     sort: '-createdAt',
     depth: 2,
+    overrideAccess: true,
   })
 }
 
@@ -150,6 +156,7 @@ export async function getRelatedProducts(categoryIds: string[], excludeId: strin
     },
     limit,
     depth: 2,
+    overrideAccess: true,
   })
 }
 
@@ -165,6 +172,7 @@ export async function getActiveRootCategories() {
     limit: 50,
     sort: 'nameAr',
     depth: 1,
+    overrideAccess: true,
   })
   // Vérifier en parallèle quelles catégories ont au moins 1 produit
   // On inclut les sous-catégories : une catégorie est "active" si elle OU ses enfants ont des produits
@@ -176,6 +184,7 @@ export async function getActiveRootCategories() {
         where: { status: { equals: 'published' }, category: { in: [cat.id, ...childIds] } },
         limit: 1,
         depth: 0,
+        overrideAccess: true,
       })
       return { cat, hasProducts: r.totalDocs > 0 }
     })
@@ -190,6 +199,7 @@ export async function getCategories() {
     limit: 100,
     sort: 'nameAr',
     depth: 1,
+    overrideAccess: true,
   })
 }
 
@@ -201,6 +211,7 @@ export async function getRootCategories() {
     limit: 50,
     sort: 'nameAr',
     depth: 1,
+    overrideAccess: true,
   })
 }
 
@@ -261,6 +272,7 @@ export async function getChapeauGift(): Promise<{
       where: { slug: { equals: 'chapeau' }, status: { equals: 'published' } },
       limit: 1,
       depth: 1,
+      overrideAccess: true,
     })
     const hat = result.docs[0] as Product | undefined
     if (!hat || !hat.variations || hat.variations.length === 0) return []
