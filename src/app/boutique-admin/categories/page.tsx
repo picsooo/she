@@ -59,8 +59,7 @@ export default function CategoriesPage() {
     try {
       const body = {
         nameAr: name.trim(),
-        name: name.trim(),
-        ...(description.trim() ? { description: description.trim() } : {}),
+        nameFr: name.trim(),   // nameFr est required dans la collection
         ...(parentId ? { parent: parentId } : {}),
       }
 
