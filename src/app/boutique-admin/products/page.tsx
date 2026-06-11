@@ -554,6 +554,7 @@ export default function ProductsPage() {
   const [page,            setPage]           = useState(1)
   const [selected,        setSelected]       = useState<Set<string>>(new Set())
   const [deletingId,      setDeletingId]     = useState<string | null>(null)
+  const [duplicatingId,   setDuplicatingId]  = useState<string | null>(null)
   const [categories,      setCategories]     = useState<Category[]>([])
   const perPage = 15
 
@@ -584,6 +585,22 @@ export default function ProductsPage() {
     await fetch(`/api/boutique-admin/products/${id}`, { method: 'DELETE' })
     setDeletingId(null)
     loadProducts()
+  }
+
+  async function duplicateProduct(id: string) {
+    setDuplicatingId(id)
+    try {
+      const res = await fetch(`/api/boutique-admin/products/${id}/duplicate`, { method: 'POST' })
+      if (!res.ok) throw new Error('Échec')
+      const data = await res.json()
+      loadProducts()
+      // Ouvrir directement la fiche de la copie dans un nouvel onglet
+      window.open(`/boutique-admin/products/${data.doc.id}`, '_blank')
+    } catch {
+      alert('Erreur lors de la duplication')
+    } finally {
+      setDuplicatingId(null)
+    }
   }
 
   async function updateStatus(id: string, status: string) {
@@ -791,6 +808,13 @@ export default function ProductsPage() {
                           <Link href={`/boutique-admin/products/${p.id}`} style={{ padding: '6px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', borderRadius: 7, fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
                             ✏️ Modifier
                           </Link>
+                          <button
+                            onClick={() => duplicateProduct(p.id)}
+                            disabled={duplicatingId === p.id}
+                            title="Dupliquer ce produit (crée une copie en brouillon)"
+                            style={{ padding: '6px 10px', background: duplicatingId === p.id ? '#F3F4F6' : '#F0FDF4', border: '1px solid #BBF7D0', color: '#166534', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: duplicatingId === p.id ? 'wait' : 'pointer' }}>
+                            {duplicatingId === p.id ? '⏳' : '📋'}
+                          </button>
                           <button onClick={() => deleteProduct(p.id)} disabled={deletingId === p.id} style={{ padding: '6px 10px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                             🗑️
                           </button>

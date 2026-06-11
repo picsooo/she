@@ -26,6 +26,15 @@ const SIZE_SUGGESTIONS = [
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ProductTab = 'general' | 'inventory' | 'attributes' | 'variations' | 'advanced'
+
+interface CustomAttr {
+  _key: string
+  name: string      // label FR (ex: "Matière")
+  nameAr: string    // label AR (ex: "المادة")
+  valuesRaw: string // valeurs pipe-séparées
+  visible: boolean
+  forVariations: boolean
+}
 type VariationAction = 'generate' | 'add_manual' | 'set_regular' | 'set_sale' | 'toggle_enabled' | 'delete_all'
 
 interface Variation {
@@ -55,7 +64,12 @@ export interface InitialProduct {
     stock?: number; inStock?: boolean
     variationSku?: string; variationDescription?: string
   }>
+  visibility?: 'public' | 'private'
   images?: Array<{ id?: string; image?: { id?: string; url?: string; thumbnailURL?: string } }>
+  customAttributes?: Array<{
+    name?: string; nameAr?: string; values?: string
+    visible?: boolean; forVariations?: boolean
+  }>
 }
 
 function uid() { return Math.random().toString(36).slice(2) }
@@ -127,6 +141,17 @@ export default function ProductForm({ productId, initial }: { productId?: string
   const [attrSaved,     setAttrSaved]     = useState(false) // Attributs sauvegardés ?
   const [showColorSugg, setShowColorSugg] = useState(false)
   const [showSizeSugg,  setShowSizeSugg]  = useState(false)
+
+  // ── Attributs personnalisés ─────────────────────────────────────────────────
+  const [customAttrs, setCustomAttrs] = useState<CustomAttr[]>(
+    (initial?.customAttributes ?? []).map(a => ({
+      _key: uid(), name: a.name ?? '', nameAr: a.nameAr ?? '',
+      valuesRaw: a.values ?? '', visible: a.visible ?? true, forVariations: a.forVariations ?? false,
+    }))
+  )
+
+  // ── Visibilité (public / privé) ─────────────────────────────────────────────
+  const [visibility, setVisibility] = useState<'public' | 'private'>(initial?.visibility ?? 'public')
 
   // ── Variations ──────────────────────────────────────────────────────────────
   const [variations,   setVariations]   = useState<Variation[]>(
@@ -318,7 +343,12 @@ export default function ProductForm({ productId, initial }: { productId?: string
         ...(shortDesc.trim() ? { shortDescriptionAr: shortDesc.trim() }     : {}),
         ...(purchNote.trim() ? { purchaseNote: purchNote.trim() }           : {}),
         status: finalStatus, sku: sku.trim() || undefined,
+        visibility,
         category: selCats,
+        customAttributes: customAttrs.map(a => ({
+          name: a.name, nameAr: a.nameAr, values: a.valuesRaw,
+          visible: a.visible, forVariations: a.forVariations,
+        })),
         variations: variations.map(v => ({
           ...(v.id ? { id: v.id } : {}),
           colorAr: v.colorAr || '', size: v.size || '',
@@ -631,11 +661,63 @@ export default function ProductForm({ productId, initial }: { productId?: string
                             style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'default' }} />
                         </td>
                       </tr>
+
+                      {/* ── Attributs personnalisés (lignes dynamiques) ─────── */}
+                      {customAttrs.map((attr, idx) => (
+                        <tr key={attr._key} style={{ borderBottom: '1px solid #f0f0f1', background: '#fafffe' }}>
+                          <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5', verticalAlign: 'top' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <input
+                                value={attr.nameAr}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
+                                placeholder="الاسم بالعربية"
+                                dir="rtl"
+                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 12, background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                              />
+                              <input
+                                value={attr.name}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
+                                placeholder="Nom (FR, optionnel)"
+                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 11, color: '#646970', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                              />
+                              <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
+                                style={{ marginTop: 4, padding: '2px 6px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
+                                ✕ Supprimer
+                              </button>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5' }}>
+                            <textarea
+                              value={attr.valuesRaw}
+                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: e.target.value } : a))}
+                              placeholder="valeur1 | valeur2 | valeur3"
+                              rows={2}
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #8c8f94', borderRadius: 3, background: '#fff', fontSize: 13, resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', fontFamily: 'inherit' }}
+                            />
+                            <p style={{ fontSize: 11, color: '#646970', marginTop: 3 }}>Séparez les valeurs avec |</p>
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #e5e5e5' }}>
+                            <input type="checkbox" checked={attr.visible}
+                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
+                              style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'center' }}>
+                            <input type="checkbox" checked={attr.forVariations}
+                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, forVariations: e.target.checked } : a))}
+                              style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
 
                   {/* Bouton Enregistrer les attributs */}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button
+                      onClick={() => setCustomAttrs(p => [...p, { _key: uid(), name: '', nameAr: '', valuesRaw: '', visible: true, forVariations: false }])}
+                      style={{ padding: '7px 14px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, color: '#2271b1', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                      + Ajouter un attribut
+                    </button>
                     <button onClick={saveAttributes}
                       style={{ padding: '8px 16px', background: '#2271b1', border: '1px solid #0a4b78', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                       Enregistrer les attributs
@@ -985,8 +1067,17 @@ export default function ProductForm({ productId, initial }: { productId?: string
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingTop: 6, borderTop: '1px solid #f0f0f1' }}>
                 <span style={{ fontSize: 13, color: '#1d2327' }}>Visibilité :</span>
-                <span style={{ fontSize: 12, color: '#646970' }}>Public</span>
+                <select value={visibility} onChange={e => setVisibility(e.target.value as 'public' | 'private')}
+                  style={{ padding: '4px 6px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 12, background: '#fff', color: visibility === 'private' ? '#b45309' : '#1d2327', cursor: 'pointer' }}>
+                  <option value="public">Public</option>
+                  <option value="private">Privé 🔒</option>
+                </select>
               </div>
+              {visibility === 'private' && (
+                <p style={{ fontSize: 11, color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 3, padding: '5px 8px', marginBottom: 8, lineHeight: 1.4 }}>
+                  🔒 Produit privé — non visible sur la boutique, accessible seulement via son lien direct.
+                </p>
+              )}
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', borderTop: '1px solid #f0f0f1', paddingTop: 10 }}>
                 <button onClick={() => handleSave('draft')} disabled={saving}
                   style={{ padding: '6px 12px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, color: '#1d2327', cursor: 'pointer' }}>

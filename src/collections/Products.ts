@@ -223,6 +223,20 @@ export const Products: CollectionConfig = {
       },
     },
     {
+      name: 'visibility',
+      label: 'Visibilité',
+      type: 'select',
+      options: [
+        { label: '🌐 Public',  value: 'public'  },
+        { label: '🔒 Privé',   value: 'private' },
+      ],
+      defaultValue: 'public',
+      admin: {
+        position: 'sidebar',
+        description: 'Privé : non affiché sur la boutique',
+      },
+    },
+    {
       name: 'aiGenerated',
       label: '🤖 Description générée par IA',
       type: 'checkbox',
@@ -231,6 +245,23 @@ export const Products: CollectionConfig = {
         position: 'sidebar',
         description: 'Cocher si la description nécessite une relecture',
       },
+    },
+
+    // ════════════════════════════════════════════════════════════════
+    // ATTRIBUTS PERSONNALISÉS (créés par le marchand dans ProductForm)
+    // ════════════════════════════════════════════════════════════════
+    {
+      name: 'customAttributes',
+      label: 'Attributs personnalisés',
+      type: 'array',
+      admin: { hidden: true }, // géré via ProductForm, pas l'admin Payload
+      fields: [
+        { name: 'name',          type: 'text',     label: 'Nom (FR)'       },
+        { name: 'nameAr',        type: 'text',     label: 'Nom (AR)'       },
+        { name: 'values',        type: 'text',     label: 'Valeurs (pipe)' },
+        { name: 'visible',       type: 'checkbox', label: 'Visible',       defaultValue: true  },
+        { name: 'forVariations', type: 'checkbox', label: 'Pour variations', defaultValue: false },
+      ],
     },
 
     // ════════════════════════════════════════════════════════════════
