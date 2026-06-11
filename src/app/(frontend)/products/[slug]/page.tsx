@@ -4,6 +4,7 @@ import { getProductBySlug, getRelatedProducts, getCategories, getProducts } from
 // Note: getChapeauGift n'est plus appelée ici — elle est dans le layout et injectée via FreeGiftInit/useFreeGiftStore
 import { ProductGallery } from '@/components/product/ProductGallery'
 import { VariantSelector } from '@/components/product/VariantSelector'
+import { ProductGalleryProvider } from '@/components/product/ProductGalleryAndSelector'
 import { ProductCard } from '@/components/product/ProductCard'
 import { ProductSidebar, CategorySidebar } from '@/components/product/ProductSidebar'
 import { SocialProofNotification, LiveViewerCount, StockUrgency } from '@/components/product/SocialProof'
@@ -191,8 +192,9 @@ export default async function ProductPage({ params }: PageProps) {
 
         {/* ── Contenu principal ── */}
         <div className="flex-1 min-w-0">
+          <ProductGalleryProvider product={product}>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            {/* Galerie */}
+            {/* Galerie — réagit aux changements de couleur via contexte */}
             <ProductGallery images={galleryImages} productName={product.nameAr ?? ''} />
 
             {/* Infos + variantes */}
@@ -246,6 +248,7 @@ export default async function ProductPage({ params }: PageProps) {
               )}
             </div>
           </div>
+          </ProductGalleryProvider>
 
           {/* ── FAQ rassurance ── */}
           <section className="mt-12">

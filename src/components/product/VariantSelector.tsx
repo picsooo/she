@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { t } from '@/lib/translations'
 import { PriceDisplay } from './PriceDisplay'
@@ -10,18 +10,22 @@ import { useCartStore } from '@/stores/cart'
 import { useFreeGiftStore } from '@/stores/freeGift'
 import { trackAddToCart } from '@/lib/tracking'
 import { toRelativeMediaUrl } from '@/lib/utils'
+import { useGalleryContext } from './ProductGalleryAndSelector'
 import type { Product } from '@/payload-types'
 
 interface VariantSelectorProps {
   product: Product
   // Indique si ce produit est un burkini — affiche la bannière cadeau et ajoute le chapeau
   isBurkini?: boolean
+  // Callback appelé quand la couleur change — permet de synchroniser la galerie
+  onColorChange?: (colorAr: string) => void
 }
 
 const norm = (v: string | null | undefined) => v ?? ''
 
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
-export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
+export function VariantSelector({ product, isBurkini, onColorChange }: VariantSelectorProps) {
+  const galleryCtx = useGalleryContext()
   const addItems = useCartStore((s) => s.addItems)
   const cartItems = useCartStore((s) => s.items)
   // Toutes les variations du chapeau cadeau depuis le store global
@@ -215,6 +219,12 @@ export function VariantSelector({ product, isBurkini }: VariantSelectorProps) {
                 key={colorAr || '__no_color__'}
                 onClick={() => {
                   setSelectedColor(colorAr)
+                  onColorChange?.(colorAr)
+                  // Synchroniser la galerie : i-ème couleur → i-ème image
+                  if (galleryCtx) {
+                    const idx = galleryCtx.uniqueColors.indexOf(colorAr)
+                    if (idx >= 0) galleryCtx.setActiveIndex(idx)
+                  }
                   const sizesForNewColor = variations
                     .filter((v) => norm(v.colorAr) === colorAr)
                     .map((v) => norm(v.size))

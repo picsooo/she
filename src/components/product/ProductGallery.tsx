@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
+import { useGalleryContext } from './ProductGalleryAndSelector'
 
 interface GalleryImage {
   url: string
@@ -13,11 +14,23 @@ interface GalleryImage {
 interface ProductGalleryProps {
   images: GalleryImage[]
   productName: string
+  // Index contrôlé depuis l'extérieur (ex: changement de couleur)
+  controlledIndex?: number
+  onIndexChange?: (idx: number) => void
 }
 
 // Galerie photos produit — image principale + thumbnails
-export function ProductGallery({ images, productName }: ProductGalleryProps) {
-  const [activeIndex, setActiveIndex] = useState(0)
+// Si un ProductGalleryProvider est présent dans l'arbre, l'index actif est contrôlé par lui.
+export function ProductGallery({ images, productName, controlledIndex, onIndexChange }: ProductGalleryProps) {
+  const ctx = useGalleryContext()
+  const [internalIndex, setInternalIndex] = useState(0)
+  // Priorité : contexte > prop controlledIndex > état interne
+  const activeIndex = ctx?.activeIndex ?? controlledIndex ?? internalIndex
+  const setActiveIndex = (idx: number) => {
+    setInternalIndex(idx)
+    ctx?.setActiveIndex(idx)
+    onIndexChange?.(idx)
+  }
 
   if (images.length === 0) {
     return (
