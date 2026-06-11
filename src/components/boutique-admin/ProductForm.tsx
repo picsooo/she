@@ -95,7 +95,8 @@ function toPublicUrl(u?: string | null): string {
 async function uploadFile(file: File): Promise<{ id: string; url: string }> {
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch('/api/media', { method: 'POST', body: fd })
+  // Route dédiée avec overrideAccess — /api/media Payload exige une auth Payload
+  const res = await fetch('/api/boutique-admin/upload-media', { method: 'POST', body: fd })
   if (!res.ok) throw new Error('Échec upload')
   const data = await res.json()
   return { id: data.doc.id, url: toPublicUrl(data.doc.url) }
