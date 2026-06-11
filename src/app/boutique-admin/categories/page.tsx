@@ -42,9 +42,17 @@ export default function CategoriesPage() {
 
   async function load() {
     setLoading(true)
-    const data = await fetch('/api/boutique-admin/categories?limit=200&sort=nameAr&depth=1').then(r => r.json())
-    setCats(data.docs ?? [])
-    setLoading(false)
+    try {
+      const res  = await fetch('/api/boutique-admin/categories?limit=200&sort=nameAr&depth=1')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setCats(data.docs ?? [])
+    } catch (err) {
+      console.error('[categories load]', err)
+      showToast('Erreur chargement catégories', false)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
