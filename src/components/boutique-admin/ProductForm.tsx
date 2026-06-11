@@ -97,8 +97,8 @@ async function uploadFile(file: File): Promise<{ id: string; url: string }> {
   fd.append('file', file)
   // Route dédiée avec overrideAccess — /api/media Payload exige une auth Payload
   const res = await fetch('/api/boutique-admin/upload-media', { method: 'POST', body: fd })
-  if (!res.ok) throw new Error('Échec upload')
   const data = await res.json()
+  if (!res.ok) throw new Error(data?.error ?? 'Échec upload')
   return { id: data.doc.id, url: toPublicUrl(data.doc.url) }
 }
 

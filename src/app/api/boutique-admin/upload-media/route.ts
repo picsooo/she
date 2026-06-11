@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ id: String(result.id), url: publicUrl })
   } catch (err) {
-    console.error('[upload-media]', err)
-    return NextResponse.json({ error: 'Échec upload' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[upload-media] ERREUR:', msg)
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
