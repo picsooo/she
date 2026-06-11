@@ -220,10 +220,18 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
                 onClick={() => {
                   setSelectedColor(colorAr)
                   onColorChange?.(colorAr)
-                  // Synchroniser la galerie : i-ème couleur → i-ème image
+                  // Synchroniser la galerie : priorité à l'image spécifique de la variation,
+                  // sinon fallback sur l'index de la couleur dans la liste
                   if (galleryCtx) {
-                    const idx = galleryCtx.uniqueColors.indexOf(colorAr)
-                    if (idx >= 0) galleryCtx.setActiveIndex(idx)
+                    const varWithImg = variations.find(
+                      (v) => norm(v.colorAr) === colorAr && v.variationImageUrl
+                    )
+                    if (varWithImg?.variationImageUrl) {
+                      galleryCtx.setActiveByUrl(varWithImg.variationImageUrl)
+                    } else {
+                      const idx = galleryCtx.uniqueColors.indexOf(colorAr)
+                      if (idx >= 0) galleryCtx.setActiveIndex(idx)
+                    }
                   }
                   const sizesForNewColor = variations
                     .filter((v) => norm(v.colorAr) === colorAr)

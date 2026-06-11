@@ -44,6 +44,8 @@ export interface ProductVariation {
   salePrice?: number | null
   stock?: number | null
   inStock?: boolean | null
+  variationImageId?: string | null
+  variationImageUrl?: string | null
   legacyVariationId?: string | null
   id?: string | null
 }

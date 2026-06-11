@@ -149,6 +149,9 @@ export const Products: CollectionConfig = {
               type: 'textarea',
               admin: { description: 'Description spécifique à cette variation (optionnel)' },
             },
+            // Image spécifique à cette variation (ex: photo de la couleur)
+            { name: 'variationImageId',  type: 'text',   admin: { description: 'ID media de l\'image de variation' } },
+            { name: 'variationImageUrl', type: 'text',   admin: { description: 'URL publique de l\'image de variation' } },
             // masqués
             { name: 'colorFr',           type: 'text',   admin: { hidden: true } },
             { name: 'legacyVariationId', type: 'text',   admin: { hidden: true }, index: true },

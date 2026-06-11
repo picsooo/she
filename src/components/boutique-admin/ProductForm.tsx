@@ -44,6 +44,8 @@ interface Variation {
   saleDateFrom?: string; saleDateTo?: string
   stock: number; inStock: boolean
   variationSku?: string; variationDescription?: string
+  variationImageId?: string; variationImageUrl?: string
+  variationImageUploading?: boolean
 }
 
 interface UploadedImage {
@@ -63,6 +65,7 @@ export interface InitialProduct {
     saleDateFrom?: string; saleDateTo?: string
     stock?: number; inStock?: boolean
     variationSku?: string; variationDescription?: string
+    variationImageId?: string; variationImageUrl?: string
   }>
   visibility?: 'public' | 'private'
   images?: Array<{ id?: string; image?: { id?: string; url?: string; thumbnailURL?: string } }>
@@ -108,8 +111,11 @@ const VARS_PER_PAGE = 10
 // ── Composant principal ───────────────────────────────────────────────────────
 export default function ProductForm({ productId, initial }: { productId?: string; initial?: InitialProduct }) {
   const router = useRouter()
-  const featuredInputRef = useRef<HTMLInputElement>(null)
-  const galleryInputRef  = useRef<HTMLInputElement>(null)
+  const featuredInputRef    = useRef<HTMLInputElement>(null)
+  const galleryInputRef     = useRef<HTMLInputElement>(null)
+  // Ref pour l'upload d'image de variation — un seul input caché, clé de variation en ref
+  const varImageInputRef    = useRef<HTMLInputElement>(null)
+  const varImageTargetKey   = useRef<string | null>(null)
   const isEdit = !!productId
 
   // ── Champs principaux ───────────────────────────────────────────────────────
@@ -171,6 +177,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
       saleDateFrom: v.saleDateFrom ?? '', saleDateTo: v.saleDateTo ?? '',
       stock: v.stock ?? 0, inStock: v.inStock ?? true,
       variationSku: v.variationSku ?? '', variationDescription: v.variationDescription ?? '',
+      variationImageId: v.variationImageId ?? '', variationImageUrl: toPublicUrl(v.variationImageUrl) || '',
     }))
   )
   const [expandedVars,  setExpandedVars]  = useState<Set<string>>(new Set())
@@ -353,6 +360,24 @@ export default function ProductForm({ productId, initial }: { productId?: string
     }
   }
 
+  // ── Upload image de variation ────────────────────────────────────────────
+  async function handleVarImageFile(files: FileList | null) {
+    const key = varImageTargetKey.current
+    if (!files?.length || !key) return
+    const file = files[0]
+    const localUrl = URL.createObjectURL(file)
+    updateVar(key, { variationImageUrl: localUrl, variationImageUploading: true })
+    try {
+      const { id, url } = await uploadFile(file)
+      updateVar(key, { variationImageId: id, variationImageUrl: url, variationImageUploading: false })
+    } catch {
+      updateVar(key, { variationImageUploading: false })
+      showToast('Échec upload image de variation', false)
+    }
+    // Reset input pour permettre re-sélection du même fichier
+    if (varImageInputRef.current) varImageInputRef.current.value = ''
+  }
+
   // ── Sauvegarde ───────────────────────────────────────────────────────────
   async function handleSave(targetStatus?: 'published' | 'draft') {
     if (!nameAr.trim()) { showToast('Le nom du produit est requis', false); return }
@@ -385,6 +410,8 @@ export default function ProductForm({ productId, initial }: { productId?: string
           stock: Number(v.stock) || 0, inStock: v.inStock,
           ...(v.variationSku         ? { variationSku: v.variationSku }               : {}),
           ...(v.variationDescription ? { variationDescription: v.variationDescription } : {}),
+          ...(v.variationImageId     ? { variationImageId: v.variationImageId }         : {}),
+          ...(v.variationImageUrl    ? { variationImageUrl: v.variationImageUrl }       : {}),
         })),
         images: images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
       }
@@ -934,8 +961,14 @@ export default function ProductForm({ productId, initial }: { productId?: string
                                 onClick={() => toggleExpand(v._key)}>
                                 {/* Indicateur ouvert/fermé */}
                                 <span style={{ fontSize: 12, color: '#646970', width: 14, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
-                                {/* Miniature placeholder */}
-                                <div style={{ width: 30, height: 30, borderRadius: 3, background: '#f0f0f0', border: '1px solid #ddd', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#aaa' }}>IMG</div>
+                                {/* Miniature — image de variation ou placeholder */}
+                                <div style={{ width: 30, height: 30, borderRadius: 3, background: '#f0f0f0', border: '1px solid #ddd', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#aaa' }}>
+                                  {v.variationImageUrl
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    ? <img src={v.variationImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : 'IMG'
+                                  }
+                                </div>
                                 {/* Label attributs */}
                                 <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1d2327' }}>{label}</span>
                                 {/* Prix */}
@@ -963,9 +996,36 @@ export default function ProductForm({ productId, initial }: { productId?: string
                                     {/* Image variation */}
                                     <div>
                                       <label style={{ ...lbl, fontSize: 11 }}>Image</label>
-                                      <div style={{ width: 70, height: 70, border: '1px solid #ddd', borderRadius: 3, background: '#f9f9f9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: '#aaa', textAlign: 'center' }}>
-                                        + Photo
+                                      <div
+                                        onClick={() => {
+                                          varImageTargetKey.current = v._key
+                                          varImageInputRef.current?.click()
+                                        }}
+                                        style={{
+                                          width: 70, height: 70, border: '1px solid #c3c4c7', borderRadius: 3,
+                                          background: '#f9f9f9', cursor: 'pointer', overflow: 'hidden',
+                                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          fontSize: 10, color: '#2271b1', textAlign: 'center', position: 'relative',
+                                        }}
+                                        title="Cliquer pour choisir une image"
+                                      >
+                                        {v.variationImageUploading ? (
+                                          <div style={{ width: 20, height: 20, border: '2px solid #c3c4c7', borderTopColor: '#2271b1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                                        ) : v.variationImageUrl ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={v.variationImageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                          <span style={{ lineHeight: 1.2 }}>📷<br/>Photo</span>
+                                        )}
                                       </div>
+                                      {v.variationImageUrl && !v.variationImageUploading && (
+                                        <button
+                                          onClick={e => { e.stopPropagation(); updateVar(v._key, { variationImageId: '', variationImageUrl: '' }) }}
+                                          style={{ marginTop: 3, width: 70, padding: '2px 0', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 10, cursor: 'pointer' }}
+                                        >
+                                          Retirer
+                                        </button>
+                                      )}
                                     </div>
 
                                     {/* Champs principaux */}
@@ -1249,6 +1309,9 @@ export default function ProductForm({ productId, initial }: { productId?: string
           <div style={box}>
             <div style={boxHead}>Galerie du produit</div>
             <div style={boxBody}>
+              {/* Input caché partagé pour toutes les images de variations */}
+              <input ref={varImageInputRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={e => handleVarImageFile(e.target.files)} />
               <input ref={galleryInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }}
                 onChange={e => handleFiles(e.target.files, false)} />
               {galleryImages.length > 0 && (

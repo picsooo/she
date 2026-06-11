@@ -12,7 +12,11 @@ import type { Product } from '@/payload-types'
 interface GalleryContextValue {
   activeIndex: number
   setActiveIndex: (idx: number) => void
+  // Cherche l'image par URL et l'active si trouvée
+  setActiveByUrl: (url: string) => void
   uniqueColors: string[]
+  // URLs de toutes les images de la galerie (pour la recherche par URL)
+  imageUrls: string[]
 }
 
 const GalleryContext = createContext<GalleryContextValue | null>(null)
@@ -23,6 +27,8 @@ export function useGalleryContext() {
 
 interface ProviderProps {
   product: Product
+  // URLs des images de la galerie (dans le même ordre que ProductGallery)
+  imageUrls?: string[]
   children: React.ReactNode
 }
 
@@ -30,7 +36,7 @@ interface ProviderProps {
  * Wrapper provider à placer autour du grid produit.
  * Partage l'état activeIndex entre la galerie et le sélecteur.
  */
-export function ProductGalleryProvider({ product, children }: ProviderProps) {
+export function ProductGalleryProvider({ product, imageUrls = [], children }: ProviderProps) {
   const [activeIndex, setActiveIndex] = useState(0)
 
   const uniqueColors = useMemo(() => {
@@ -43,8 +49,14 @@ export function ProductGalleryProvider({ product, children }: ProviderProps) {
     return result
   }, [product.variations])
 
+  // Cherche l'image par URL (partielle ou complète) et l'active
+  const setActiveByUrl = (url: string) => {
+    const idx = imageUrls.findIndex(u => u === url || u.includes(url) || url.includes(u))
+    if (idx >= 0) setActiveIndex(idx)
+  }
+
   return (
-    <GalleryContext.Provider value={{ activeIndex, setActiveIndex, uniqueColors }}>
+    <GalleryContext.Provider value={{ activeIndex, setActiveIndex, setActiveByUrl, uniqueColors, imageUrls }}>
       {children}
     </GalleryContext.Provider>
   )
