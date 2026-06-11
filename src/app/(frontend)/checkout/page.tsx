@@ -52,6 +52,9 @@ export default function CheckoutPage() {
       .catch(() => {/* utiliser les valeurs par défaut */})
   }, [])
 
+  // true pendant le chargement des frais Yalidine
+  const [feesLoading, setFeesLoading] = useState(false)
+
   useEffect(() => {
     if (form.wilayaCode) {
       const list = getCommunesByWilaya(form.wilayaCode)
@@ -61,6 +64,28 @@ export default function CheckoutPage() {
       setCommunes([])
     }
   }, [form.wilayaCode])
+
+  // Charger les vrais frais Yalidine dès qu'une commune est sélectionnée
+  useEffect(() => {
+    if (!form.wilayaCode || !form.commune) return
+    let cancelled = false
+    setFeesLoading(true)
+    fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(form.wilayaCode)}&communeNameAr=${encodeURIComponent(form.commune)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return
+        // Si Yalidine renvoie des tarifs réels, on les utilise ; sinon on garde les defaults
+        if (data?.source === 'yalidine' && (data.home !== null || data.desk !== null)) {
+          setFees(prev => ({
+            home: data.home ?? prev.home,
+            desk: data.desk ?? prev.desk,
+          }))
+        }
+      })
+      .catch(() => {/* garder les defaults */})
+      .finally(() => { if (!cancelled) setFeesLoading(false) })
+    return () => { cancelled = true }
+  }, [form.wilayaCode, form.commune])
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -330,7 +355,10 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-foreground/60">{t.checkout.shippingFee}</span>
-                  <span className="font-semibold text-[#1A1A1A]">
+                  <span className="font-semibold text-[#1A1A1A] flex items-center gap-1.5">
+                    {feesLoading ? (
+                      <span className="inline-block h-3 w-3 rounded-full border-2 border-foreground/20 border-t-[#E93D91] animate-spin" />
+                    ) : null}
                     {formatPrice(shippingFee)}
                     <span className="ms-1 text-xs text-foreground/40">
                       ({form.deliveryMode === 'desk' ? 'مكتب' : 'منزل'})

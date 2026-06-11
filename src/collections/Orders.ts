@@ -288,6 +288,24 @@ export const Orders: CollectionConfig = {
       type: 'text',
       admin: { description: 'ID de suivi Yalidine (rempli automatiquement à l\'envoi)' },
     },
+    {
+      name: 'yalidineLabelUrl',
+      label: 'Bordereau Yalidine (URL)',
+      type: 'text',
+      admin: { description: 'URL du bordereau PDF à imprimer (fourni par Yalidine)' },
+    },
+    {
+      name: 'yalidineStatus',
+      label: 'Statut Yalidine',
+      type: 'text',
+      admin: { description: 'Dernier statut reçu depuis Yalidine via webhook' },
+    },
+    {
+      name: 'yalidineSentAt',
+      label: 'Envoyé à Yalidine le',
+      type: 'date',
+      admin: { description: 'Date/heure d\'envoi du colis à Yalidine' },
+    },
   ],
   timestamps: true,
 }

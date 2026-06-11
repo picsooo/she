@@ -56,6 +56,15 @@ export const DeliverySettings: GlobalConfig = {
               },
             },
             {
+              name: 'yalidineFromWilayaName',
+              label: 'Wilaya d\'expédition (nom français)',
+              type: 'text',
+              admin: {
+                placeholder: 'Ex: Alger',
+                description: 'Wilaya de départ pour vos envois Yalidine (nom en français, ex: "Alger", "Oran"). Doit correspondre exactement aux noms Yalidine.',
+              },
+            },
+            {
               name: 'autoSendOnConfirm',
               label: 'Envoi automatique à Yalidine lors de la confirmation de commande',
               type: 'checkbox',

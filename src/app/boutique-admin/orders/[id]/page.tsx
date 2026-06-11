@@ -18,6 +18,11 @@ interface Order {
   status: string; createdAt: string; updatedAt: string
   items?: OrderItem[]
   deliveryMode?: string
+  // Champs Yalidine
+  yalidineTrackingId?: string
+  yalidineLabelUrl?: string
+  yalidineStatus?: string
+  yalidineSentAt?: string
 }
 
 interface DeliverySettings {
@@ -66,6 +71,13 @@ export default function OrderDetailPage() {
   const [editDelivery,   setEditDelivery]   = useState<'home' | 'office'>('home')
   const [delivery,       setDelivery]       = useState<DeliverySettings>({})
   const [loadingDelivery,setLoadingDelivery]= useState(false)
+
+  // ── État Yalidine ─────────────────────────────────────────────────────────────
+  const [yalidineLoading,   setYalidineLoading]   = useState(false)
+  // Formulaire de modification Yalidine (actif si yalidineStatus === "En préparation")
+  const [yalidineEditPrice, setYalidineEditPrice] = useState('')
+  const [yalidineEditList,  setYalidineEditList]  = useState('')
+  const [yalidineEditMode,  setYalidineEditMode]  = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -181,6 +193,42 @@ export default function OrderDetailPage() {
     } finally {
       setUpdating(false)
     }
+  }
+
+  // Envoyer la commande à Yalidine
+  const sendToYalidine = async () => {
+    if (!order) return
+    if (!confirm(`Envoyer la commande ${order.orderNumber} à Yalidine ?`)) return
+    setYalidineLoading(true)
+    try {
+      const res = await fetch(`/api/boutique-admin/orders/${order.id}/send-to-yalidine`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { showToast(data.error ?? 'Erreur envoi Yalidine', false); return }
+      await load()
+      showToast(`✓ Colis créé — Tracking : ${data.tracking}`)
+    } catch { showToast('Erreur réseau', false) }
+    finally { setYalidineLoading(false) }
+  }
+
+  // Modifier le colis chez Yalidine (seulement si "En préparation")
+  const updateYalidine = async () => {
+    if (!order) return
+    const bodyData: { price?: number; product_list?: string } = {}
+    if (yalidineEditPrice) bodyData.price = parseInt(yalidineEditPrice)
+    if (yalidineEditList)  bodyData.product_list = yalidineEditList
+    if (Object.keys(bodyData).length === 0) { showToast('Aucune modification', false); return }
+    setYalidineLoading(true)
+    try {
+      const res = await fetch(`/api/boutique-admin/orders/${order.id}/update-yalidine`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyData),
+      })
+      const data = await res.json()
+      if (!res.ok) { showToast(data.error ?? 'Erreur modification Yalidine', false); return }
+      await load()
+      setYalidineEditMode(false)
+      showToast('Colis mis à jour chez Yalidine ✓')
+    } catch { showToast('Erreur réseau', false) }
+    finally { setYalidineLoading(false) }
   }
 
   const changeStatus = async (status: string) => {
@@ -533,6 +581,157 @@ export default function OrderDetailPage() {
               })}
             </div>
           )
+        )}
+      </div>
+
+      {/* ── Section Yalidine ─────────────────────────────────────────────────── */}
+      <div className="admin-card" style={{ padding: '20px 24px', marginBottom: 16 }}>
+        <div style={CARD_TITLE}>🚚 Yalidine — Expédition</div>
+
+        {order.yalidineTrackingId ? (
+          /* Colis déjà envoyé */
+          <div>
+            {/* Info tracking */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16 }}>
+              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Numéro de suivi</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#065F46', fontFamily: 'monospace' }}>{order.yalidineTrackingId}</div>
+              </div>
+              {order.yalidineStatus && (
+                <div style={{ background: '#F9FAFB', border: '1px solid #E3E5E7', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Statut Yalidine</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A1A' }}>{order.yalidineStatus}</div>
+                </div>
+              )}
+              {order.yalidineSentAt && (
+                <div style={{ background: '#F9FAFB', border: '1px solid #E3E5E7', borderRadius: 10, padding: '12px 16px', flex: 1, minWidth: 180 }}>
+                  <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Envoyé le</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#6D7175' }}>{fmtDate(order.yalidineSentAt)}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Bouton bordereau */}
+            {order.yalidineLabelUrl && (
+              <a
+                href={order.yalidineLabelUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '8px 18px', borderRadius: 8, border: '1.5px solid #E3E5E7',
+                  background: '#fff', color: '#1A1A1A', fontSize: 13, fontWeight: 600,
+                  textDecoration: 'none', marginBottom: 16,
+                }}
+              >
+                🖨️ Imprimer le bordereau
+              </a>
+            )}
+
+            {/* Formulaire modification — uniquement si "En préparation" */}
+            {order.yalidineStatus === 'En préparation' && (
+              <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: 16 }}>
+                {!yalidineEditMode ? (
+                  <button
+                    onClick={() => {
+                      setYalidineEditPrice(String(order.total))
+                      setYalidineEditList(
+                        (order.items ?? []).map((i: OrderItem) =>
+                          `${i.productName ?? 'Article'}${i.size ? ` T${i.size}` : ''}${i.colorAr ? ` (${i.colorAr})` : ''} x${i.quantity ?? 1}`
+                        ).join(', ')
+                      )
+                      setYalidineEditMode(true)
+                    }}
+                    style={{
+                      padding: '8px 18px', borderRadius: 8, border: '1.5px solid #F59E0B',
+                      background: '#FFFBEB', color: '#B45309', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+                    }}
+                  >
+                    ✏️ Modifier le colis chez Yalidine
+                  </button>
+                ) : (
+                  <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: '16px' }}>
+                    <div style={{ fontSize: 12, color: '#B45309', fontWeight: 700, marginBottom: 12 }}>
+                      ⚠️ Modification possible uniquement avant le ramassage (&quot;En préparation&quot;)
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                          Montant COD (DZD)
+                        </label>
+                        <input
+                          type="number"
+                          value={yalidineEditPrice}
+                          onChange={e => setYalidineEditPrice(e.target.value)}
+                          className="admin-input"
+                          style={{ width: '100%', maxWidth: 200 }}
+                          placeholder="Ex: 5800"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                          Liste des articles
+                        </label>
+                        <textarea
+                          value={yalidineEditList}
+                          onChange={e => setYalidineEditList(e.target.value)}
+                          rows={2}
+                          className="admin-input"
+                          style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }}
+                          placeholder="Ex: Robe Caftan T42 (Beige) x1, Ceinture x1"
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button
+                          onClick={() => setYalidineEditMode(false)}
+                          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #E3E5E7', background: '#fff', cursor: 'pointer', fontSize: 13 }}
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          onClick={updateYalidine}
+                          disabled={yalidineLoading}
+                          style={{
+                            padding: '8px 18px', borderRadius: 8, border: 'none',
+                            background: '#B45309', color: '#fff', fontSize: 13, fontWeight: 700,
+                            cursor: 'pointer', opacity: yalidineLoading ? 0.6 : 1,
+                            display: 'inline-flex', alignItems: 'center', gap: 8,
+                          }}
+                        >
+                          {yalidineLoading && <span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />}
+                          💾 Envoyer les modifications
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Pas encore envoyé */
+          <div>
+            <p style={{ fontSize: 13, color: '#6D7175', marginBottom: 14 }}>
+              Ce colis n&apos;a pas encore été envoyé à Yalidine. Cliquez sur le bouton pour créer le colis et obtenir le numéro de suivi.
+            </p>
+            <button
+              onClick={sendToYalidine}
+              disabled={yalidineLoading}
+              style={{
+                padding: '10px 22px', borderRadius: 8, border: 'none',
+                background: yalidineLoading ? '#9A9A9A' : '#4A3DBC',
+                color: '#fff', fontSize: 14, fontWeight: 700,
+                cursor: yalidineLoading ? 'not-allowed' : 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 10,
+              }}
+            >
+              {yalidineLoading
+                ? <><span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} /> Envoi en cours…</>
+                : <>🚚 Envoyer à Yalidine</>
+              }
+            </button>
+          </div>
         )}
       </div>
 
