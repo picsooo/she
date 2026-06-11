@@ -19,10 +19,14 @@ const COLOR_SUGGESTIONS = [
   'أخضر فاتح','أخضر','أخضر زيتوني','تركواز','نعناعي','أزرق سماوي','أزرق','أزرق ملكي',
   'كحلي','أزرق جينز','خزامي','بنفسجي','بنفسجي غامق','متعدد الألوان','مطبوع',
 ]
-const SIZE_SUGGESTIONS = [
-  'XS(36-38)','S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)','XXXL(48-50)',
-  'Taille unique','34','36','38','40','42','44','46','48','50',
+// Tailles regroupées par système — chips toujours visibles
+const SIZE_GROUPS = [
+  { label: 'Standard', sizes: ['XS(36-38)','S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)','XXXL(48-50)'] },
+  { label: 'Grande taille', sizes: ['L(38/40)','XL(42)','XXL(44)','3XL(46)','4XL(48)','5XL(50)','6XL(52)','7XL(54)'] },
+  { label: 'Pointures / Numéros', sizes: ['34','35','36','37','38','39','40','41','42','43','44','45','46'] },
+  { label: 'Spécial', sizes: ['Taille unique','Réglable'] },
 ]
+const SIZE_SUGGESTIONS = SIZE_GROUPS.flatMap(g => g.sizes)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ProductTab = 'general' | 'inventory' | 'attributes' | 'variations' | 'advanced'
@@ -146,9 +150,10 @@ export default function ProductForm({ productId, initial }: { productId?: string
   const [sizesRaw,      setSizesRaw]      = useState<string>('')
   const [colorsVisible, setColorsVisible] = useState(true)
   const [sizesVisible,  setSizesVisible]  = useState(true)
-  const [attrSaved,     setAttrSaved]     = useState(false) // Attributs sauvegardés ?
-  const [showColorSugg, setShowColorSugg] = useState(false)
-  const [showSizeSugg,  setShowSizeSugg]  = useState(false)
+  const [attrSaved,     setAttrSaved]     = useState(false)
+  // Inputs pour ajouter une couleur/taille personnalisée
+  const [customColorInput, setCustomColorInput] = useState('')
+  const [customSizeInput,  setCustomSizeInput]  = useState('')
 
   // ── Attributs personnalisés ─────────────────────────────────────────────────
   const [customAttrs, setCustomAttrs] = useState<CustomAttr[]>(
@@ -367,12 +372,11 @@ export default function ProductForm({ productId, initial }: { productId?: string
   function saveAttributes() {
     const colors = parsePipe(colorsRaw)
     const sizes  = parsePipe(sizesRaw)
-    if (colors.length === 0 && sizes.length === 0) {
-      showToast('Saisissez au moins une couleur ou une taille', false)
-      return
-    }
     setAttrSaved(true)
-    showToast(`Attributs enregistrés — ${colors.length} couleur(s), ${sizes.length} taille(s)`, true)
+    const parts = []
+    if (colors.length) parts.push(`${colors.length} couleur(s)`)
+    if (sizes.length)  parts.push(`${sizes.length} taille(s)`)
+    showToast(parts.length ? `Attributs enregistrés — ${parts.join(', ')}` : 'Attributs enregistrés', true)
 
     // Sauvegarder les noms des attributs personnalisés dans localStorage
     const newEntries = customAttrs
@@ -751,162 +755,160 @@ export default function ProductForm({ productId, initial }: { productId?: string
               {/* ── ATTRIBUTS ───────────────────────────────────────────── */}
               {tab === 'attributes' && (
                 <div>
-                  <p style={{ margin: '0 0 14px', fontSize: 13, color: '#646970' }}>
-                    Saisissez les valeurs de chaque attribut séparées par <code style={{ background: '#f0f0f1', padding: '1px 5px', borderRadius: 3 }}>|</code> (barre verticale).
-                    Cochez <strong>Utilisé pour les variations</strong> puis cliquez sur <strong>Enregistrer les attributs</strong>.
+                  <p style={{ margin: '0 0 16px', fontSize: 13, color: '#646970' }}>
+                    Cliquez sur une valeur pour l&apos;ajouter. Cliquez à nouveau sur une valeur sélectionnée pour la retirer.
                   </p>
 
-                  {/* Tableau attributs */}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 14, fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: '#f6f7f7' }}>
-                        {['Nom', 'Valeurs', 'Visible', 'Pour variations'].map(h => (
-                          <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 12, fontWeight: 700, color: '#50575e', borderBottom: '1px solid #c3c4c7', borderRight: '1px solid #e5e5e5' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Attribut Couleurs */}
-                      <tr style={{ borderBottom: '1px solid #f0f0f1' }}>
-                        <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 13 }}>
-                          الألوان<br /><span style={{ fontSize: 11, fontWeight: 400, color: '#646970' }}>Couleurs</span>
-                        </td>
-                        <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5' }}>
-                          <textarea
-                            value={colorsRaw}
-                            onChange={e => setColorsRaw(e.target.value)}
-                            placeholder="أحمر | أزرق | أسود | وردي"
-                            dir="rtl"
-                            rows={3}
-                            style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
-                          />
-                          <p style={hint}>Séparez chaque valeur avec | (ex: أحمر | أزرق | أسود)</p>
-                          {/* Suggestions couleurs */}
-                          <button onClick={() => setShowColorSugg(s => !s)}
-                            style={{ marginTop: 6, background: 'none', border: 'none', color: '#2271b1', fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                            {showColorSugg ? '▲ Masquer les suggestions' : '▼ Sélectionner des valeurs prédéfinies'}
-                          </button>
-                          {showColorSugg && (
-                            <div style={{ marginTop: 6, padding: '8px', background: '#f9f9f9', border: '1px solid #e5e5e5', borderRadius: 3, maxHeight: 180, overflowY: 'auto' }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                {COLOR_SUGGESTIONS.map(c => {
-                                  const already = parsePipe(colorsRaw).includes(c)
-                                  return (
-                                    <button key={c} disabled={already}
-                                      onClick={() => { const curr = parsePipe(colorsRaw); if (!curr.includes(c)) { setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + c : c) } }}
-                                      style={{ padding: '3px 8px', fontSize: 11, borderRadius: 3, cursor: already ? 'default' : 'pointer', border: '1px solid', borderColor: already ? '#ddd' : '#2271b1', background: already ? '#f0f0f0' : '#e5f0fa', color: already ? '#aaa' : '#2271b1', fontFamily: 'inherit' }}>
-                                      {c}{already ? ' ✓' : ''}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #e5e5e5' }}>
-                          <input type="checkbox" checked={colorsVisible} onChange={e => setColorsVisible(e.target.checked)}
-                            style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <input type="checkbox" checked={true} readOnly
-                            style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'default' }} title="Toujours utilisé pour les variations" />
-                        </td>
-                      </tr>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
 
-                      {/* Attribut Tailles */}
-                      <tr>
-                        <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 13 }}>
-                          المقاس<br /><span style={{ fontSize: 11, fontWeight: 400, color: '#646970' }}>Tailles</span>
-                        </td>
-                        <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5' }}>
-                          <textarea
-                            value={sizesRaw}
-                            onChange={e => setSizesRaw(e.target.value)}
-                            placeholder="S(38-40) | M(40-42) | L(42-44) | XL(44-46)"
-                            rows={2}
-                            style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
-                          />
-                          <p style={hint}>Séparez chaque taille avec | (ex: S(38-40) | M(40-42) | L(42-44))</p>
-                          {/* Suggestions tailles */}
-                          <button onClick={() => setShowSizeSugg(s => !s)}
-                            style={{ marginTop: 6, background: 'none', border: 'none', color: '#2271b1', fontSize: 12, cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
-                            {showSizeSugg ? '▲ Masquer les suggestions' : '▼ Sélectionner des valeurs prédéfinies'}
-                          </button>
-                          {showSizeSugg && (
-                            <div style={{ marginTop: 6, padding: '8px', background: '#f9f9f9', border: '1px solid #e5e5e5', borderRadius: 3 }}>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                {SIZE_SUGGESTIONS.map(s => {
-                                  const already = parsePipe(sizesRaw).includes(s)
-                                  return (
-                                    <button key={s} disabled={already}
-                                      onClick={() => { const curr = parsePipe(sizesRaw); if (!curr.includes(s)) { setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + s : s) } }}
-                                      style={{ padding: '3px 8px', fontSize: 11, borderRadius: 3, cursor: already ? 'default' : 'pointer', border: '1px solid', borderColor: already ? '#ddd' : '#2271b1', background: already ? '#f0f0f0' : '#e5f0fa', color: already ? '#aaa' : '#2271b1', fontFamily: 'inherit' }}>
-                                      {s}{already ? ' ✓' : ''}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #e5e5e5' }}>
-                          <input type="checkbox" checked={sizesVisible} onChange={e => setSizesVisible(e.target.checked)}
-                            style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                        </td>
-                        <td style={{ padding: '10px', textAlign: 'center' }}>
-                          <input type="checkbox" checked={true} readOnly
-                            style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'default' }} />
-                        </td>
-                      </tr>
-
-                      {/* ── Attributs personnalisés (lignes dynamiques) ─────── */}
-                      {customAttrs.map((attr, idx) => (
-                        <tr key={attr._key} style={{ borderBottom: '1px solid #f0f0f1', background: '#fafffe' }}>
-                          <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5', verticalAlign: 'top' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              <input
-                                value={attr.nameAr}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
-                                placeholder="الاسم بالعربية"
-                                dir="rtl"
-                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 12, background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                              />
-                              <input
-                                value={attr.name}
-                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
-                                placeholder="Nom (FR, optionnel)"
-                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 11, color: '#646970', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                              />
-                              <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
-                                style={{ marginTop: 4, padding: '2px 6px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 11, cursor: 'pointer', textAlign: 'left' }}>
-                                ✕ Supprimer
+                    {/* ── COULEURS ── */}
+                    <div style={{ border: '1px solid #c3c4c7', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ background: '#f6f7f7', borderBottom: '1px solid #c3c4c7', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>الألوان — Couleurs</span>
+                        <span style={{ fontSize: 11, color: '#888', background: '#fff', border: '1px solid #ddd', borderRadius: 10, padding: '1px 7px' }}>optionnel</span>
+                      </div>
+                      <div style={{ padding: 12 }}>
+                        {/* Couleurs sélectionnées */}
+                        {parsePipe(colorsRaw).length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10, padding: '8px', background: '#f0f7ff', borderRadius: 4, border: '1px solid #bde0ff' }}>
+                            {parsePipe(colorsRaw).map(c => (
+                              <button key={c}
+                                onClick={() => { setColorsRaw(parsePipe(colorsRaw).filter(x => x !== c).join(' | ')); setAttrSaved(false) }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#2271b1', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+                                title="Cliquer pour retirer">
+                                {c} ✕
                               </button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Grille suggestions */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 170, overflowY: 'auto' }}>
+                          {COLOR_SUGGESTIONS.filter(c => !parsePipe(colorsRaw).includes(c)).map(c => (
+                            <button key={c}
+                              onClick={() => { const curr = parsePipe(colorsRaw); setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + c : c); setAttrSaved(false) }}
+                              style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid #c3c4c7', background: '#fff', color: '#1d2327', fontFamily: 'inherit' }}>
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Input couleur personnalisée */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                          <input dir="rtl" value={customColorInput} onChange={e => setCustomColorInput(e.target.value)}
+                            placeholder="Autre couleur (بالعربية)…"
+                            onKeyDown={e => { if (e.key === 'Enter' && customColorInput.trim()) { const v = customColorInput.trim(); const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomColorInput('') } }}
+                            style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
+                          <button
+                            onClick={() => { const v = customColorInput.trim(); if (!v) return; const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomColorInput('') }}
+                            style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
+                            + Ajouter
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── TAILLES ── */}
+                    <div style={{ border: '1px solid #c3c4c7', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ background: '#f6f7f7', borderBottom: '1px solid #c3c4c7', padding: '8px 12px' }}>
+                        <span style={{ fontWeight: 700, fontSize: 13 }}>المقاس — Tailles</span>
+                      </div>
+                      <div style={{ padding: 12 }}>
+                        {/* Tailles sélectionnées */}
+                        {parsePipe(sizesRaw).length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10, padding: '8px', background: '#f0fff4', borderRadius: 4, border: '1px solid #b9f2c9' }}>
+                            {parsePipe(sizesRaw).map(s => (
+                              <button key={s}
+                                onClick={() => { setSizesRaw(parsePipe(sizesRaw).filter(x => x !== s).join(' | ')); setAttrSaved(false) }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#00a32a', color: '#fff', border: 'none', borderRadius: 20, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+                                title="Cliquer pour retirer">
+                                {s} ✕
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {/* Groupes de tailles */}
+                        <div style={{ maxHeight: 170, overflowY: 'auto' }}>
+                          {SIZE_GROUPS.map(group => {
+                            const available = group.sizes.filter(s => !parsePipe(sizesRaw).includes(s))
+                            if (!available.length) return null
+                            return (
+                              <div key={group.label} style={{ marginBottom: 8 }}>
+                                <div style={{ fontSize: 10, color: '#888', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{group.label}</div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                  {available.map(s => (
+                                    <button key={s}
+                                      onClick={() => { const curr = parsePipe(sizesRaw); setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + s : s); setAttrSaved(false) }}
+                                      style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid #c3c4c7', background: '#fff', color: '#1d2327', fontFamily: 'inherit' }}>
+                                      {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* Input taille personnalisée */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                          <input value={customSizeInput} onChange={e => setCustomSizeInput(e.target.value)}
+                            placeholder="Autre taille…"
+                            onKeyDown={e => { if (e.key === 'Enter' && customSizeInput.trim()) { const v = customSizeInput.trim(); const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomSizeInput('') } }}
+                            style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
+                          <button
+                            onClick={() => { const v = customSizeInput.trim(); if (!v) return; const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? curr.join(' | ') + ' | ' + v : v); setAttrSaved(false) }; setCustomSizeInput('') }}
+                            style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
+                            + Ajouter
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Attributs personnalisés (ex: Matière, Marque…) ─────── */}
+                  {customAttrs.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#50575e', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Attributs personnalisés
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {customAttrs.map((attr, idx) => (
+                          <div key={attr._key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr auto auto auto', gap: 8, alignItems: 'start', padding: '10px', background: '#fafffe', border: '1px solid #e5e5e5', borderRadius: 4 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <input value={attr.nameAr}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
+                                placeholder="الاسم بالعربية" dir="rtl"
+                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 12, background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                              <input value={attr.name}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
+                                placeholder="Nom FR (optionnel)"
+                                style={{ width: '100%', padding: '4px 6px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 11, color: '#646970', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                             </div>
-                          </td>
-                          <td style={{ padding: '10px', borderRight: '1px solid #e5e5e5' }}>
-                            <textarea
-                              value={attr.valuesRaw}
-                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: e.target.value } : a))}
-                              placeholder="valeur1 | valeur2 | valeur3"
-                              rows={2}
-                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #8c8f94', borderRadius: 3, background: '#fff', fontSize: 13, resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', fontFamily: 'inherit' }}
-                            />
-                            <p style={{ fontSize: 11, color: '#646970', marginTop: 3 }}>Séparez les valeurs avec |</p>
-                          </td>
-                          <td style={{ padding: '10px', textAlign: 'center', borderRight: '1px solid #e5e5e5' }}>
-                            <input type="checkbox" checked={attr.visible}
-                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
-                              style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                          </td>
-                          <td style={{ padding: '10px', textAlign: 'center' }}>
-                            <input type="checkbox" checked={attr.forVariations}
-                              onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, forVariations: e.target.checked } : a))}
-                              style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            <div>
+                              <textarea value={attr.valuesRaw}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: e.target.value } : a))}
+                                placeholder="valeur1 | valeur2 | valeur3" rows={2}
+                                style={{ width: '100%', padding: '6px 8px', border: '1px solid #8c8f94', borderRadius: 3, background: '#fff', fontSize: 13, resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                              <p style={{ fontSize: 11, color: '#646970', margin: '2px 0 0' }}>Séparez les valeurs avec |</p>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 4 }}>
+                              <input type="checkbox" checked={attr.visible}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
+                                style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
+                              <span style={{ fontSize: 10, color: '#646970' }}>Visible</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingTop: 4 }}>
+                              <input type="checkbox" checked={attr.forVariations}
+                                onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, forVariations: e.target.checked } : a))}
+                                style={{ accentColor: '#2271b1', width: 15, height: 15, cursor: 'pointer' }} />
+                              <span style={{ fontSize: 10, color: '#646970' }}>Variations</span>
+                            </div>
+                            <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
+                              style={{ padding: '4px 8px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              ✕ Suppr.
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Bouton Enregistrer les attributs */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
