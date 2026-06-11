@@ -96,7 +96,7 @@ export default function CategoriesPage() {
     finally { setSaving(false) }
   }
 
-  async function del(id: string) {
+  async function del(id: string | number) {
     if (!confirm('Supprimer cette catégorie définitivement ?')) return
     setDeletingId(id)
     try {
@@ -111,13 +111,13 @@ export default function CategoriesPage() {
     setEditingId(cat.id)
     setName(cat.nameAr)
     setSlug('')
-    setParentId(cat.parent?.id ?? '')
+    setParentId(cat.parent?.id != null ? String(cat.parent.id) : '')
     setDescription(cat.description ?? '')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   // Catégories parentes disponibles (exclure soi-même en mode édition)
-  const parentOptions = cats.filter(c => c.id !== editingId)
+  const parentOptions = cats.filter(c => String(c.id) !== String(editingId))
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', maxWidth: 1100 }}>
@@ -231,7 +231,7 @@ export default function CategoriesPage() {
               </thead>
               <tbody>
                 {cats.map((c, i) => (
-                  <tr key={c.id} style={{ borderBottom: i < cats.length - 1 ? '1px solid #f0f0f1' : 'none', background: editingId === c.id ? '#f0f6fc' : i % 2 === 0 ? '#fff' : '#fafafa', opacity: deletingId === c.id ? 0.4 : 1 }}>
+                  <tr key={c.id} style={{ borderBottom: i < cats.length - 1 ? '1px solid #f0f0f1' : 'none', background: String(editingId) === String(c.id) ? '#f0f6fc' : i % 2 === 0 ? '#fff' : '#fafafa', opacity: String(deletingId) === String(c.id) ? 0.4 : 1 }}>
                     <td style={{ padding: '10px 12px', borderRight: '1px solid #f0f0f1' }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: '#1d2327' }}>{c.nameAr}</div>
                       {c.name && c.name !== c.nameAr && <div style={{ fontSize: 11, color: '#646970' }}>{c.name}</div>}
