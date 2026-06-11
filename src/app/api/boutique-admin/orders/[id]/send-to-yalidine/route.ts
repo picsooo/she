@@ -28,7 +28,7 @@ export async function POST(
     if (!settings.yalidineFromWilayaName) return NextResponse.json({ error: 'Wilaya d\'expédition non configurée dans les paramètres Yalidine' }, { status: 400 })
 
     // Mapper wilaya arabe → nom français
-    const wilayaEntry = WILAYAS.find(w => w.nameAr === order.wilaya || w.nameFr === order.wilaya)
+    const wilayaEntry = WILAYAS.find(w => w.nameAr === order.wilaya || w.nameFr.toLowerCase() === (order.wilaya ?? '').toLowerCase())
     if (!wilayaEntry) {
       return NextResponse.json({ error: `Wilaya inconnue : "${order.wilaya}"` }, { status: 400 })
     }

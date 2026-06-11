@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ home: null, desk: null, source: 'disabled' })
     }
 
-    const fromWilaya = WILAYAS.find(w => w.nameFr === settings.yalidineFromWilayaName)
+    const fromWilaya = WILAYAS.find(w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase())
     if (!fromWilaya) return NextResponse.json({ home: null, desk: null, source: 'error' })
 
     const toWilaya = WILAYAS.find(w => w.code === wilayaCode.padStart(2, '0'))
