@@ -117,22 +117,25 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/globals/marketing-settings').then(r => r.json()),
-      fetch('/api/globals/delivery-settings').then(r => r.json()),
-    ]).then(([m, d]) => {
-      setMarketing(m ?? {})
-      setDelivery({ defaultHomeDeliveryFee: 400, defaultDeskDeliveryFee: 300, freeDeliveryThreshold: 0, ...d })
-    }).catch(() => {}).finally(() => setLoading(false))
+    fetch('/api/boutique-admin/settings')
+      .then(r => r.json())
+      .then(({ delivery: d, marketing: m }) => {
+        setMarketing(m ?? {})
+        setDelivery({ defaultHomeDeliveryFee: 400, defaultDeskDeliveryFee: 300, freeDeliveryThreshold: 0, ...(d ?? {}) })
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   async function save() {
     setSaving(true)
     try {
-      await Promise.all([
-        fetch('/api/globals/marketing-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(marketing) }),
-        fetch('/api/globals/delivery-settings',  { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(delivery) }),
-      ])
+      const res = await fetch('/api/boutique-admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delivery, marketing }),
+      })
+      if (!res.ok) throw new Error()
       showToast('Paramètres enregistrés ✓', true)
     } catch { showToast('Erreur lors de l\'enregistrement', false) }
     finally { setSaving(false) }
