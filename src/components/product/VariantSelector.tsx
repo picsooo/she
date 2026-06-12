@@ -23,6 +23,9 @@ interface VariantSelectorProps {
 
 const norm = (v: string | null | undefined) => v ?? ''
 
+// Burkinis qui reçoivent le chapeau BEIGE — tous les autres reçoivent le chapeau BLEU
+const BURKINI_CHAPEAU_BEIGE = /fleur\s*noir|ibiza|tahiti|waterproof\s*noir|bora\s*bora/i
+
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
 export function VariantSelector({ product, isBurkini, onColorChange }: VariantSelectorProps) {
   const galleryCtx = useGalleryContext()
@@ -94,20 +97,19 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
     return variations.indexOf(activeVariation)
   }, [variations, activeVariation])
 
-  // Choisit la variation chapeau selon la couleur du burkini sélectionné :
-  // - bleu (أزرق / bleu / blue) → chapeau bleu
-  // - tout autre couleur (noir, vert…) → chapeau beige
+  // Choisit la variation chapeau selon le nom du burkini :
+  // - Burkinis avec chapeau BEIGE : fleur noir, Ibiza, Tahiti, Waterproof noir, Bora bora
+  // - Tous les autres burkinis → chapeau BLEU
   const activeGift = useMemo(() => {
     if (!isBurkini || chapeauVariations.length === 0) return null
-    // Vérifier colorAr ET colorFr pour détecter le bleu (les données peuvent être en arabe ou français)
-    const colorFr = activeVariation?.colorFr ?? ''
-    const isBleu = /أزرق|bleu|blue/i.test(selectedColor) || /bleu|blue/i.test(colorFr)
-    const targetRegex = isBleu ? /أزرق|bleu|blue/i : /بيج|beige/i
+    const productName = (product.nameAr ?? '') + ' ' + (product.nameFr ?? '') + ' ' + (product.slug ?? '')
+    const isBeige = BURKINI_CHAPEAU_BEIGE.test(productName)
+    const targetRegex = isBeige ? /بيج|beige/i : /أزرق|bleu|blue/i
     return (
       chapeauVariations.find((v) => targetRegex.test(v.colorAr)) ??
       chapeauVariations[0]
     )
-  }, [isBurkini, chapeauVariations, selectedColor, activeVariation])
+  }, [isBurkini, chapeauVariations, product])
 
   const availableSizesForColor = useMemo(() => {
     return variations
