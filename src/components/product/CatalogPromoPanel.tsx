@@ -81,7 +81,7 @@ export function CatalogPromoPanel({ featuredProducts }: CatalogPromoPanelProps) 
       <div className="rounded-2xl border border-[#CEA060]/30 bg-gradient-to-br from-[#FEF9F0] to-white p-3 text-center">
         <div className="text-2xl mb-1 animate-float">👑</div>
         <p className="text-xs font-bold text-[#9F6F3B]">جودة مضمونة 100%</p>
-        <p className="mt-0.5 text-[10px] text-foreground/50">إرجاع مجاني خلال 7 أيام</p>
+        <p className="mt-0.5 text-[10px] text-foreground/50">يمكن تغيير البضاعة أو المقاس خلال 48 ساعة</p>
       </div>
 
       {/* ── Livraison ── */}

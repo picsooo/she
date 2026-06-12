@@ -228,7 +228,7 @@ export default async function ProductPage({ params }: PageProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[#CEA060]">✅</span>
-                  <span>جودة مضمونة — إرجاع مجاني</span>
+                  <span>يمكن تغيير البضاعة أو المقاس خلال 48 ساعة</span>
                 </div>
               </div>
 
