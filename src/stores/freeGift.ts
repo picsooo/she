@@ -10,6 +10,7 @@ export interface FreeGiftData {
   productImage: string | null
   variationIndex: number
   colorAr: string
+  colorFr: string
   size: string
 }
 

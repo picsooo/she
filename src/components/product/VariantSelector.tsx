@@ -106,10 +106,10 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
     const isBeige = BURKINI_CHAPEAU_BEIGE.test(productName)
     // Pour le beige : chercher la variation dont colorAr contient "بيج" ou "beige"
     // Pour le bleu : chercher la variation qui n'est PAS beige (évite les problèmes de normalisation Unicode arabe)
-    const beigeRegex = /بيج|beige/i
+    const beigeRegex = /beige/i
     return isBeige
-      ? (chapeauVariations.find((v) => beigeRegex.test(v.colorAr)) ?? chapeauVariations[0])
-      : (chapeauVariations.find((v) => !beigeRegex.test(v.colorAr)) ?? chapeauVariations[0])
+      ? (chapeauVariations.find((v) => beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
+      : (chapeauVariations.find((v) => !beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
   }, [isBurkini, chapeauVariations, product])
 
   const availableSizesForColor = useMemo(() => {

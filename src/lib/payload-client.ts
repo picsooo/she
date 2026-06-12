@@ -287,7 +287,7 @@ function normalizeMediaUrl(rawUrl: string | null | undefined): string | null {
 // selon la couleur du burkini sélectionnée (bleu → chapeau bleu, autres → chapeau beige).
 export async function getChapeauGift(): Promise<{
   productId: string; productSlug: string; productNameAr: string
-  productImage: string | null; variationIndex: number; colorAr: string; size: string
+  productImage: string | null; variationIndex: number; colorAr: string; colorFr: string; size: string
 }[]> {
   try {
     const payload = await getPayloadClient()
@@ -314,6 +314,7 @@ export async function getChapeauGift(): Promise<{
       productImage: imageUrl,
       variationIndex: idx,
       colorAr: v.colorAr ?? '',
+      colorFr: v.colorFr ?? '',
       size: v.size ?? '',
     }))
   } catch {
