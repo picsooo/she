@@ -7,6 +7,7 @@ interface Confirmatrice {
   firstName?: string
   lastName?: string
   email: string
+  active?: boolean
 }
 
 interface Order {
@@ -42,6 +43,8 @@ export default function AssignationPage() {
   const [autoResult,      setAutoResult]      = useState<string | null>(null)
   // filtre : toutes les nouvelles, ou seulement non-assignées
   const [showUnassigned,  setShowUnassigned]  = useState(false)
+  // id de confirmatrice → en cours de toggle actif/inactif
+  const [toggling,        setToggling]        = useState<Record<number, boolean>>({})
 
   // Chargement des données
   const load = useCallback(async () => {
@@ -95,15 +98,34 @@ export default function AssignationPage() {
     setSaving(prev => ({ ...prev, [orderId]: false }))
   }
 
-  // Distribution automatique round-robin sur les commandes non assignées
+  // Toggle actif/inactif d'une confirmatrice
+  async function toggleActive(conf: Confirmatrice) {
+    setToggling(prev => ({ ...prev, [conf.id]: true }))
+    try {
+      const res = await fetch(`/api/boutique-admin/users/${conf.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !conf.active }),
+      })
+      if (res.ok) {
+        setConfirmatrices(prev =>
+          prev.map(c => c.id === conf.id ? { ...c, active: !conf.active } : c)
+        )
+      }
+    } catch { /* ignore */ }
+    setToggling(prev => ({ ...prev, [conf.id]: false }))
+  }
+
+  // Distribution automatique round-robin sur les commandes non assignées (actives seulement)
   async function autoDistribute() {
+    const activeConfs = confirmatrices.filter(c => c.active !== false)
     const unassigned = orders.filter(o => !o.assignedTo)
-    if (unassigned.length === 0 || confirmatrices.length === 0) return
+    if (unassigned.length === 0 || activeConfs.length === 0) return
     setAutoLoading(true)
     setAutoResult(null)
     let ok = 0; let err = 0
     for (let i = 0; i < unassigned.length; i++) {
-      const conf = confirmatrices[i % confirmatrices.length]
+      const conf = activeConfs[i % activeConfs.length]
       const res = await fetch(`/api/boutique-admin/orders/${unassigned[i].id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +189,7 @@ export default function AssignationPage() {
             <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
               <button
                 onClick={autoDistribute}
-                disabled={autoLoading || unassignedCount === 0 || confirmatrices.length === 0}
+                disabled={autoLoading || unassignedCount === 0 || confirmatrices.filter(c => c.active !== false).length === 0}
                 style={{ padding: '9px 18px', borderRadius: 9, background: unassignedCount === 0 ? '#F1F1F1' : 'linear-gradient(135deg, #E93D91, #C4197A)', border: 'none', color: unassignedCount === 0 ? '#9A9A9A' : '#fff', fontWeight: 700, fontSize: 13, cursor: unassignedCount === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
                 {autoLoading ? '⏳ Distribution…' : `⚡ Distribuer automatiquement (${unassignedCount})`}
               </button>
@@ -175,20 +197,43 @@ export default function AssignationPage() {
             </div>
           </div>
 
-          {/* Confirmatrices disponibles */}
+          {/* Confirmatrices — avec toggle actif/inactif */}
           {confirmatrices.length > 0 && (
             <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
               {confirmatrices.map(c => {
-                const count = orders.filter(o => o.assignedTo?.id === c.id).length
+                const count   = orders.filter(o => o.assignedTo?.id === c.id).length
+                const isActive = c.active !== false
+                const isBusy   = toggling[c.id]
                 return (
-                  <div key={c.id} style={{ background: '#fff', border: '1px solid #E3E5E7', borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #E93D91, #CEA060)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
+                  <div key={c.id} style={{ background: '#fff', border: `1px solid ${isActive ? '#E3E5E7' : '#FECACA'}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, opacity: isActive ? 1 : 0.65 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: isActive ? 'linear-gradient(135deg, #E93D91, #CEA060)' : '#D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
                       {confName(c)[0]?.toUpperCase()}
                     </div>
                     <div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#1A1A1A' }}>{confName(c)}</div>
                       <div style={{ fontSize: 11, color: '#9A9A9A' }}>{count} commande{count > 1 ? 's' : ''} assignée{count > 1 ? 's' : ''}</div>
                     </div>
+                    {/* Toggle actif/inactif */}
+                    <button
+                      onClick={() => toggleActive(c)}
+                      disabled={isBusy}
+                      title={isActive ? 'Désactiver (exclure de la distribution)' : 'Activer'}
+                      style={{
+                        marginLeft: 4,
+                        width: 44, height: 24, borderRadius: 12,
+                        border: 'none', cursor: isBusy ? 'wait' : 'pointer',
+                        background: isActive ? '#10B981' : '#D1D5DB',
+                        position: 'relative', transition: 'background 0.2s', flexShrink: 0,
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 3,
+                        left: isActive ? 22 : 3,
+                        width: 18, height: 18, borderRadius: '50%',
+                        background: '#fff', transition: 'left 0.2s',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                      }} />
+                    </button>
                   </div>
                 )
               })}

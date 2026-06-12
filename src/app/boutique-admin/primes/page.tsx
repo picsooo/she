@@ -104,7 +104,7 @@ export default function PrimesPage() {
   const [period,       setPeriod]       = useState<Period>('month')
   const [customFrom,   setCustomFrom]   = useState('')
   const [customTo,     setCustomTo]     = useState('')
-  const [primePerOrder, setPrimePerOrder] = useState(100) // DA par commande confirmée
+  const [primePerOrder, setPrimePerOrder] = useState(50) // DA par commande confirmée
 
   // Charge TOUTES les commandes (on filtre côté client pour éviter une route API custom)
   const load = useCallback(async () => {

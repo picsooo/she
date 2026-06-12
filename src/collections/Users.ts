@@ -41,6 +41,16 @@ export const Users: CollectionConfig = {
       admin: { position: 'sidebar' },
     },
     {
+      name: 'active',
+      label: 'Active',
+      type: 'checkbox',
+      defaultValue: true,
+      admin: {
+        position: 'sidebar',
+        description: 'Désactiver pour exclure de la distribution automatique',
+      },
+    },
+    {
       name: 'firstName',
       label: 'Prénom',
       type: 'text',

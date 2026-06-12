@@ -34,7 +34,12 @@ async function autoAssignConfirmatrice(payload: Awaited<ReturnType<typeof getPay
     // Récupère les confirmatrices triées par email (ordre stable)
     const { docs: confirmatrices } = await payload.find({
       collection: 'users',
-      where: { role: { equals: 'confirmatrice' } },
+      where: {
+        and: [
+          { role: { equals: 'confirmatrice' } },
+          { active: { not_equals: false } },
+        ],
+      },
       sort: 'email',
       limit: 20,
     })
