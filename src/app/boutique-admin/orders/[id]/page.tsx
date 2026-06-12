@@ -57,6 +57,7 @@ interface EditableItem {
 
 const STATUSES = [
   { value: 'new',       labelFr: 'Nouvelle',      color: '#B45309', bg: '#FEF3C7', dot: '#F59E0B' },
+  { value: 'pending',   labelFr: 'En attente',     color: '#92400E', bg: '#FEF9C3', dot: '#EAB308' },
   { value: 'confirmed', labelFr: 'Confirmée',      color: '#1D4ED8', bg: '#DBEAFE', dot: '#3B82F6' },
   { value: 'shipping',  labelFr: 'En livraison',   color: '#7C3AED', bg: '#EDE9FE', dot: '#8B5CF6' },
   { value: 'delivered', labelFr: 'Livrée',          color: '#065F46', bg: '#D1FAE5', dot: '#10B981' },
@@ -1005,7 +1006,7 @@ export default function OrderDetailPage() {
       <div className="admin-card" style={{ padding: '20px 24px' }}>
         <div style={CARD_TITLE}>⚡ Changer le statut</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {STATUSES.filter(s => ['new', 'confirmed', 'cancelled'].includes(s.value)).map(s => {
+          {STATUSES.filter(s => ['new', 'pending', 'confirmed', 'cancelled'].includes(s.value)).map(s => {
             const isCurrent = s.value === order.status
             return (
               <button

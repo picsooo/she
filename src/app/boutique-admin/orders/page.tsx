@@ -14,6 +14,7 @@ interface Order {
 const STATUSES = [
   { value: '',          label: 'Toutes',         color: '#6D7175', bg: '#F1F1F1',   dot: '#9A9A9A' },
   { value: 'new',       label: 'Nouvelles',       color: '#B45309', bg: '#FEF3C7',   dot: '#B45309' },
+  { value: 'pending',   label: 'En attente',      color: '#92400E', bg: '#FEF9C3',   dot: '#EAB308' },
   { value: 'confirmed', label: 'Confirmées',      color: '#1D4ED8', bg: '#DBEAFE',   dot: '#1D4ED8' },
   { value: 'shipping',  label: 'En livraison',    color: '#7C3AED', bg: '#EDE9FE',   dot: '#7C3AED' },
   { value: 'delivered', label: 'Livrées',         color: '#065F46', bg: '#D1FAE5',   dot: '#065F46' },
@@ -29,7 +30,7 @@ const DATE_PRESETS = [
 ]
 
 const NEXT_STATUS: Record<string, string> = {
-  new: 'confirmed', confirmed: 'shipping', shipping: 'delivered',
+  new: 'confirmed', pending: 'confirmed', confirmed: 'shipping', shipping: 'delivered',
 }
 
 const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(n) + ' DA'
@@ -85,7 +86,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     Promise.all(
-      ['new','confirmed','shipping','delivered','cancelled'].map(s =>
+      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s =>
         fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: s } }))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
       )
     ).then(results => setCounts(Object.fromEntries(results)))
