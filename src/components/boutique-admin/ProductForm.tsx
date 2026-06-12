@@ -321,7 +321,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
         ...(v.variationImageId     ? { variationImageId: v.variationImageId }         : {}),
         ...(v.variationImageUrl    ? { variationImageUrl: v.variationImageUrl }       : {}),
       })),
-      images: s.images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
+      images: s.images.filter(i => i.mediaId).map(i => ({ image: Number(i.mediaId) })),
     }
   }
 
@@ -644,7 +644,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
           ...(v.variationImageId     ? { variationImageId: v.variationImageId }         : {}),
           ...(v.variationImageUrl    ? { variationImageUrl: v.variationImageUrl }       : {}),
         })),
-        images: images.filter(i => i.mediaId).map(i => ({ image: i.mediaId })),
+        images: images.filter(i => i.mediaId).map(i => ({ image: Number(i.mediaId) })),
       }
       // Si un brouillon auto-sauvé existe → PATCH ce brouillon (évite les doublons)
       // Sinon : édition normale (productId) ou nouvelle création

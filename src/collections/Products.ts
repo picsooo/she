@@ -152,6 +152,8 @@ export const Products: CollectionConfig = {
             // Image spécifique à cette variation (ex: photo de la couleur)
             { name: 'variationImageId',  type: 'text',   admin: { description: 'ID media de l\'image de variation' } },
             { name: 'variationImageUrl', type: 'text',   admin: { description: 'URL publique de l\'image de variation' } },
+            // Valeurs des attributs personnalisés pour cette variation (ex: { "Matière": "Coton", "Broderie": "Non" })
+            { name: 'customValues', type: 'json', admin: { hidden: true } },
             // masqués
             { name: 'colorFr',           type: 'text',   admin: { hidden: true } },
             { name: 'legacyVariationId', type: 'text',   admin: { hidden: true }, index: true },
