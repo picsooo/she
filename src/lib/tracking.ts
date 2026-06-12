@@ -58,10 +58,16 @@ export interface TrackEventData extends Record<string, unknown> {
 export function trackEvent(eventName: string, data?: TrackEventData, eventId?: string) {
   if (typeof window === 'undefined') return
 
-  // Meta Pixel (fbq) — eventID passé pour la déduplication avec la CAPI serveur
-  if (typeof window.fbq === 'function') {
-    window.fbq('track', eventName, data, eventId ? { eventID: eventId } : undefined)
+  // Retry jusqu'à 5 fois si fbq n'est pas encore initialisé
+  // (race condition : useEffect peut s'exécuter avant le script afterInteractive)
+  const fireMeta = (retries = 0) => {
+    if (typeof window.fbq === 'function') {
+      window.fbq('track', eventName, data, eventId ? { eventID: eventId } : undefined)
+    } else if (retries < 5) {
+      setTimeout(() => fireMeta(retries + 1), 300)
+    }
   }
+  fireMeta()
 
   // TikTok Pixel (ttq)
   if (window.ttq?.track) {
