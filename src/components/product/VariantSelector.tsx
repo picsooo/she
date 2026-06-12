@@ -138,6 +138,7 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
 
     // Construire la liste des articles à ajouter (produit + cadeau éventuel)
     // Utilisation de addItems (atomique) pour éviter tout conflit de state Zustand
+    // Marquer le burkini avec sa couleur de chapeau pour que syncHats() puisse suivre les quantités
     const itemsToAdd: Parameters<typeof addItems>[0] = [
       {
         productId: String(product.id),
@@ -150,14 +151,15 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
         size: norm(activeVariation.size),
         regularPrice: activeVariation.regularPrice ?? 0,
         salePrice: activeVariation.salePrice,
+        ...(activeGift ? { burkiniHatColor: /beige/i.test(activeGift.colorFr) ? 'beige' : 'bleu' as const } : {}),
       },
     ]
 
-    // Ajouter le chapeau UNIQUEMENT s'il n'est pas déjà dans le panier
-    // (évite l'incrémentation de quantité lors des ré-ajouts)
+    // Le chapeau sera synchronisé automatiquement par syncHats() via useHatSync
+    // On ne l'ajoute manuellement que s'il n'est pas encore dans le panier (premier ajout)
     if (activeGift) {
       const chapeauDejaPresent = cartItems.some(
-        (item) => item.productId === activeGift.productId
+        (item) => item.productId === activeGift.productId && item.variationIndex === activeGift.variationIndex
       )
       if (!chapeauDejaPresent) {
         itemsToAdd.push({
@@ -167,7 +169,7 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
           productImage: activeGift.productImage,
           variationIndex: activeGift.variationIndex,
           colorAr: activeGift.colorAr,
-          colorFr: '',
+          colorFr: activeGift.colorFr,
           size: activeGift.size,
           regularPrice: 0,
           salePrice: undefined,

@@ -126,6 +126,8 @@ export function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation()
     if (!canAdd) return
     const price = getEffectivePrice(activeVariation!.regularPrice ?? 0, activeVariation!.salePrice)
+    const isBurkini = isProductBurkini(product)
+    const beigeRegex = /beige/i
     const mainItem = {
       productId: String(product.id),
       productSlug: product.slug ?? '',
@@ -138,21 +140,20 @@ export function ProductCard({ product }: ProductCardProps) {
       regularPrice: activeVariation!.regularPrice ?? 0,
       salePrice: activeVariation!.salePrice,
     }
-    // Si c'est un burkini, choisir le chapeau selon le nom du produit :
-    // beige → fleur noir, Ibiza, Tahiti, Waterproof noir, Bora bora
-    // bleu → tous les autres burkinis
+    // Si c'est un burkini, choisir le chapeau selon le nom du produit
     const BURKINI_CHAPEAU_BEIGE = /fleur\s*noir|ibiza|tahiti|waterproof\s*noir|bora\s*bora/i
-    const isBurkini = isProductBurkini(product)
     if (isBurkini && chapeauVariations.length > 0) {
       const productName = (product.nameAr ?? '') + ' ' + (product.nameFr ?? '') + ' ' + (product.slug ?? '')
       const isBeige = BURKINI_CHAPEAU_BEIGE.test(productName)
-      const beigeRegex = /beige/i
       const chapeau = isBeige
         ? (chapeauVariations.find((v) => beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
         : (chapeauVariations.find((v) => !beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
-      const items: Parameters<typeof addItems>[0] = [mainItem]
+      // Marquer le burkini avec sa couleur de chapeau pour syncHats()
+      const burkiniItem = { ...mainItem, burkiniHatColor: isBeige ? 'beige' : 'bleu' as const }
+      const items: Parameters<typeof addItems>[0] = [burkiniItem]
+      // Ajouter le chapeau seulement s'il n'est pas encore dans le panier (syncHats gère ensuite la quantité)
       const chapeauDejaPresent = useCartStore.getState().items.some(
-        (item) => item.productId === chapeau.productId
+        (item) => item.productId === chapeau.productId && item.variationIndex === chapeau.variationIndex
       )
       if (!chapeauDejaPresent) {
         items.push({
@@ -162,7 +163,7 @@ export function ProductCard({ product }: ProductCardProps) {
           productImage: chapeau.productImage,
           variationIndex: chapeau.variationIndex,
           colorAr: chapeau.colorAr,
-          colorFr: '',
+          colorFr: chapeau.colorFr,
           size: chapeau.size,
           regularPrice: 0,
           salePrice: undefined,
