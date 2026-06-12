@@ -37,6 +37,10 @@ export default async function FrontendLayout({ children }: { children: React.Rea
     getChapeauGift().catch(() => null),
   ])
 
+  // Fallback sur les variables d'environnement si non configuré dans l'admin
+  const metaPixelId = marketing?.metaPixelId || process.env.NEXT_PUBLIC_FB_PIXEL_ID || null
+  const tiktokPixelId = marketing?.tiktokPixelId || null
+
   return (
     <div className="min-h-screen bg-white antialiased flex flex-col">
       <Header />
@@ -46,10 +50,10 @@ export default async function FrontendLayout({ children }: { children: React.Rea
       <CartDrawer />
       {/* Initialise le store cadeau (toutes les variations du chapeau) */}
       <FreeGiftInit chapeauVariations={chapeau ?? []} />
-      {/* Pixels marketing — injectés uniquement si IDs configurés dans /admin */}
+      {/* Pixels marketing */}
       <PixelScripts
-        metaPixelId={marketing?.metaPixelId}
-        tiktokPixelId={marketing?.tiktokPixelId}
+        metaPixelId={metaPixelId}
+        tiktokPixelId={tiktokPixelId}
       />
       {/* PageView automatique sur chaque navigation client-side */}
       <PixelPageView />
