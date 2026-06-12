@@ -228,10 +228,22 @@ function TopBar({ user }: { user: SessionUser }) {
 
 // ── Layout principal ───────────────────────────────────────────────────────────
 export default async function BoutiqueAdminLayout({ children }: { children: React.ReactNode }) {
-  // Auth désactivée temporairement — à réactiver avant le lancement public
-  const user: SessionUser = (await getSession()) ?? {
-    id: '0', email: 'admin@boutique-she.com', role: 'admin',
-    firstName: 'Admin', lastName: '',
+  const user = await getSession()
+
+  // Non connecté → page de login
+  if (!user) {
+    return (
+      <html lang="fr" dir="ltr" suppressHydrationWarning>
+        <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+        </head>
+        <body suppressHydrationWarning>
+          <LoginPage />
+        </body>
+      </html>
+    )
   }
 
   // Récupère le token pour compter les nouvelles commandes
