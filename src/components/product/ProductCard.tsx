@@ -149,7 +149,8 @@ export function ProductCard({ product }: ProductCardProps) {
         ? (chapeauVariations.find((v) => beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
         : (chapeauVariations.find((v) => !beigeRegex.test(v.colorFr)) ?? chapeauVariations[0])
       // Marquer le burkini avec sa couleur de chapeau pour syncHats()
-      const burkiniItem = { ...mainItem, burkiniHatColor: isBeige ? 'beige' : 'bleu' as const }
+      const hatColor: 'beige' | 'bleu' = isBeige ? 'beige' : 'bleu'
+      const burkiniItem = { ...mainItem, burkiniHatColor: hatColor }
       const items: Parameters<typeof addItems>[0] = [burkiniItem]
       // Ajouter le chapeau seulement s'il n'est pas encore dans le panier (syncHats gère ensuite la quantité)
       const chapeauDejaPresent = useCartStore.getState().items.some(
