@@ -7,6 +7,7 @@ const COOKIE_VALUE = 'granted_2026'
 const PUBLIC_PREFIXES = [
   '/coming-soon',
   '/api/preview-auth',
+  '/api/admin/setup-admin-account',
   '/_next',
   '/media',
   '/branding',
