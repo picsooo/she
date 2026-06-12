@@ -375,6 +375,20 @@ export const Orders: CollectionConfig = {
       type: 'text',
       admin: { hidden: true, description: 'Cookie _fbc capturé au checkout (matching CAPI)' },
     },
+
+    // ── Traçabilité des changements de statut ─────────────────────────
+    {
+      name: 'lastStatusUpdatedBy',
+      label: 'Mis à jour par',
+      type: 'text',
+      admin: { position: 'sidebar', description: 'Nom de la dernière personne ayant modifié le statut' },
+    },
+    {
+      name: 'lastStatusUpdatedAt',
+      label: 'Date mise à jour statut',
+      type: 'text',
+      admin: { hidden: true },
+    },
   ],
   timestamps: true,
 }
