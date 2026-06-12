@@ -7,6 +7,14 @@ const COOKIE_VALUE = 'granted_2026'
 const PUBLIC_PREFIXES = [
   '/coming-soon',
   '/api/preview-auth',
+  // Auth Payload — login/logout/me doivent passer même en coming-soon
+  '/api/users/login',
+  '/api/users/logout',
+  '/api/users/me',
+  // Admin interne
+  '/boutique-admin',
+  '/confirmatrice',
+  '/api/boutique-admin',
   '/_next',
   '/media',
   '/branding',
