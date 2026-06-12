@@ -205,6 +205,7 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
     : user.email.split('@')[0]
 
   const isOrdersActive = pathname?.startsWith('/confirmatrice/orders')
+  const isStockActive  = pathname?.startsWith('/confirmatrice/stock')
 
   return (
     <html lang="fr" dir="ltr" suppressHydrationWarning>
@@ -235,7 +236,7 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
             {/* Nav */}
             <nav style={{ flex: 1, padding: '12px 8px' }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#B0B0B0', letterSpacing: '0.08em', padding: '8px 8px 6px', textTransform: 'uppercase' }}>
-                MES COMMANDES
+                ESPACE CONFIRMATRICE
               </div>
               <Link
                 href="/confirmatrice/orders"
@@ -247,10 +248,28 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
                   fontSize: 14, fontWeight: isOrdersActive ? 700 : 500,
                   transition: 'background 0.15s',
                   border: isOrdersActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
+                  marginBottom: 2,
                 }}
               >
                 <span style={{ color: isOrdersActive ? '#E93D91' : '#666', flexShrink: 0, display: 'flex' }}>{IconOrders}</span>
                 <span>📋 Commandes</span>
+              </Link>
+              <Link
+                href="/confirmatrice/stock"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 10px', borderRadius: 8, textDecoration: 'none',
+                  color: isStockActive ? '#E93D91' : '#3D3D3D',
+                  background: isStockActive ? '#FEF0F7' : 'transparent',
+                  fontSize: 14, fontWeight: isStockActive ? 700 : 500,
+                  transition: 'background 0.15s',
+                  border: isStockActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
+                }}
+              >
+                <span style={{ color: isStockActive ? '#E93D91' : '#666', flexShrink: 0, display: 'flex' }}>
+                  <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 2l7 4v8l-7 4-7-4V6l7-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M10 2v14M3 6l7 4 7-4" stroke="currentColor" strokeWidth="1.5"/></svg>
+                </span>
+                <span>📦 Gestion stock</span>
               </Link>
             </nav>
 
