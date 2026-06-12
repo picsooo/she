@@ -1320,7 +1320,10 @@ export default function ProductForm({ productId, initial }: { productId?: string
                                       {/* Stock */}
                                       <div>
                                         <label style={{ ...lbl, fontSize: 12 }}>Quantité en stock</label>
-                                        <input type="number" min="0" value={v.stock} onChange={e => updateVar(v._key, { stock: Number(e.target.value) })}
+                                        <input type="number" min="0" value={v.stock} onChange={e => {
+                                            const s = Number(e.target.value)
+                                            updateVar(v._key, { stock: s, inStock: s > 0 })
+                                          }}
                                           style={{ ...inp, fontSize: 12 }} />
                                       </div>
                                       {/* Prix régulier */}
