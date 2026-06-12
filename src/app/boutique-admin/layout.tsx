@@ -1,6 +1,7 @@
 import React from 'react'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { LoginPage } from '@/components/boutique-admin/LoginPage'
 import { LogoutButton } from '@/components/boutique-admin/LogoutButton'
 import '@/styles/boutique-admin.css'
@@ -215,6 +216,11 @@ function TopBar({ user }: { user: SessionUser }) {
 // ── Layout principal ───────────────────────────────────────────────────────────
 export default async function BoutiqueAdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession()
+
+  // Confirmatrice connectée → rediriger vers son portail dédié
+  if (user?.role === 'confirmatrice') {
+    redirect('/confirmatrice/orders')
+  }
 
   // Non connecté → page de login
   if (!user) {
