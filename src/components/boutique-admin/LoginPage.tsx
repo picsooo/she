@@ -88,13 +88,22 @@ function LoginForm({ mode }: { mode: 'admin' | 'confirmatrice' }) {
         return
       }
       const role = data.user?.role ?? ''
-      // Redirection selon le rôle réel — pas selon l'onglet choisi
-      if (role === 'confirmatrice') {
-        window.location.href = '/confirmatrice/orders'
-      } else if (['admin', 'editor'].includes(role)) {
-        window.location.href = '/boutique-admin/dashboard'
+      if (isConfirmatrice) {
+        // Onglet confirmatrice : seul le rôle confirmatrice est autorisé
+        // Stocker le token dans localStorage pour le portail confirmatrice
+        if (role === 'confirmatrice') {
+          localStorage.setItem('conf-token', data.token)
+          window.location.href = '/confirmatrice/orders'
+        } else {
+          setError('Email ou mot de passe incorrect')
+        }
       } else {
-        setError('Accès non autorisé pour ce compte')
+        // Onglet admin : seuls admin et editor sont autorisés — les confirmatrices voient une erreur
+        if (['admin', 'editor'].includes(role)) {
+          window.location.href = '/boutique-admin/dashboard'
+        } else {
+          setError('Accès non autorisé pour ce compte')
+        }
       }
     } catch { setError('Erreur réseau. Réessayez.') }
     finally { setLoading(false) }
