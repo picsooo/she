@@ -151,7 +151,7 @@ function Sidebar({
           </div>
           <div style={{ fontSize: 11, color: '#8A8A8A' }}>{roleLabel}</div>
         </div>
-        <form action="/api/users/logout" method="POST" style={{ flexShrink: 0 }}>
+        <form action="/api/admin/logout" method="POST" style={{ flexShrink: 0 }}>
           <button type="submit" title="Déconnexion" style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9A9A9A', cursor: 'pointer', border: '1px solid #E8E8E8', background: 'transparent' }}>
             {Icons.logout}
           </button>
@@ -208,7 +208,7 @@ function TopBar({ user }: { user: SessionUser }) {
             {displayName}
           </span>
           {/* Bouton déconnexion visible */}
-          <form action="/api/users/logout" method="POST" style={{ margin: 0 }}>
+          <form action="/api/admin/logout" method="POST" style={{ margin: 0 }}>
             <button type="submit" title="Se déconnecter" style={{
               background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
               color: '#FCA5A5', borderRadius: 6, padding: '4px 8px',

@@ -87,7 +87,9 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Effacer aussi le cookie Payload pour éviter que boutique-admin reste connecté
+    try { await fetch('/api/admin/logout', { method: 'POST' }) } catch { /* ignore */ }
     localStorage.removeItem('conf-token')
     setUser(null)
   }
