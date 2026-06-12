@@ -163,33 +163,57 @@ export async function getRelatedProducts(categoryIds: string[], excludeId: strin
 // ── Catégories ────────────────────────────────────────────────────────
 
 // Retourne uniquement les catégories racines qui ont au moins 1 produit publié
-// Utilisée par le Header et la homepage pour ne pas afficher de catégories vides
+// Optimisé : 3 requêtes fixes au lieu de N+2 (évite le N+1 qui paralysait le Header)
 export async function getActiveRootCategories() {
   const payload = await getPayloadClient()
-  const cats = await payload.find({
+
+  // Requête 1 : toutes les catégories (racines + enfants) en une seule fois
+  const allCats = await payload.find({
     collection: 'categories',
-    where: { parent: { exists: false } },
+    limit: 200,
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  const rootCats = allCats.docs.filter((c) => !c.parent)
+  const childCats = allCats.docs.filter((c) => !!c.parent)
+
+  // Requête 2 : tous les produits publiés avec seulement la colonne category (depth:0)
+  const allProducts = await payload.find({
+    collection: 'products',
+    where: { status: { equals: 'published' } },
+    limit: 0, // 0 = pas de limite, on veut juste les IDs de catégories
+    depth: 0,
+    overrideAccess: true,
+  })
+
+  // Construire en mémoire : quelles catégories ont des produits
+  const categoryIdsWithProducts = new Set(
+    allProducts.docs
+      .map((p) => (p.category !== null && p.category !== undefined ? Number(p.category) : null))
+      .filter((id): id is number => id !== null)
+  )
+
+  // Une catégorie racine est "active" si elle ou l'un de ses enfants a des produits
+  const activeDocs = rootCats.filter((root) => {
+    if (categoryIdsWithProducts.has(Number(root.id))) return true
+    return childCats
+      .filter((child) => Number(child.parent) === Number(root.id))
+      .some((child) => categoryIdsWithProducts.has(Number(child.id)))
+  })
+
+  // Requête 3 : récupérer les catégories racines actives avec depth:1 pour le rendu
+  if (activeDocs.length === 0) return { docs: [] }
+  const activeIds = activeDocs.map((c) => c.id)
+  const result = await payload.find({
+    collection: 'categories',
+    where: { id: { in: activeIds } },
     limit: 50,
     sort: 'nameAr',
     depth: 1,
     overrideAccess: true,
   })
-  // Vérifier en parallèle quelles catégories ont au moins 1 produit
-  // On inclut les sous-catégories : une catégorie est "active" si elle OU ses enfants ont des produits
-  const checks = await Promise.all(
-    cats.docs.map(async (cat) => {
-      const childIds = await getChildCategoryIds(payload, cat.id)
-      const r = await payload.find({
-        collection: 'products',
-        where: { status: { equals: 'published' }, category: { in: [cat.id, ...childIds] } },
-        limit: 1,
-        depth: 0,
-        overrideAccess: true,
-      })
-      return { cat, hasProducts: r.totalDocs > 0 }
-    })
-  )
-  return { docs: checks.filter((c) => c.hasProducts).map((c) => c.cat) }
+  return result
 }
 
 export async function getCategories() {

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next'
-import { Cairo } from 'next/font/google'
 import '@/styles/globals.css'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
@@ -8,15 +7,6 @@ import { PixelScripts } from '@/components/analytics/PixelScripts'
 import { PixelPageView } from '@/components/analytics/PixelPageView'
 import { getMarketingSettings, getChapeauGift } from '@/lib/payload-client'
 import { FreeGiftInit } from '@/components/FreeGiftInit'
-
-// Police arabe principale — Cairo : élégante, féminine, moderne
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  weight: ['300', '400', '500', '600', '700', '800', '900'],
-  variable: '--font-arabic',
-  display: 'swap',
-  preload: true,
-})
 
 export const metadata: Metadata = {
   title: {
@@ -48,23 +38,21 @@ export default async function FrontendLayout({ children }: { children: React.Rea
   ])
 
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
-      <body className="min-h-screen bg-white antialiased flex flex-col" suppressHydrationWarning>
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        {/* Drawer panier */}
-        <CartDrawer />
-        {/* Initialise le store cadeau (toutes les variations du chapeau) */}
-        <FreeGiftInit chapeauVariations={chapeau ?? []} />
-        {/* Pixels marketing — injectés uniquement si IDs configurés dans /admin */}
-        <PixelScripts
-          metaPixelId={marketing?.metaPixelId}
-          tiktokPixelId={marketing?.tiktokPixelId}
-        />
-        {/* PageView automatique sur chaque navigation client-side */}
-        <PixelPageView />
-      </body>
-    </html>
+    <div className="min-h-screen bg-white antialiased flex flex-col">
+      <Header />
+      <main className="flex-1">{children}</main>
+      <Footer />
+      {/* Drawer panier */}
+      <CartDrawer />
+      {/* Initialise le store cadeau (toutes les variations du chapeau) */}
+      <FreeGiftInit chapeauVariations={chapeau ?? []} />
+      {/* Pixels marketing — injectés uniquement si IDs configurés dans /admin */}
+      <PixelScripts
+        metaPixelId={marketing?.metaPixelId}
+        tiktokPixelId={marketing?.tiktokPixelId}
+      />
+      {/* PageView automatique sur chaque navigation client-side */}
+      <PixelPageView />
+    </div>
   )
 }

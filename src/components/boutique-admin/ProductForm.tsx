@@ -28,6 +28,20 @@ const SIZE_GROUPS = [
 ]
 const SIZE_SUGGESTIONS = SIZE_GROUPS.flatMap(g => g.sizes)
 
+// Suggestions de tailles par catégorie de produit
+const CATEGORY_SIZE_SUGGESTIONS: Record<string, { label: string; sizes: string[] }[]> = {
+  burkini:   [{ label: 'Burkini (numéros)', sizes: ['36','38','40','42','44','46','48','50','52'] }, { label: 'Burkini (lettres)', sizes: ['S','M','L','XL','XXL','3XL','4XL'] }],
+  robes:     [{ label: 'Robes hidjab', sizes: ['XS(36-38)','S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)','XXXL(48-50)'] }],
+  manteaux:  [{ label: 'Manteaux', sizes: ['S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)','3XL(48-50)'] }],
+  ensembles: [{ label: 'Ensembles', sizes: ['S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)'] }],
+  jupes:     [{ label: 'Jupes / Pantalons', sizes: ['34','36','38','40','42','44','46','48'] }],
+  chaussures:[{ label: 'Pointures femmes', sizes: ['35','36','37','38','39','40','41','42'] }],
+  sacs:      [{ label: 'Tailles sacs', sizes: ['Petit','Moyen','Grand','Taille unique'] }],
+  chapeaux:  [{ label: 'Tour de tête', sizes: ['54cm','56cm','58cm','60cm','Taille unique','Réglable'] }],
+  pareos:    [{ label: 'Pareos', sizes: ['Taille unique','S/M','L/XL'] }],
+  chemises:  [{ label: 'Chemises', sizes: ['S(38-40)','M(40-42)','L(42-44)','XL(44-46)','XXL(46-48)'] }],
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ProductTab = 'general' | 'inventory' | 'attributes' | 'variations' | 'advanced'
 
@@ -38,12 +52,14 @@ interface CustomAttr {
   valuesRaw: string // valeurs pipe-séparées
   visible: boolean
   forVariations: boolean
+  attrType?: 'couleur' | 'taille' | 'autre'  // type choisi à la création
 }
 type VariationAction = 'generate' | 'add_manual' | 'set_regular' | 'set_sale' | 'toggle_enabled' | 'delete_all'
 
 interface Variation {
   _key: string; id?: string
   colorAr: string; size: string
+  customValues?: Record<string, string>  // nameAr → selected value for each custom attr
   regularPrice: number; salePrice?: number | ''
   saleDateFrom?: string; saleDateTo?: string
   stock: number; inStock: boolean
@@ -65,6 +81,7 @@ export interface InitialProduct {
   category?: Array<{ id: string } | string>
   variations?: Array<{
     id?: string; colorAr?: string; size?: string
+    customValues?: Record<string, string>
     regularPrice?: number; salePrice?: number
     saleDateFrom?: string; saleDateTo?: string
     stock?: number; inStock?: boolean
@@ -157,18 +174,65 @@ export default function ProductForm({ productId, initial }: { productId?: string
   // Inputs par attribut personnalisé (keyed par _key) pour l'ajout de tags
   const [attrTagInputs, setAttrTagInputs] = useState<Record<string, string>>({})
 
+  // ── Couleurs/tailles personnalisées persistées (localStorage) ───────────────
+  // Quand la confirmatrice ajoute "Autre couleur/taille", ça reste pour toujours dans la liste
+  const SAVED_CUSTOM_COLORS_KEY = 'she_custom_colors_v1'
+  const SAVED_CUSTOM_SIZES_KEY  = 'she_custom_sizes_v1'
+  const [savedCustomColors, setSavedCustomColors] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem(SAVED_CUSTOM_COLORS_KEY) ?? '[]') } catch { return [] }
+  })
+  const [savedCustomSizes, setSavedCustomSizes] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try { return JSON.parse(localStorage.getItem(SAVED_CUSTOM_SIZES_KEY) ?? '[]') } catch { return [] }
+  })
+  // Picker de catégorie dans la section tailles (pour suggestions)
+  const [catSizePicker, setCatSizePicker] = useState<string>('')
+
+  // Ajouter une couleur perso + la persister
+  function addCustomColor(val: string) {
+    const v = val.trim(); if (!v) return
+    const curr = parsePipe(colorsRaw)
+    if (!curr.includes(v)) { setColorsRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }
+    setSavedCustomColors(prev => {
+      if (prev.includes(v)) return prev
+      const next = [v, ...prev]
+      try { localStorage.setItem(SAVED_CUSTOM_COLORS_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+    setCustomColorInput('')
+  }
+
+  // Ajouter une taille perso + la persister
+  function addCustomSize(val: string) {
+    const v = val.trim(); if (!v) return
+    const curr = parsePipe(sizesRaw)
+    if (!curr.includes(v)) { setSizesRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }
+    setSavedCustomSizes(prev => {
+      if (prev.includes(v)) return prev
+      const next = [v, ...prev]
+      try { localStorage.setItem(SAVED_CUSTOM_SIZES_KEY, JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+    setCustomSizeInput('')
+  }
+
   // ── Attributs personnalisés ─────────────────────────────────────────────────
   const [customAttrs, setCustomAttrs] = useState<CustomAttr[]>(
     (initial?.customAttributes ?? []).map(a => ({
       _key: uid(), name: a.name ?? '', nameAr: a.nameAr ?? '',
       valuesRaw: a.values ?? '', visible: a.visible ?? true, forVariations: a.forVariations ?? false,
+      attrType: 'autre' as const,
     }))
   )
+  // Picker de type affiché avant d'ajouter un attribut manuel
+  const [addAttrPickerOpen, setAddAttrPickerOpen] = useState(false)
 
   // ── Suggestions d'attributs personnalisés (persistées en localStorage) ───────
-  // Clé : { nameAr: string; name: string } — sauvegardé à chaque "Enregistrer les attributs"
-  const SAVED_ATTRS_KEY = 'she_saved_custom_attrs'
-  const [savedAttrSuggestions, setSavedAttrSuggestions] = useState<Array<{ nameAr: string; name: string }>>(() => {
+  // Clé : { nameAr: string; name: string; categoryIds: string[] } — sauvegardé à chaque "Enregistrer les attributs"
+  type SavedAttrEntry = { nameAr: string; name: string; categoryIds: string[] }
+  const SAVED_ATTRS_KEY = 'she_saved_custom_attrs_v2'
+  const [savedAttrSuggestions, setSavedAttrSuggestions] = useState<SavedAttrEntry[]>(() => {
     if (typeof window === 'undefined') return []
     try { return JSON.parse(localStorage.getItem(SAVED_ATTRS_KEY) ?? '[]') } catch { return [] }
   })
@@ -181,6 +245,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
     (initial?.variations ?? []).map(v => ({
       _key: uid(), id: v.id,
       colorAr: v.colorAr ?? '', size: v.size ?? '',
+      customValues: v.customValues ?? {},
       regularPrice: v.regularPrice ?? 0,
       salePrice: v.salePrice ?? '',
       saleDateFrom: v.saleDateFrom ?? '', saleDateTo: v.saleDateTo ?? '',
@@ -245,6 +310,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
       variations: s.variations.map(v => ({
         ...(v.id ? { id: v.id } : {}),
         colorAr: v.colorAr || '', size: v.size || '',
+        ...(v.customValues && Object.keys(v.customValues).length ? { customValues: v.customValues } : {}),
         regularPrice: Number(v.regularPrice) || 0,
         ...(v.salePrice !== '' && v.salePrice != null ? { salePrice: Number(v.salePrice) } : {}),
         ...(v.saleDateFrom ? { saleDateFrom: v.saleDateFrom } : {}),
@@ -383,13 +449,15 @@ export default function ProductForm({ productId, initial }: { productId?: string
     // Sauvegarder les noms des attributs personnalisés dans localStorage
     const newEntries = customAttrs
       .filter(a => a.nameAr.trim())
-      .map(a => ({ nameAr: a.nameAr.trim(), name: a.name.trim() }))
+      .map(a => ({ nameAr: a.nameAr.trim(), name: a.name.trim(), categoryIds: selCats }))
     if (newEntries.length > 0) {
       setSavedAttrSuggestions(prev => {
-        // Fusionner en évitant les doublons sur nameAr
         const merged = [...prev]
         for (const entry of newEntries) {
-          if (!merged.find(s => s.nameAr === entry.nameAr)) {
+          const existing = merged.find(s => s.nameAr === entry.nameAr)
+          if (existing) {
+            existing.categoryIds = [...new Set([...existing.categoryIds, ...entry.categoryIds])]
+          } else {
             merged.push(entry)
           }
         }
@@ -403,23 +471,43 @@ export default function ProductForm({ productId, initial }: { productId?: string
   function generateVariations() {
     const colors = parsePipe(colorsRaw)
     const sizes  = parsePipe(sizesRaw)
+    // Inclure les attributs manuels uniquement si : forVariations=true, nameAr rempli, et valeurs présentes
+    const varCustomAttrs = customAttrs.filter(a => a.forVariations && a.nameAr.trim() && parsePipe(a.valuesRaw).length > 0)
+    // Attributs manuels avec des valeurs mais sans nom → avertir
+    const attrsMissingName = customAttrs.filter(a => a.forVariations && !a.nameAr.trim() && parsePipe(a.valuesRaw).length > 0)
+    if (attrsMissingName.length > 0) {
+      showToast(`⚠ ${attrsMissingName.length} attribut(s) manuel(s) ignoré(s) : remplissez leur nom arabe dans l'onglet Attributs`, false)
+    }
 
-    if (colors.length === 0 && sizes.length === 0) {
-      showToast('Enregistrez d\'abord les attributs (onglet Attributs)', false)
+    if (colors.length === 0 && sizes.length === 0 && varCustomAttrs.length === 0) {
+      showToast('Ajoutez au moins une couleur, taille ou attribut dans l\'onglet Attributs', false)
       setTab('attributes')
       return
     }
 
-    const colorsList = colors.length > 0 ? colors : ['']
-    const sizesList  = sizes.length  > 0 ? sizes  : ['']
-    const generated: Variation[] = []
+    // Produit cartésien : couleurs × tailles × attributs personnalisés
+    type Combo = { colorAr: string; size: string; customValues: Record<string, string> }
+    let combos: Combo[] = [{ colorAr: '', size: '', customValues: {} }]
 
-    for (const color of colorsList) {
-      for (const size of sizesList) {
-        const exists = variations.some(v => v.colorAr === color && v.size === size)
-        if (!exists) {
-          generated.push({ _key: uid(), colorAr: color, size, regularPrice: 0, salePrice: '', stock: 0, inStock: true })
-        }
+    if (colors.length > 0) {
+      combos = colors.flatMap(c => combos.map(co => ({ ...co, colorAr: c })))
+    }
+    if (sizes.length > 0) {
+      combos = sizes.flatMap(s => combos.map(co => ({ ...co, size: s })))
+    }
+    for (const attr of varCustomAttrs) {
+      const vals = parsePipe(attr.valuesRaw)
+      combos = vals.flatMap(v => combos.map(co => ({ ...co, customValues: { ...co.customValues, [attr.nameAr]: v } })))
+    }
+
+    const generated: Variation[] = []
+    for (const combo of combos) {
+      const exists = variations.some(v =>
+        v.colorAr === combo.colorAr && v.size === combo.size &&
+        varCustomAttrs.every(a => (v.customValues?.[a.nameAr] ?? '') === (combo.customValues[a.nameAr] ?? ''))
+      )
+      if (!exists) {
+        generated.push({ _key: uid(), ...combo, regularPrice: 0, salePrice: '', stock: 0, inStock: true })
       }
     }
 
@@ -545,6 +633,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
         variations: variations.map(v => ({
           ...(v.id ? { id: v.id } : {}),
           colorAr: v.colorAr || '', size: v.size || '',
+          ...(v.customValues && Object.keys(v.customValues).length ? { customValues: v.customValues } : {}),
           regularPrice: Number(v.regularPrice) || 0,
           ...(v.salePrice !== '' && v.salePrice != null ? { salePrice: Number(v.salePrice) } : {}),
           ...(v.saleDateFrom ? { saleDateFrom: v.saleDateFrom } : {}),
@@ -758,9 +847,10 @@ export default function ProductForm({ productId, initial }: { productId?: string
               {tab === 'attributes' && (
                 <div>
                   <p style={{ margin: '0 0 16px', fontSize: 13, color: '#646970' }}>
-                    Cliquez sur une valeur pour l&apos;ajouter. Cliquez à nouveau sur une valeur sélectionnée pour la retirer.
+                    Cliquez sur une valeur pour l&apos;ajouter. Cliquez à nouveau pour la retirer.
                   </p>
 
+                  {/* ── DEUX COLONNES : Couleurs + Tailles ── */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
 
                     {/* ── COULEURS ── */}
@@ -770,7 +860,6 @@ export default function ProductForm({ productId, initial }: { productId?: string
                         <span style={{ fontSize: 11, color: '#888', background: '#fff', border: '1px solid #ddd', borderRadius: 10, padding: '1px 7px' }}>optionnel</span>
                       </div>
                       <div style={{ padding: 12 }}>
-                        {/* Couleurs sélectionnées */}
                         {parsePipe(colorsRaw).length > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10, padding: '8px', background: '#f0f7ff', borderRadius: 4, border: '1px solid #bde0ff' }}>
                             {parsePipe(colorsRaw).map(c => (
@@ -783,7 +872,6 @@ export default function ProductForm({ productId, initial }: { productId?: string
                             ))}
                           </div>
                         )}
-                        {/* Grille suggestions */}
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 170, overflowY: 'auto' }}>
                           {COLOR_SUGGESTIONS.filter(c => !parsePipe(colorsRaw).includes(c)).map(c => (
                             <button key={c}
@@ -793,14 +881,28 @@ export default function ProductForm({ productId, initial }: { productId?: string
                             </button>
                           ))}
                         </div>
-                        {/* Input couleur personnalisée */}
+                        {/* ── Ajoutés par vous (couleurs custom persistées) ── */}
+                        {savedCustomColors.filter(c => !COLOR_SUGGESTIONS.includes(c)).length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 10, color: '#888', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ajoutés par vous</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {savedCustomColors.filter(c => !COLOR_SUGGESTIONS.includes(c)).map(c => (
+                                <button key={c}
+                                  onClick={() => { const curr = parsePipe(colorsRaw); if (!curr.includes(c)) { setColorsRaw(curr.length ? c + ' | ' + curr.join(' | ') : c); setAttrSaved(true) } }}
+                                  disabled={parsePipe(colorsRaw).includes(c)}
+                                  style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: parsePipe(colorsRaw).includes(c) ? 'default' : 'pointer', border: '1px solid #2271b1', background: parsePipe(colorsRaw).includes(c) ? '#e8f0fe' : '#fff', color: '#2271b1', fontFamily: 'inherit', opacity: parsePipe(colorsRaw).includes(c) ? 0.5 : 1 }}>
+                                  {c}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                           <input dir="rtl" value={customColorInput} onChange={e => setCustomColorInput(e.target.value)}
                             placeholder="Autre couleur (بالعربية)…"
-                            onKeyDown={e => { if (e.key === 'Enter' && customColorInput.trim()) { const v = customColorInput.trim(); const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomColorInput('') } }}
+                            onKeyDown={e => { if (e.key === 'Enter') addCustomColor(customColorInput) }}
                             style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
-                          <button
-                            onClick={() => { const v = customColorInput.trim(); if (!v) return; const curr = parsePipe(colorsRaw); if (!curr.includes(v)) { setColorsRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomColorInput('') }}
+                          <button onClick={() => addCustomColor(customColorInput)}
                             style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
                             + Ajouter
                           </button>
@@ -814,7 +916,6 @@ export default function ProductForm({ productId, initial }: { productId?: string
                         <span style={{ fontWeight: 700, fontSize: 13 }}>المقاس — Tailles</span>
                       </div>
                       <div style={{ padding: 12 }}>
-                        {/* Tailles sélectionnées */}
                         {parsePipe(sizesRaw).length > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10, padding: '8px', background: '#f0fff4', borderRadius: 4, border: '1px solid #b9f2c9' }}>
                             {parsePipe(sizesRaw).map(s => (
@@ -827,7 +928,6 @@ export default function ProductForm({ productId, initial }: { productId?: string
                             ))}
                           </div>
                         )}
-                        {/* Groupes de tailles */}
                         <div style={{ maxHeight: 170, overflowY: 'auto' }}>
                           {SIZE_GROUPS.map(group => {
                             const available = group.sizes.filter(s => !parsePipe(sizesRaw).includes(s))
@@ -848,14 +948,70 @@ export default function ProductForm({ productId, initial }: { productId?: string
                             )
                           })}
                         </div>
-                        {/* Input taille personnalisée */}
+                        {/* ── Ajoutés par vous (tailles custom persistées) ── */}
+                        {savedCustomSizes.filter(s => !SIZE_SUGGESTIONS.includes(s)).length > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 10, color: '#888', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ajoutés par vous</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {savedCustomSizes.filter(s => !SIZE_SUGGESTIONS.includes(s)).map(s => (
+                                <button key={s}
+                                  onClick={() => { const curr = parsePipe(sizesRaw); if (!curr.includes(s)) { setSizesRaw(curr.length ? s + ' | ' + curr.join(' | ') : s); setAttrSaved(true) } }}
+                                  disabled={parsePipe(sizesRaw).includes(s)}
+                                  style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: parsePipe(sizesRaw).includes(s) ? 'default' : 'pointer', border: '1px solid #00a32a', background: parsePipe(sizesRaw).includes(s) ? '#f0fff4' : '#fff', color: '#00a32a', fontFamily: 'inherit', opacity: parsePipe(sizesRaw).includes(s) ? 0.5 : 1 }}>
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* ── Suggestions par catégorie ── */}
+                        <div style={{ marginTop: 10, borderTop: '1px solid #e5e5e5', paddingTop: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: catSizePicker ? 8 : 0 }}>
+                            <span style={{ fontSize: 10, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>Suggestions :</span>
+                            <select value={catSizePicker} onChange={e => setCatSizePicker(e.target.value)}
+                              style={{ flex: 1, padding: '3px 6px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 11, background: '#fff', color: '#1d2327' }}>
+                              <option value="">— Choisir une catégorie…</option>
+                              <option value="burkini">Burkini</option>
+                              <option value="robes">Robes / Hidjab</option>
+                              <option value="manteaux">Manteaux &amp; Vestes</option>
+                              <option value="ensembles">Ensembles</option>
+                              <option value="jupes">Jupes / Pantalons</option>
+                              <option value="chaussures">Chaussures</option>
+                              <option value="sacs">Sacs</option>
+                              <option value="chapeaux">Chapeaux</option>
+                              <option value="pareos">Paréos</option>
+                              <option value="chemises">Chemises</option>
+                            </select>
+                          </div>
+                          {catSizePicker && CATEGORY_SIZE_SUGGESTIONS[catSizePicker] && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {CATEGORY_SIZE_SUGGESTIONS[catSizePicker].map(group => {
+                                const available = group.sizes.filter(s => !parsePipe(sizesRaw).includes(s))
+                                if (!available.length) return null
+                                return (
+                                  <div key={group.label}>
+                                    <div style={{ fontSize: 10, color: '#00a32a', fontWeight: 600, marginBottom: 3 }}>{group.label}</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                      {available.map(s => (
+                                        <button key={s}
+                                          onClick={() => { const curr = parsePipe(sizesRaw); setSizesRaw(curr.length ? s + ' | ' + curr.join(' | ') : s); setAttrSaved(true) }}
+                                          style={{ padding: '4px 10px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid #00a32a', background: '#f0fff4', color: '#00a32a', fontFamily: 'inherit' }}>
+                                          {s}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
                         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
                           <input value={customSizeInput} onChange={e => setCustomSizeInput(e.target.value)}
                             placeholder="Autre taille…"
-                            onKeyDown={e => { if (e.key === 'Enter' && customSizeInput.trim()) { const v = customSizeInput.trim(); const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomSizeInput('') } }}
+                            onKeyDown={e => { if (e.key === 'Enter') addCustomSize(customSizeInput) }}
                             style={{ flex: 1, padding: '5px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, fontFamily: 'inherit' }} />
-                          <button
-                            onClick={() => { const v = customSizeInput.trim(); if (!v) return; const curr = parsePipe(sizesRaw); if (!curr.includes(v)) { setSizesRaw(curr.length ? v + ' | ' + curr.join(' | ') : v); setAttrSaved(true) }; setCustomSizeInput('') }}
+                          <button onClick={() => addCustomSize(customSizeInput)}
                             style={{ padding: '5px 10px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
                             + Ajouter
                           </button>
@@ -864,148 +1020,17 @@ export default function ProductForm({ productId, initial }: { productId?: string
                     </div>
                   </div>
 
-                  {/* ── Attributs personnalisés (ex: Matière, Marque…) — tag input ── */}
-                  {customAttrs.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#50575e', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Attributs personnalisés
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {customAttrs.map((attr, idx) => {
-                          const vals = parsePipe(attr.valuesRaw)
-                          const inputVal = attrTagInputs[attr._key] ?? ''
-                          function addTag(v: string) {
-                            const t = v.trim(); if (!t || vals.includes(t)) return
-                            // Nouvelle valeur en tête de liste
-                            setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: t + (a.valuesRaw.trim() ? ' | ' + a.valuesRaw : '') } : a))
-                            setAttrTagInputs(p => ({ ...p, [attr._key]: '' }))
-                          }
-                          return (
-                            <div key={attr._key} style={{ border: '1px solid #c3c4c7', borderRadius: 4, overflow: 'hidden' }}>
-                              {/* En-tête attribut */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f6f7f7', borderBottom: '1px solid #c3c4c7' }}>
-                                <input value={attr.nameAr}
-                                  onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, nameAr: e.target.value } : a))}
-                                  placeholder="الاسم بالعربية" dir="rtl"
-                                  style={{ flex: 1, padding: '4px 8px', border: '1px solid #8c8f94', borderRadius: 3, fontSize: 13, background: '#fff', fontFamily: 'inherit' }} />
-                                <input value={attr.name}
-                                  onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, name: e.target.value } : a))}
-                                  placeholder="Nom FR (optionnel)"
-                                  style={{ flex: 1, padding: '4px 8px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, color: '#646970', background: '#fff', fontFamily: 'inherit' }} />
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: '#646970', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  <input type="checkbox" checked={attr.visible}
-                                    onChange={e => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, visible: e.target.checked } : a))}
-                                    style={{ accentColor: '#2271b1', cursor: 'pointer' }} />
-                                  Visible
-                                </label>
-                                <button onClick={() => setCustomAttrs(p => p.filter((_, i) => i !== idx))}
-                                  style={{ padding: '3px 10px', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 3, color: '#991b1b', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                  ✕ Supprimer
-                                </button>
-                              </div>
-                              {/* Valeurs en tags */}
-                              <div style={{ padding: '10px 12px' }}>
-                                {vals.length > 0 && (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                                    {vals.map(v => (
-                                      <span key={v} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: '#e8f0fe', border: '1px solid #c3d4f7', borderRadius: 20, fontSize: 12 }}>
-                                        {v}
-                                        <button onClick={() => setCustomAttrs(p => p.map((a, i) => i === idx ? { ...a, valuesRaw: parsePipe(a.valuesRaw).filter(x => x !== v).join(' | ') } : a))}
-                                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5a7abb', fontSize: 14, lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' }}>
-                                          ×
-                                        </button>
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                <div style={{ display: 'flex', gap: 6 }}>
-                                  <input value={inputVal}
-                                    onChange={e => setAttrTagInputs(p => ({ ...p, [attr._key]: e.target.value }))}
-                                    onKeyDown={e => { if (e.key === 'Enter') { addTag(inputVal) } }}
-                                    placeholder="Tapez une valeur et appuyez Entrée…"
-                                    style={{ flex: 1, padding: '5px 10px', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 13, fontFamily: 'inherit' }} />
-                                  <button onClick={() => addTag(inputVal)}
-                                    style={{ padding: '5px 12px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, fontSize: 12, cursor: 'pointer' }}>
-                                    + Ajouter
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Boutons bas */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                    {/* Nouvel attribut ajouté EN HAUT de la liste */}
-                    <button
-                      onClick={() => { setCustomAttrs(p => [{ _key: uid(), name: '', nameAr: '', valuesRaw: '', visible: true, forVariations: false }, ...p]) }}
-                      style={{ padding: '7px 14px', background: '#f6f7f7', border: '1px solid #c3c4c7', borderRadius: 3, color: '#2271b1', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
-                      + Ajouter un attribut
-                    </button>
+                  {/* Bouton Enregistrer */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
                     <button onClick={saveAttributes}
                       style={{ padding: '8px 16px', background: '#2271b1', border: '1px solid #0a4b78', borderRadius: 3, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                      ✓ Enregistrer les attributs
+                      ✓ Enregistrer — aller aux Variations
                     </button>
                   </div>
 
                   {attrSaved && (
                     <div style={{ marginTop: 10, padding: '8px 12px', background: '#d1e7dd', border: '1px solid #badbcc', borderRadius: 3, fontSize: 12, color: '#0f5132' }}>
                       ✓ Attributs enregistrés. Allez dans l&apos;onglet <button onClick={() => setTab('variations')} style={{ background: 'none', border: 'none', color: '#0f5132', fontWeight: 700, cursor: 'pointer', fontSize: 12, textDecoration: 'underline', padding: 0 }}>Variations</button> pour générer les combinaisons.
-                    </div>
-                  )}
-
-                  {/* ── Suggestions d'attributs personnalisés ───────────────── */}
-                  {savedAttrSuggestions.length > 0 && (
-                    <div style={{ marginTop: 14, padding: '10px 12px', background: '#f0f6fc', border: '1px solid #c8d8ea', borderRadius: 4 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#2271b1', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Attributs ajoutés manuellement
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {savedAttrSuggestions.map(s => {
-                          const alreadyAdded = customAttrs.some(a => a.nameAr === s.nameAr)
-                          return (
-                            <button
-                              key={s.nameAr}
-                              type="button"
-                              disabled={alreadyAdded}
-                              onClick={() => {
-                                if (!alreadyAdded) {
-                                  setCustomAttrs(p => [...p, { _key: uid(), name: s.name, nameAr: s.nameAr, valuesRaw: '', visible: true, forVariations: false }])
-                                  setAttrSaved(false)
-                                }
-                              }}
-                              style={{
-                                padding: '4px 10px', borderRadius: 20, fontSize: 12, cursor: alreadyAdded ? 'default' : 'pointer',
-                                background: alreadyAdded ? '#e5e7eb' : '#fff',
-                                border: `1px solid ${alreadyAdded ? '#d1d5db' : '#2271b1'}`,
-                                color: alreadyAdded ? '#9ca3af' : '#2271b1',
-                                fontWeight: 500,
-                                display: 'flex', alignItems: 'center', gap: 4,
-                              }}
-                            >
-                              {!alreadyAdded && <span style={{ fontSize: 10 }}>+</span>}
-                              <span dir="rtl">{s.nameAr}</span>
-                              {s.name && <span style={{ color: '#9ca3af', fontWeight: 400 }}>({s.name})</span>}
-                              {alreadyAdded && <span style={{ fontSize: 10 }}>✓</span>}
-                            </button>
-                          )
-                        })}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm('Effacer toutes les suggestions ?')) {
-                              setSavedAttrSuggestions([])
-                              try { localStorage.removeItem(SAVED_ATTRS_KEY) } catch { /* ignore */ }
-                            }
-                          }}
-                          style={{ padding: '4px 8px', borderRadius: 20, fontSize: 11, cursor: 'pointer', background: 'none', border: '1px solid #fca5a5', color: '#b91c1c', marginLeft: 4 }}
-                        >
-                          Effacer tout
-                        </button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1034,6 +1059,48 @@ export default function ProductForm({ productId, initial }: { productId?: string
                       OK
                     </button>
                   </div>
+
+                  {/* ── Récapitulatif des attributs pour la génération ── */}
+                  {varAction === 'generate' && (() => {
+                    const colors = parsePipe(colorsRaw)
+                    const sizes  = parsePipe(sizesRaw)
+                    const manualAttrs = customAttrs.filter(a => a.forVariations && a.nameAr.trim() && parsePipe(a.valuesRaw).length > 0)
+                    const missingName = customAttrs.filter(a => a.forVariations && !a.nameAr.trim() && parsePipe(a.valuesRaw).length > 0)
+                    if (colors.length === 0 && sizes.length === 0 && manualAttrs.length === 0 && missingName.length === 0) return null
+                    const total = Math.max(1, colors.length || 1) * Math.max(1, sizes.length || 1) * manualAttrs.reduce((acc, a) => acc * parsePipe(a.valuesRaw).length, 1)
+                    return (
+                      <div style={{ marginBottom: 12, padding: '10px 12px', background: '#f0f6fc', border: '1px solid #c3d4f7', borderRadius: 4, fontSize: 12, color: '#1d2327' }}>
+                        <div style={{ fontWeight: 700, marginBottom: 6, color: '#2271b1' }}>Attributs qui seront utilisés pour générer les variations :</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: missingName.length > 0 ? 8 : 0 }}>
+                          {colors.length > 0 && (
+                            <span style={{ padding: '3px 10px', background: '#2271b1', color: '#fff', borderRadius: 20, fontSize: 11 }}>
+                              🎨 Couleurs ({colors.length})
+                            </span>
+                          )}
+                          {sizes.length > 0 && (
+                            <span style={{ padding: '3px 10px', background: '#00a32a', color: '#fff', borderRadius: 20, fontSize: 11 }}>
+                              📐 Tailles ({sizes.length})
+                            </span>
+                          )}
+                          {manualAttrs.map(a => (
+                            <span key={a._key} style={{ padding: '3px 10px', background: a.attrType === 'couleur' ? '#2271b1' : a.attrType === 'taille' ? '#00a32a' : '#92400e', color: '#fff', borderRadius: 20, fontSize: 11 }}>
+                              ✏️ {a.nameAr} ({parsePipe(a.valuesRaw).length})
+                            </span>
+                          ))}
+                          {(colors.length > 0 || sizes.length > 0 || manualAttrs.length > 0) && (
+                            <span style={{ padding: '3px 10px', background: '#f0f0f0', color: '#50575e', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
+                              = {total} variation{total > 1 ? 's' : ''} max
+                            </span>
+                          )}
+                        </div>
+                        {missingName.length > 0 && (
+                          <div style={{ fontSize: 11, color: '#b45309', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 3, padding: '4px 8px' }}>
+                            ⚠ {missingName.length} attribut(s) ignoré(s) : retournez dans Attributs et remplissez le nom arabe
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {/* ── Prix rapide pour toutes les variations ──────────── */}
                   {variations.length > 0 && (
@@ -1126,7 +1193,8 @@ export default function ProductForm({ productId, initial }: { productId?: string
                       <div style={{ border: '1px solid #c3c4c7', borderRadius: 3, overflow: 'hidden' }}>
                         {pagedVars.map((v, idx) => {
                           const isOpen = expandedVars.has(v._key)
-                          const label  = [v.colorAr, v.size].filter(Boolean).join(' / ') || `Variation ${(varPage - 1) * VARS_PER_PAGE + idx + 1}`
+                          const varCustomAttrsCurrent = customAttrs.filter(a => a.forVariations && parsePipe(a.valuesRaw).length > 0)
+                          const label = [v.colorAr, v.size, ...varCustomAttrsCurrent.map(a => v.customValues?.[a.nameAr]).filter((x): x is string => Boolean(x))].filter(Boolean).join(' / ') || `Variation ${(varPage - 1) * VARS_PER_PAGE + idx + 1}`
                           const hasPrice = v.regularPrice > 0
                           return (
                             <div key={v._key} style={{ borderBottom: idx < pagedVars.length - 1 ? '1px solid #e5e5e5' : 'none' }}>
@@ -1229,6 +1297,19 @@ export default function ProductForm({ productId, initial }: { productId?: string
                                           )}
                                         </select>
                                       </div>
+                                      {/* Attributs personnalisés pour cette variation */}
+                                      {customAttrs.filter(a => a.forVariations && parsePipe(a.valuesRaw).length > 0).map(attr => (
+                                        <div key={attr._key}>
+                                          <label style={{ ...lbl, fontSize: 12 }}>{attr.nameAr || attr.name}</label>
+                                          <select
+                                            value={v.customValues?.[attr.nameAr] ?? ''}
+                                            onChange={e => updateVar(v._key, { customValues: { ...v.customValues, [attr.nameAr]: e.target.value } })}
+                                            style={{ ...inp, fontSize: 12 }}>
+                                            <option value="">— Aucune —</option>
+                                            {parsePipe(attr.valuesRaw).map(val => <option key={val} value={val}>{val}</option>)}
+                                          </select>
+                                        </div>
+                                      ))}
                                       {/* SKU variation */}
                                       <div>
                                         <label style={{ ...lbl, fontSize: 12 }}>UGS (SKU)</label>
@@ -1335,6 +1416,7 @@ export default function ProductForm({ productId, initial }: { productId?: string
                       Autoriser les avis clients sur ce produit
                     </label>
                   </div>
+
                 </div>
               )}
             </div>
