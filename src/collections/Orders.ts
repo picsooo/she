@@ -1,6 +1,8 @@
 import type { CollectionConfig } from 'payload'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { randomUUID } from 'crypto'
+import { sendCapiEvent } from '@/lib/metaCapi'
 
 // ── Statuts de commande — workflow COD algérien complet ───────────────────────
 export const ORDER_STATUSES = [
@@ -105,6 +107,39 @@ export const Orders: CollectionConfig = {
           }
         } catch (err) {
           console.error('[Orders hook] Erreur gestion stock:', err)
+        }
+
+        // ── Option B : Purchase CAPI à la livraison ────────────────────
+        // Activé uniquement si PURCHASE_EVENT_STRATEGY=delivery dans .env
+        if (process.env.PURCHASE_EVENT_STRATEGY === 'delivery') {
+          const becameDelivered = newStatus === 'delivered' && prevStatus !== 'delivered'
+          if (becameDelivered && !doc.metaPurchaseSent) {
+            const eventId = (doc.metaEventId as string | undefined) || randomUUID()
+            try {
+              const result = await sendCapiEvent({
+                eventName: 'Purchase',
+                eventId,
+                value:    doc.total as number,
+                currency: 'DZD',
+                contents: (doc.items ?? []).map((i: Record<string, unknown>) => ({
+                  id:         typeof i.product === 'object' ? String((i.product as { id?: unknown })?.id ?? '') : String(i.product ?? ''),
+                  quantity:   i.quantity as number | undefined,
+                  item_price: i.unitPrice as number | undefined,
+                })),
+                user: { phone: doc.phone as string, city: doc.wilaya as string, fbp: doc.fbp as string, fbc: doc.fbc as string },
+              })
+              if (result.ok) {
+                const payload2 = await getPayload({ config: configPromise })
+                await payload2.update({
+                  collection: 'orders', id: doc.id,
+                  data: { metaPurchaseSent: true, metaEventId: eventId },
+                  overrideAccess: true,
+                })
+              }
+            } catch (capiErr) {
+              console.error('[CAPI] échec Purchase livraison commande', doc.id, capiErr)
+            }
+          }
         }
       },
     ],
@@ -311,6 +346,34 @@ export const Orders: CollectionConfig = {
       label: 'Envoyé à Yalidine le',
       type: 'date',
       admin: { description: 'Date/heure d\'envoi du colis à Yalidine' },
+    },
+
+    // ── Champs tracking Meta Pixel + CAPI ─────────────────────────────
+    // Masqués dans l'admin — gérés automatiquement
+    {
+      name: 'metaEventId',
+      label: 'Meta Event ID',
+      type: 'text',
+      admin: { hidden: true, description: 'event_id partagé Pixel/CAPI pour la déduplication' },
+    },
+    {
+      name: 'metaPurchaseSent',
+      label: 'Meta Purchase envoyé',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: { hidden: true, description: 'Empêche le double envoi de l\'event Purchase (Option B)' },
+    },
+    {
+      name: 'fbp',
+      label: 'Cookie _fbp',
+      type: 'text',
+      admin: { hidden: true, description: 'Cookie _fbp capturé au checkout (matching CAPI)' },
+    },
+    {
+      name: 'fbc',
+      label: 'Cookie _fbc',
+      type: 'text',
+      admin: { hidden: true, description: 'Cookie _fbc capturé au checkout (matching CAPI)' },
     },
   ],
   timestamps: true,

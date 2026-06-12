@@ -16,7 +16,12 @@
 // Types globaux pour fbq et ttq — déclarés ici pour éviter les erreurs TypeScript
 declare global {
   interface Window {
-    fbq?: (action: string, eventName: string, data?: Record<string, unknown>) => void
+    fbq?: (
+      action: string,
+      eventName: string,
+      data?: Record<string, unknown>,
+      options?: { eventID?: string }
+    ) => void
     ttq?: {
       track: (eventName: string, data?: Record<string, unknown>) => void
     }
@@ -50,17 +55,16 @@ export interface TrackEventData extends Record<string, unknown> {
  * @param eventName   Nom de l'événement standard (ex: 'AddToCart')
  * @param data        Données de l'événement
  */
-export function trackEvent(eventName: string, data?: TrackEventData) {
+export function trackEvent(eventName: string, data?: TrackEventData, eventId?: string) {
   if (typeof window === 'undefined') return
 
-  // Meta Pixel (fbq)
+  // Meta Pixel (fbq) — eventID passé pour la déduplication avec la CAPI serveur
   if (typeof window.fbq === 'function') {
-    window.fbq('track', eventName, data)
+    window.fbq('track', eventName, data, eventId ? { eventID: eventId } : undefined)
   }
 
   // TikTok Pixel (ttq)
   if (window.ttq?.track) {
-    // TikTok utilise des noms légèrement différents pour certains événements
     const ttqEventName = TIKTOK_EVENT_MAP[eventName] ?? eventName
     window.ttq.track(ttqEventName, data)
   }
@@ -150,16 +154,14 @@ export function trackInitiateCheckout(cartTotal: number, numItems: number) {
 export function trackPurchase(
   orderNumber: string,
   total: number,
-  items: Array<{ id: string; name: string; quantity: number; price: number }>
+  items: Array<{ id: string; name: string; quantity: number; price: number }>,
+  eventId?: string
 ) {
   if (typeof window === 'undefined') return
 
-  // Clé localStorage pour éviter le double-déclenchement si rechargement page
+  // Anti-doublon : une seule fois par commande même si la page est rechargée
   const storageKey = `pixel_purchase_${orderNumber}`
-  if (localStorage.getItem(storageKey)) {
-    // Déjà tiré pour cette commande — on ne refait rien
-    return
-  }
+  if (localStorage.getItem(storageKey)) return
 
   trackEvent('Purchase', {
     order_id: orderNumber,
@@ -167,8 +169,7 @@ export function trackPurchase(
     currency: 'DZD',
     num_items: items.reduce((sum, i) => sum + i.quantity, 0),
     contents: items,
-  })
+  }, eventId)
 
-  // Marquer comme tiré pour cette session + les suivantes (TTL: 7 jours)
   localStorage.setItem(storageKey, Date.now().toString())
 }

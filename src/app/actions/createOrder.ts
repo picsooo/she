@@ -6,6 +6,8 @@ import { createOrderSchema } from '@/lib/checkout-schema'
 import { generateOrderNumber, getEffectivePrice } from '@/lib/utils'
 import { getProductById, getNextOrderSequence } from '@/lib/payload-client'
 import { sendOrderEmails } from '@/lib/email'
+import { cookies } from 'next/headers'
+import { randomUUID } from 'crypto'
 
 type CreateOrderResult =
   | { success: true; orderNumber: string }
@@ -157,6 +159,14 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
     // Auto-assignation à la confirmatrice
     const assignedTo = await autoAssignConfirmatrice(payload)
 
+    // Génère un event_id stable pour la déduplication Meta Pixel / CAPI
+    const metaEventId = randomUUID()
+
+    // Cookies Meta (_fbp, _fbc) — capturés côté serveur pour améliorer le matching CAPI
+    const cookieStore = await cookies()
+    const fbp = cookieStore.get('_fbp')?.value ?? undefined
+    const fbc = cookieStore.get('_fbc')?.value ?? undefined
+
     // Créer la commande
     await payload.create({
       collection: 'orders',
@@ -175,6 +185,9 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         total,
         deliveryMode,
         status: 'new',
+        metaEventId,
+        ...(fbp ? { fbp } : {}),
+        ...(fbc ? { fbc } : {}),
         ...(assignedTo ? { assignedTo } : {}),
       },
     })
