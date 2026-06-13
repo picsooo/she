@@ -48,6 +48,15 @@ export async function POST(
       size:     item.size,
     }))
 
+    // subtotal = montant produits seuls (sans frais livraison)
+    // Yalidine ajoute ses propres frais → COD final correct pour le client
+    const subtotal = order.subtotal
+      ?? (order.items ?? []).reduce(
+          (sum: number, item: { unitPrice?: number; price?: number; quantity?: number }) =>
+            sum + ((item.unitPrice ?? item.price ?? 0) * (item.quantity ?? 1)),
+          0
+        )
+
     const parcel = orderToYalidineParcel({
       orderNumber:      order.orderNumber,
       customerName:     order.customerName,
@@ -57,6 +66,7 @@ export async function POST(
       toWilayaNameFr:   wilayaEntry.nameFr,
       toCommuneNameFr:  communeEntry.nameFr,
       total:            order.total,
+      subtotal,
       shippingFee:      order.shippingFee ?? 0,
       deliveryMode:     (order.deliveryMode as 'home' | 'desk') ?? 'home',
       items,

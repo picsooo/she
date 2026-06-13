@@ -313,6 +313,7 @@ export function orderToYalidineParcel(order: {
   toWilayaNameFr: string     // Wilaya destinataire en français
   toCommuneNameFr: string    // Commune destinataire en français
   total: number
+  subtotal: number           // Montant produits seuls (sans livraison)
   shippingFee: number
   deliveryMode: 'home' | 'desk'
   items: Array<{ name: string; quantity: number; size?: string; color?: string }>
@@ -343,14 +344,17 @@ export function orderToYalidineParcel(order: {
     to_wilaya_name:   order.toWilayaNameFr,
     to_commune_name:  order.toCommuneNameFr,
     product_list:     productList,
-    price:            order.total,      // Montant COD
+    // On envoie le sous-total (produits seuls) — Yalidine ajoute ses frais de livraison
+    // par-dessus pour calculer le montant COD final. Si on envoyait order.total
+    // (subtotal + shippingFee), le client paierait deux fois les frais de livraison.
+    price:            order.subtotal,
     do_insurance:     false,
-    declared_value:   order.total,
+    declared_value:   order.subtotal,
     length:           40,               // Valeurs par défaut vêtements
     width:            30,
     height:           5,
     weight:           1,
-    freeshipping:     false,            // Client paie la livraison (COD)
+    freeshipping:     false,            // Client paie la livraison via Yalidine (ajoutée au COD)
     is_stopdesk:      isStopdesk,
     ...(isStopdesk && order.stopdeskId ? { stopdesk_id: order.stopdeskId } : {}),
     has_exchange:     false,
