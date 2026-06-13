@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { WILAYAS } from '@/lib/algeria-geo'
 
 interface OrderItem {
   productName?: string
@@ -97,6 +98,11 @@ export default function OrderDetailPage() {
   // Index de l'article en cours de "changement de produit" (-1 = aucun)
   const [changingProductIdx, setChangingProductIdx] = useState(-1)
   const [productSearch,      setProductSearch]      = useState('')
+
+  // ── Bureaux Yalidine pour la wilaya de la commande ───────────────────────────
+  const [centers,       setCenters]       = useState<Array<{ center_id: number; name: string; address: string; commune_name: string; phone: string }>>([])
+  const [centersLoading,setCentersLoading]= useState(false)
+  const [feesLoading,   setFeesLoading]   = useState(false)
 
   // ── État Yalidine ─────────────────────────────────────────────────────────────
   const [yalidineLoading,   setYalidineLoading]   = useState(false)
@@ -206,6 +212,36 @@ export default function OrderDetailPage() {
         }
       })
     )
+    // Chercher les vrais frais Yalidine selon wilaya + commune de la commande
+    const wilayaCode = WILAYAS.find(w => w.nameAr === order.wilaya)?.code ?? ''
+    if (wilayaCode) {
+      // Charger les bureaux Yalidine pour cette wilaya
+      setCentersLoading(true)
+      fetch(`/api/yalidine/centers?wilayaCode=${encodeURIComponent(wilayaCode)}`)
+        .then(r => r.ok ? r.json() : { centers: [] })
+        .then(data => setCenters(data.centers ?? []))
+        .catch(() => setCenters([]))
+        .finally(() => setCentersLoading(false))
+
+      // Charger les vrais frais si commune disponible
+      if (order.commune) {
+        setFeesLoading(true)
+        fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(wilayaCode)}&communeNameAr=${encodeURIComponent(order.commune)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && (data.home !== null || data.desk !== null)) {
+              setDelivery(prev => ({
+                ...prev,
+                homeDeliveryFee:   data.home  ?? prev.homeDeliveryFee,
+                officeDeliveryFee: data.desk  ?? prev.officeDeliveryFee,
+              }))
+            }
+          })
+          .catch(() => { /* garder les frais par défaut */ })
+          .finally(() => setFeesLoading(false))
+      }
+    }
+
     loadDeliverySettings()
     setEditMode(true)
   }
@@ -575,11 +611,14 @@ export default function OrderDetailPage() {
 
           {editMode && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Mode de livraison</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                Mode de livraison
+                {feesLoading && <span style={{ marginLeft: 8, fontSize: 10, color: '#7C3AED', fontWeight: 500 }}>Chargement frais…</span>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                 {[
-                  { value: 'home', label: '🏠 Domicile', fee: delivery.homeDeliveryFee ?? 0 },
-                  { value: 'desk', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee ?? 0 },
+                  { value: 'home', label: '🏠 Domicile', fee: delivery.homeDeliveryFee },
+                  { value: 'desk', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee },
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -594,12 +633,54 @@ export default function OrderDetailPage() {
                     <div style={{ fontSize: 13, fontWeight: 600, color: editDelivery === opt.value ? '#4A3DBC' : '#1A1A1A', marginBottom: 2 }}>
                       {opt.label}
                     </div>
-                    <div style={{ fontSize: 12, color: opt.fee === 0 ? '#007A5C' : '#6D7175', fontWeight: 600 }}>
-                      {opt.fee === 0 ? 'Gratuit' : fmt(opt.fee)}
+                    <div style={{ fontSize: 12, fontWeight: 600, color: feesLoading ? '#B0B0B0' : (opt.fee === 0 ? '#007A5C' : '#6D7175') }}>
+                      {feesLoading ? '…' : opt.fee === undefined ? '—' : opt.fee === 0 ? 'Gratuit' : fmt(opt.fee)}
                     </div>
                   </button>
                 ))}
               </div>
+
+              {/* Bureaux Yalidine cliquables — affichés quand mode = bureau */}
+              {editDelivery === 'desk' && (
+                <div style={{ background: '#F7F5F2', border: '1px solid #EBE6DF', borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6D7175', marginBottom: 8 }}>
+                    🏢 Bureaux Yalidine disponibles
+                    <span style={{ fontWeight: 400, marginLeft: 6, color: '#9A9A9A' }}>— cliquer pour remplir l&apos;adresse</span>
+                  </div>
+                  {centersLoading ? (
+                    <div style={{ fontSize: 12, color: '#9A9A9A' }}>Chargement…</div>
+                  ) : centers.length === 0 ? (
+                    <div style={{ fontSize: 12, color: '#9A9A9A' }}>Aucun bureau disponible pour cette wilaya</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                      {centers.map(c => {
+                        const centerAddress = `${c.name}${c.address ? ' — ' + c.address : ''}${c.commune_name ? ' — ' + c.commune_name : ''}`
+                        const isSelected = editAddress === centerAddress
+                        return (
+                          <div
+                            key={c.center_id}
+                            onClick={() => setEditAddress(centerAddress)}
+                            style={{
+                              padding: '8px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+                              background: isSelected ? '#FFF0F7' : '#fff',
+                              border: isSelected ? '1.5px solid #E93D91' : '1px solid #E3E5E7',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#E93D91' : '#1A1A1A' }}>{c.name}</div>
+                                {c.address && <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 1 }}>{c.address}</div>}
+                                <div style={{ fontSize: 11, color: '#9A9A9A' }}>{c.commune_name}{c.phone ? ` · ${c.phone}` : ''}</div>
+                              </div>
+                              {isSelected && <span style={{ color: '#E93D91', fontSize: 14, flexShrink: 0 }}>✓</span>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
