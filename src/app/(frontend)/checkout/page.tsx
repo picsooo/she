@@ -313,20 +313,35 @@ export default function CheckoutPage() {
               {/* Bureaux Yalidine — visible uniquement si mode desk et wilaya sélectionnée */}
               {form.deliveryMode === 'desk' && form.wilayaCode && (
                 <div className="rounded-xl border border-[#EBE6DF] bg-[#F7F5F2] p-3 text-sm">
-                  <p className="font-semibold mb-2 text-foreground">🏢 مكاتب ياليدين في ولايتك</p>
+                  <p className="font-semibold mb-2 text-foreground">🏢 مكاتب ياليدين في ولايتك — <span className="text-xs font-normal text-foreground/50">انقري على المكتب لتعبئة العنوان تلقائياً</span></p>
                   {centersLoading ? (
                     <p className="text-foreground/50 text-xs">جار التحميل…</p>
                   ) : centers.length === 0 ? (
                     <p className="text-foreground/50 text-xs">لا توجد مكاتب متاحة في هذه الولاية</p>
                   ) : (
                     <ul className="flex flex-col gap-2">
-                      {centers.map(c => (
-                        <li key={c.center_id} className="flex flex-col gap-0.5">
-                          <span className="font-medium text-foreground">{c.name}</span>
-                          <span className="text-foreground/60 text-xs">{c.address}{c.commune_name ? ` — ${c.commune_name}` : ''}</span>
-                          {c.phone && <span className="text-foreground/50 text-xs">📞 {c.phone}</span>}
-                        </li>
-                      ))}
+                      {centers.map(c => {
+                        const centerAddress = `${c.name}${c.address ? ' — ' + c.address : ''}${c.commune_name ? ' — ' + c.commune_name : ''}`
+                        const isSelected = form.address === centerAddress
+                        return (
+                          <li
+                            key={c.center_id}
+                            onClick={() => handleChange('address', centerAddress)}
+                            className="flex flex-col gap-0.5 cursor-pointer rounded-lg px-3 py-2 transition-all"
+                            style={{
+                              background: isSelected ? '#FFF0F7' : '#fff',
+                              border: isSelected ? '1.5px solid #E93D91' : '1px solid #EBE6DF',
+                            }}
+                          >
+                            <span className="font-semibold text-foreground flex items-center gap-2">
+                              {isSelected && <span className="text-[#E93D91]">✓</span>}
+                              {c.name}
+                            </span>
+                            {c.address && <span className="text-foreground/60 text-xs">{c.address}{c.commune_name ? ` — ${c.commune_name}` : ''}</span>}
+                            {c.phone && <span className="text-foreground/50 text-xs">📞 {c.phone}</span>}
+                          </li>
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
