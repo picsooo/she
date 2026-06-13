@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 // Numéro WhatsApp de la boutique (configurer ici)
-const WHATSAPP_NUMBER = '213550000000' // TODO: remplacer par le numéro de Rania
+const WHATSAPP_NUMBER = '213562705896'
 
 // Page de confirmation — affichée après checkout réussi
 export default async function OrderConfirmationPage({ params }: PageProps) {

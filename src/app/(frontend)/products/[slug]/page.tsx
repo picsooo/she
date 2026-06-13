@@ -38,7 +38,7 @@ const FAQ_ITEMS = [
 ]
 
 // Numéro WhatsApp de la boutique
-const WHATSAPP_NUMBER = '213550000000'
+const WHATSAPP_NUMBER = '213562705896'
 
 function isBurkiniProduct(product: Product, categories: Category[]): boolean {
   // Vérification 1 : catégories populées directement sur le produit (depth:2)
