@@ -65,12 +65,24 @@ export default function ConfirmatriceOrdersPage() {
   const [expandedId,   setExpandedId]   = useState<string | null>(null)
   const [updating,     setUpdating]     = useState<string | null>(null)
   const [counts,       setCounts]       = useState<Record<string, number>>({})
+  const [selected,     setSelected]     = useState<Set<string>>(new Set())
+  const [bulkStatus,   setBulkStatus]   = useState('')
+  const [bulkLoading,  setBulkLoading]  = useState(false)
+  const [deleting,     setDeleting]     = useState<string | null>(null)
   const perPage = 20
+
+  // Construit le filtre de base incluant toujours le filtre assignedTo pour cette confirmatrice
+  const buildBaseWhere = useCallback((extra: Record<string, unknown> = {}) => {
+    const where: Record<string, unknown> = { ...extra }
+    // Chaque confirmatrice ne voit que ses commandes assignées
+    if (currentUser?.id) where.assignedTo = { equals: currentUser.id }
+    return where
+  }, [currentUser?.id])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const where: Record<string, unknown> = {}
+      const where = buildBaseWhere()
       if (statusFilter) where.status = { equals: statusFilter }
       if (wilayaFilter) where.wilaya = { like: wilayaFilter }
       const dateFrom = getDateFrom(datePreset)
@@ -86,17 +98,20 @@ export default function ConfirmatriceOrdersPage() {
       setOrders(data.docs ?? [])
       setTotal(data.totalDocs ?? 0)
     } finally { setLoading(false) }
-  }, [statusFilter, wilayaFilter, datePreset, search, page])
+  }, [statusFilter, wilayaFilter, datePreset, search, page, buildBaseWhere])
 
   useEffect(() => { load() }, [load])
 
+  // Compteurs de statuts — filtrés aussi par assignedTo
   useEffect(() => {
+    if (!currentUser?.id) return
     Promise.all(
-      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s =>
-        fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: s } }))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
-      )
+      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s => {
+        const where = buildBaseWhere({ status: { equals: s } })
+        return fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
+      })
     ).then(results => setCounts(Object.fromEntries(results)))
-  }, [orders])
+  }, [orders, currentUser?.id, buildBaseWhere])
 
   // Met à jour le statut et enregistre qui l'a changé
   async function changeStatus(id: string, status: string) {
@@ -115,9 +130,54 @@ export default function ConfirmatriceOrdersPage() {
     setUpdating(null)
   }
 
+  // Supprime une commande
+  async function deleteOrder(id: string) {
+    if (!confirm('Supprimer cette commande ? Cette action est irréversible.')) return
+    setDeleting(id)
+    await fetch(`/api/boutique-admin/orders/${id}`, { method: 'DELETE' })
+    setSelected(prev => { const next = new Set(prev); next.delete(id); return next })
+    await load()
+    setDeleting(null)
+  }
+
+  // Changement de statut en masse
+  async function applyBulkStatus() {
+    if (!bulkStatus || selected.size === 0) return
+    setBulkLoading(true)
+    const updatedBy = currentUser?.firstName || currentUser?.email || 'Confirmatrice'
+    await Promise.all(
+      Array.from(selected).map(id =>
+        fetch(`/api/boutique-admin/orders/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: bulkStatus, lastStatusUpdatedBy: updatedBy, lastStatusUpdatedAt: new Date().toISOString() }),
+        })
+      )
+    )
+    setSelected(new Set())
+    setBulkStatus('')
+    setBulkLoading(false)
+    await load()
+  }
+
+  const toggleSelect = (id: string) => setSelected(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const toggleSelectAll = () => {
+    if (selected.size === orders.length && orders.length > 0) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(orders.map(o => o.id)))
+    }
+  }
+
   const resetFilters = () => { setStatusFilter(''); setWilayaFilter(''); setDatePreset(''); setSearch(''); setPage(1) }
   const hasActiveFilters = !!(statusFilter || wilayaFilter || datePreset || search)
   const totalPages = Math.ceil(total / perPage)
+  const allSelected = orders.length > 0 && selected.size === orders.length
 
   return (
     <div style={{ maxWidth: 1200, animation: 'fadeIn 0.25s ease' }}>
@@ -125,8 +185,8 @@ export default function ConfirmatriceOrdersPage() {
       {/* Titre */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Commandes</h1>
-          <p style={{ fontSize: 13, color: '#6D7175', margin: '3px 0 0' }}>{total} commande{total > 1 ? 's' : ''} au total</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Mes commandes</h1>
+          <p style={{ fontSize: 13, color: '#6D7175', margin: '3px 0 0' }}>{total} commande{total > 1 ? 's' : ''} assignée{total > 1 ? 's' : ''}</p>
         </div>
       </div>
 
@@ -205,11 +265,43 @@ export default function ConfirmatriceOrdersPage() {
         </div>
       )}
 
+      {/* Barre d'actions en masse (visible si au moins une sélection) */}
+      {selected.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '10px 16px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#4A3DBC' }}>{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</span>
+          <select value={bulkStatus} onChange={e => setBulkStatus(e.target.value)} className="admin-select" style={{ minWidth: 160, fontSize: 12 }}>
+            <option value="">Changer le statut…</option>
+            {STATUSES.filter(s => s.value).map(s => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={applyBulkStatus}
+            disabled={!bulkStatus || bulkLoading}
+            style={{ padding: '7px 16px', background: bulkStatus ? '#4A3DBC' : '#9CA3AF', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: bulkStatus ? 'pointer' : 'not-allowed', opacity: bulkLoading ? 0.7 : 1, transition: 'all 0.15s' }}
+          >
+            {bulkLoading ? 'En cours…' : 'Appliquer'}
+          </button>
+          <button onClick={() => setSelected(new Set())} style={{ padding: '7px 12px', background: 'transparent', border: '1px solid #C7D2FE', color: '#6D7175', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+            Désélectionner
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="admin-card" style={{ overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #E3E5E7', background: '#FAFAFA' }}>
+              {/* Checkbox tout sélectionner */}
+              <th style={{ ...TH, width: 40, textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  style={{ cursor: 'pointer', width: 14, height: 14 }}
+                />
+              </th>
               {['N° commande', 'Client', 'Wilaya', 'Total', 'Statut', 'Mis à jour par', 'Date', 'Actions'].map(h => (
                 <th key={h} style={TH}>{h}</th>
               ))}
@@ -217,11 +309,11 @@ export default function ConfirmatriceOrdersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ padding: '48px', textAlign: 'center' }}>
+              <tr><td colSpan={9} style={{ padding: '48px', textAlign: 'center' }}>
                 <div style={{ display: 'inline-block', width: 28, height: 28, border: '3px solid #E3E5E7', borderTopColor: '#4A3DBC', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
               </td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={8} style={{ padding: '64px', textAlign: 'center', color: '#9A9A9A' }}>
+              <tr><td colSpan={9} style={{ padding: '64px', textAlign: 'center', color: '#9A9A9A' }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
                 <div style={{ marginBottom: 10, fontWeight: 500 }}>Aucune commande</div>
                 {hasActiveFilters && <button onClick={resetFilters} className="admin-btn admin-btn-secondary" style={{ fontSize: 12 }}>Effacer les filtres</button>}
@@ -231,14 +323,24 @@ export default function ConfirmatriceOrdersPage() {
               const isExpanded = expandedId === o.id
               const nextSt     = NEXT_STATUS[o.status]
               const nextLabel  = STATUSES.find(st => st.value === nextSt)?.label
+              const isSelected = selected.has(o.id)
 
               return (
                 <React.Fragment key={o.id}>
                   <tr
                     className="admin-row-hover"
-                    style={{ borderBottom: isExpanded ? 'none' : '1px solid #F1F1F1', background: isExpanded ? '#FAFBFF' : undefined }}
+                    style={{ borderBottom: isExpanded ? 'none' : '1px solid #F1F1F1', background: isSelected ? '#F5F3FF' : isExpanded ? '#FAFBFF' : undefined }}
                     onClick={() => setExpandedId(isExpanded ? null : o.id)}
                   >
+                    {/* Checkbox sélection */}
+                    <td style={{ ...TD, textAlign: 'center', width: 40 }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(o.id)}
+                        style={{ cursor: 'pointer', width: 14, height: 14 }}
+                      />
+                    </td>
                     <td style={{ ...TD, fontWeight: 700, color: '#E93D91', fontFamily: 'monospace', fontSize: 12 }}>{o.orderNumber}</td>
                     <td style={TD}>
                       <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{o.customerName}</div>
@@ -284,6 +386,15 @@ export default function ConfirmatriceOrdersPage() {
                         <Link href={`/confirmatrice/orders/${o.id}`} onClick={e => e.stopPropagation()} style={{ padding: '5px 12px', background: '#F1F5F9', border: '1px solid #E3E5E7', color: '#4A3DBC', borderRadius: 7, fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
                           Voir
                         </Link>
+                        {/* Bouton supprimer */}
+                        <button
+                          onClick={() => deleteOrder(o.id)}
+                          disabled={deleting === o.id}
+                          title="Supprimer cette commande"
+                          style={{ padding: '5px 8px', background: deleting === o.id ? '#F5F5F5' : '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 7, fontSize: 11, cursor: deleting === o.id ? 'not-allowed' : 'pointer', opacity: deleting === o.id ? 0.5 : 1 }}
+                        >
+                          🗑️
+                        </button>
                         <button style={{ padding: '5px 8px', background: '#F5F5F5', border: '1px solid #E3E5E7', color: '#6D7175', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
                           {isExpanded ? '▲' : '▼'}
                         </button>
@@ -294,7 +405,7 @@ export default function ConfirmatriceOrdersPage() {
                   {/* Ligne étendue */}
                   {isExpanded && (
                     <tr style={{ background: '#FAFBFF', borderBottom: '1px solid #E8EEFF' }}>
-                      <td colSpan={8} style={{ padding: '0 20px 20px' }}>
+                      <td colSpan={9} style={{ padding: '0 20px 20px' }}>
                         <div style={{ background: '#fff', border: '1px solid #E3E5E7', borderRadius: 10, padding: 20, marginTop: 8 }}>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                             <div>

@@ -31,3 +31,18 @@ export async function PATCH(
     return NextResponse.json({ error: 'Mise à jour échouée' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const payload = await getPayload({ config: configPromise })
+    await payload.delete({ collection: 'orders', id, overrideAccess: true })
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('[boutique-admin/orders/:id DELETE]', err)
+    return NextResponse.json({ error: 'Suppression échouée' }, { status: 500 })
+  }
+}
