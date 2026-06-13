@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCartStore } from '@/stores/cart'
 import { Button } from '@/components/ui/Button'
@@ -36,8 +36,9 @@ export default function CheckoutPage() {
 
   // Frais de livraison — null tant que la commune n'est pas sélectionnée (pas d'affichage par défaut)
   const [fees, setFees] = useState<{ home: number; desk: number } | null>(null)
-  // Valeurs de repli chargées depuis les settings (utilisées uniquement pour le calcul final si Yalidine échoue)
-  const [defaultFees, setDefaultFees] = useState({ home: 400, desk: 300 })
+  // Valeurs de repli chargées depuis les settings — stockées dans un ref
+  // pour ne PAS déclencher le re-run de l'effet de frais Yalidine
+  const defaultFeesRef = useRef({ home: 400, desk: 300 })
 
   useEffect(() => {
     // Charger les frais par défaut depuis les settings (repli silencieux)
@@ -45,10 +46,10 @@ export default function CheckoutPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data) {
-          setDefaultFees({
+          defaultFeesRef.current = {
             home: data.defaultHomeDeliveryFee ?? 400,
             desk: data.defaultDeskDeliveryFee ?? 300,
-          })
+          }
         }
       })
       .catch(() => {/* utiliser les valeurs par défaut */})
@@ -86,6 +87,8 @@ export default function CheckoutPage() {
     if (!form.wilayaCode || !form.commune) return
     let cancelled = false
     setFeesLoading(true)
+    // Lire le ref au moment du fetch (pas dans les deps → pas de re-run parasite)
+    const fallback = defaultFeesRef.current
     fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(form.wilayaCode)}&communeNameAr=${encodeURIComponent(form.commune)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -93,18 +96,20 @@ export default function CheckoutPage() {
         if (data?.source === 'yalidine' && (data.home !== null || data.desk !== null)) {
           // Frais Yalidine réels disponibles
           setFees({
-            home: data.home ?? defaultFees.home,
-            desk: data.desk ?? defaultFees.desk,
+            home: data.home ?? fallback.home,
+            desk: data.desk ?? fallback.desk,
           })
         } else {
           // Fallback sur les frais par défaut des settings
-          setFees(defaultFees)
+          setFees(fallback)
         }
       })
-      .catch(() => { if (!cancelled) setFees(defaultFees) })
+      .catch(() => { if (!cancelled) setFees(fallback) })
       .finally(() => { if (!cancelled) setFeesLoading(false) })
     return () => { cancelled = true }
-  }, [form.wilayaCode, form.commune, defaultFees])
+    // defaultFeesRef intentionnellement absent des deps : c'est un ref, pas un state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.wilayaCode, form.commune])
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -141,7 +146,7 @@ export default function CheckoutPage() {
         address: form.address,
         note: form.note || undefined,
         deliveryMode: form.deliveryMode,
-        shippingFee: (fees ?? defaultFees)[form.deliveryMode],
+        shippingFee: (fees ?? defaultFeesRef.current)[form.deliveryMode],
       },
       items: items.map((item) => ({
         productId: item.productId,
