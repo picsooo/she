@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useConfUser } from '../../ConfirmatriceUserContext'
-import { WILAYAS } from '@/lib/algeria-geo'
+import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
 
 interface OrderItem {
   productName?: string
@@ -98,6 +98,8 @@ export default function ConfirmatriceOrderDetailPage() {
   const [editCustomerName, setEditCustomerName] = useState('')
   const [editPhone,        setEditPhone]        = useState('')
   const [editPhone2,       setEditPhone2]       = useState('')
+  const [editWilaya,       setEditWilaya]       = useState('')
+  const [editCommune,      setEditCommune]      = useState('')
   const [editAddress,      setEditAddress]      = useState('')
 
   // ── Catalogue produits ────────────────────────────────────────────────────────
@@ -175,6 +177,8 @@ export default function ConfirmatriceOrderDetailPage() {
     setEditCustomerName(order.customerName)
     setEditPhone(order.phone)
     setEditPhone2(order.phone2 ?? '')
+    setEditWilaya(order.wilaya ?? '')
+    setEditCommune(order.commune ?? '')
     setEditAddress(order.address ?? '')
 
     let cat = catalog
@@ -247,6 +251,61 @@ export default function ConfirmatriceOrderDetailPage() {
   }
 
   const cancelEdit = () => setEditMode(false)
+
+  // Quand la wilaya change : reset commune, recharge frais + centres Yalidine
+  const handleWilayaChange = (newWilayaAr: string) => {
+    setEditWilaya(newWilayaAr)
+    const wilayaEntry = WILAYAS.find(w => w.nameAr === newWilayaAr)
+    const firstCommune = wilayaEntry
+      ? (COMMUNES.find(c => c.wilayaCode === wilayaEntry.code)?.nameAr ?? '')
+      : ''
+    setEditCommune(firstCommune)
+    setEditAddress('')
+
+    if (wilayaEntry) {
+      setCentersLoading(true)
+      setCenters([])
+      fetch(`/api/yalidine/centers?wilayaCode=${encodeURIComponent(wilayaEntry.code)}`)
+        .then(r => r.ok ? r.json() : { centers: [] })
+        .then(data => setCenters(data.centers ?? []))
+        .catch(() => setCenters([]))
+        .finally(() => setCentersLoading(false))
+
+      if (firstCommune) {
+        setFeesLoading(true)
+        fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(wilayaEntry.code)}&communeNameAr=${encodeURIComponent(firstCommune)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) setDelivery(prev => ({
+              ...prev,
+              homeDeliveryFee:   data.home ?? prev.homeDeliveryFee,
+              officeDeliveryFee: data.desk ?? prev.officeDeliveryFee,
+            }))
+          })
+          .catch(() => { /* garder frais actuels */ })
+          .finally(() => setFeesLoading(false))
+      }
+    }
+  }
+
+  const handleCommuneChange = (newCommuneAr: string) => {
+    setEditCommune(newCommuneAr)
+    const wilayaEntry = WILAYAS.find(w => w.nameAr === editWilaya)
+    if (wilayaEntry && newCommuneAr) {
+      setFeesLoading(true)
+      fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(wilayaEntry.code)}&communeNameAr=${encodeURIComponent(newCommuneAr)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) setDelivery(prev => ({
+            ...prev,
+            homeDeliveryFee:   data.home ?? prev.homeDeliveryFee,
+            officeDeliveryFee: data.desk ?? prev.officeDeliveryFee,
+          }))
+        })
+        .catch(() => { /* garder frais actuels */ })
+        .finally(() => setFeesLoading(false))
+    }
+  }
 
   const computedShippingFee = (): number => {
     if (editDelivery === 'desk') return delivery.officeDeliveryFee ?? 0
@@ -325,6 +384,8 @@ export default function ConfirmatriceOrderDetailPage() {
         customerName: editCustomerName.trim(),
         phone:        editPhone.trim(),
         phone2:       editPhone2.trim() || null,
+        wilaya:       editWilaya,
+        commune:      editCommune,
         address:      editAddress.trim(),
         deliveryMode: editDelivery,
         shippingFee,
@@ -609,6 +670,45 @@ export default function ConfirmatriceOrderDetailPage() {
               <EditField label="Nom complet" value={editCustomerName} onChange={setEditCustomerName} />
               <EditField label="Téléphone 1" value={editPhone} onChange={setEditPhone} type="tel" />
               <EditField label="Téléphone 2 (optionnel)" value={editPhone2} onChange={setEditPhone2} type="tel" placeholder="Ajouter un 2ème numéro" />
+
+              {/* Wilaya — cascade vers communes + frais + centres */}
+              <div>
+                <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Wilaya</div>
+                <select
+                  value={editWilaya}
+                  onChange={e => handleWilayaChange(e.target.value)}
+                  className="admin-input"
+                  dir="rtl"
+                  style={{ width: '100%', fontSize: 13 }}
+                >
+                  <option value="">— Sélectionner —</option>
+                  {WILAYAS.map(w => (
+                    <option key={w.code} value={w.nameAr}>{w.nameAr} ({w.nameFr})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Commune — filtrée par wilaya sélectionnée */}
+              <div>
+                <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Commune</div>
+                <select
+                  value={editCommune}
+                  onChange={e => handleCommuneChange(e.target.value)}
+                  className="admin-input"
+                  dir="rtl"
+                  style={{ width: '100%', fontSize: 13 }}
+                  disabled={!editWilaya}
+                >
+                  <option value="">— Sélectionner —</option>
+                  {COMMUNES
+                    .filter(c => c.wilayaCode === (WILAYAS.find(w => w.nameAr === editWilaya)?.code ?? ''))
+                    .map(c => (
+                      <option key={c.nameAr} value={c.nameAr}>{c.nameAr}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
               <EditField label="Adresse" value={editAddress} onChange={setEditAddress} />
               <div>
                 <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Note client</div>
@@ -679,7 +779,7 @@ export default function ConfirmatriceOrderDetailPage() {
               {editDelivery === 'desk' && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
-                    Bureaux Yalidine — {order?.wilaya}
+                    Bureaux Yalidine — {editWilaya || order?.wilaya}
                     {centersLoading && <span style={{ marginLeft: 8, color: '#4A3DBC' }}>⏳</span>}
                   </div>
                   {centers.length === 0 && !centersLoading && (
