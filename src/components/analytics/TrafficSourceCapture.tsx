@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 
 /**
  * Capture la source de trafic à chaque page et la stocke en sessionStorage.
@@ -13,22 +12,24 @@ import { useSearchParams } from 'next/navigation'
  *  3. utm_source             → mapped (facebook/instagram/tiktok/google/email/sms…)
  *  4. document.referrer      → facebook / instagram / tiktok / google
  *  5. Rien                   → 'direct'
+ *
+ * NOTE : on lit window.location.search directement (pas useSearchParams) pour
+ * éviter les problèmes de Suspense en App Router et garantir la valeur réelle.
  */
 export function TrafficSourceCapture() {
-  const searchParams = useSearchParams()
-
   useEffect(() => {
     // First-touch : ne pas écraser une source déjà capturée dans cette session
     if (sessionStorage.getItem('_traffic_source')) return
 
-    const source = detectSource(searchParams)
+    const params = new URLSearchParams(window.location.search)
+    const source = detectSource(params)
     sessionStorage.setItem('_traffic_source', source)
-  }, [searchParams])
+  }, [])
 
   return null
 }
 
-function detectSource(params: ReturnType<typeof useSearchParams>): string {
+function detectSource(params: URLSearchParams): string {
   // 1. Click ID publicitaires (les plus fiables — injectés par la plateforme)
   if (params.get('fbclid')) return 'facebook'
   if (params.get('ttclid')) return 'tiktok'
@@ -47,7 +48,7 @@ function detectSource(params: ReturnType<typeof useSearchParams>): string {
   }
 
   // 3. Referrer (trafic organique ou navigation directe depuis une appli sociale)
-  if (typeof document !== 'undefined' && document.referrer) {
+  if (document.referrer) {
     const ref = document.referrer.toLowerCase()
     if (ref.includes('facebook.com') || ref.includes('fb.com') || ref.includes('l.facebook')) return 'facebook'
     if (ref.includes('instagram.com'))                                                          return 'instagram'
