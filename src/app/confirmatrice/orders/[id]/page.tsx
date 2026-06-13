@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useConfUser } from '../../ConfirmatriceUserContext'
+import { WILAYAS } from '@/lib/algeria-geo'
 
 interface OrderItem {
   productName?: string
@@ -86,9 +87,12 @@ export default function ConfirmatriceOrderDetailPage() {
   const [editMode,       setEditMode]       = useState(false)
   const [editNote,       setEditNote]       = useState('')
   const [editItems,      setEditItems]      = useState<EditableItem[]>([])
-  const [editDelivery,   setEditDelivery]   = useState<'home' | 'office'>('home')
+  const [editDelivery,   setEditDelivery]   = useState<'home' | 'desk'>('home')
   const [delivery,       setDelivery]       = useState<DeliverySettings>({})
   const [loadingDelivery,setLoadingDelivery]= useState(false)
+  const [centers,        setCenters]        = useState<Array<{ id: number; name: string; address?: string }>>([])
+  const [centersLoading, setCentersLoading] = useState(false)
+  const [feesLoading,    setFeesLoading]    = useState(false)
 
   // ── Édition infos client ──────────────────────────────────────────────────────
   const [editCustomerName, setEditCustomerName] = useState('')
@@ -167,7 +171,7 @@ export default function ConfirmatriceOrderDetailPage() {
   const enterEditMode = async () => {
     if (!order) return
     setEditNote(order.note ?? '')
-    setEditDelivery((order.deliveryMode as 'home' | 'office') ?? 'home')
+    setEditDelivery((order.deliveryMode as 'home' | 'desk') ?? 'home')
     setEditCustomerName(order.customerName)
     setEditPhone(order.phone)
     setEditPhone2(order.phone2 ?? '')
@@ -208,14 +212,44 @@ export default function ConfirmatriceOrderDetailPage() {
         }
       })
     )
+    // Charger les frais de livraison par défaut
     loadDeliverySettings()
+
+    // Récupérer les vrais frais Yalidine + centres pour la wilaya de la commande
+    const wilayaCode = WILAYAS.find(w => w.nameAr === order.wilaya)?.code ?? ''
+    if (wilayaCode) {
+      // Centres bureau Yalidine
+      setCentersLoading(true)
+      fetch(`/api/yalidine/centers?wilayaCode=${encodeURIComponent(String(wilayaCode))}`)
+        .then(r => r.ok ? r.json() : { centers: [] })
+        .then(data => setCenters(data.centers ?? []))
+        .finally(() => setCentersLoading(false))
+
+      // Frais réels domicile + bureau
+      if (order.commune) {
+        setFeesLoading(true)
+        fetch(`/api/yalidine/fees?wilayaCode=${encodeURIComponent(String(wilayaCode))}&communeNameAr=${encodeURIComponent(order.commune)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data) {
+              setDelivery(prev => ({
+                ...prev,
+                homeDeliveryFee:   data.home  ?? prev.homeDeliveryFee,
+                officeDeliveryFee: data.desk  ?? prev.officeDeliveryFee,
+              }))
+            }
+          })
+          .finally(() => setFeesLoading(false))
+      }
+    }
+
     setEditMode(true)
   }
 
   const cancelEdit = () => setEditMode(false)
 
   const computedShippingFee = (): number => {
-    if (editDelivery === 'office') return delivery.officeDeliveryFee ?? 0
+    if (editDelivery === 'desk') return delivery.officeDeliveryFee ?? 0
     return delivery.homeDeliveryFee ?? 0
   }
   const computedSubtotal = (): number =>
@@ -612,15 +646,18 @@ export default function ConfirmatriceOrderDetailPage() {
 
           {editMode && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Mode de livraison</div>
+              <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                Mode de livraison
+                {feesLoading && <span style={{ marginLeft: 8, color: '#4A3DBC', fontSize: 10 }}>⏳ Chargement tarifs…</span>}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { value: 'home',   label: '🏠 Domicile', fee: delivery.homeDeliveryFee ?? 0 },
-                  { value: 'office', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee ?? 0 },
+                  { value: 'home', label: '🏠 Domicile', fee: delivery.homeDeliveryFee ?? 0 },
+                  { value: 'desk', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee ?? 0 },
                 ].map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setEditDelivery(opt.value as 'home' | 'office')}
+                    onClick={() => setEditDelivery(opt.value as 'home' | 'desk')}
                     style={{
                       padding: '10px 12px', borderRadius: 8, textAlign: 'left',
                       border: editDelivery === opt.value ? '2px solid #4A3DBC' : '1.5px solid #E3E5E7',
@@ -632,17 +669,50 @@ export default function ConfirmatriceOrderDetailPage() {
                       {opt.label}
                     </div>
                     <div style={{ fontSize: 12, color: opt.fee === 0 ? '#007A5C' : '#6D7175', fontWeight: 600 }}>
-                      {opt.fee === 0 ? 'Gratuit' : fmt(opt.fee)}
+                      {feesLoading ? '…' : opt.fee === 0 ? 'Gratuit' : fmt(opt.fee)}
                     </div>
                   </button>
                 ))}
               </div>
+
+              {/* Centres bureau Yalidine cliquables */}
+              {editDelivery === 'desk' && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                    Bureaux Yalidine — {order?.wilaya}
+                    {centersLoading && <span style={{ marginLeft: 8, color: '#4A3DBC' }}>⏳</span>}
+                  </div>
+                  {centers.length === 0 && !centersLoading && (
+                    <div style={{ fontSize: 12, color: '#9A9A9A' }}>Aucun bureau disponible pour cette wilaya</div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                    {centers.map(c => {
+                      const isSelected = editAddress === (c.address ?? c.name)
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => setEditAddress(c.address ?? c.name)}
+                          style={{
+                            textAlign: 'left', padding: '8px 12px', borderRadius: 8,
+                            border: isSelected ? '2px solid #E93D91' : '1.5px solid #E3E5E7',
+                            background: isSelected ? '#FFF0F7' : '#F9FAFB',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                        >
+                          <div style={{ fontSize: 12, fontWeight: 600, color: isSelected ? '#E93D91' : '#1A1A1A' }}>{c.name}</div>
+                          {c.address && <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 2 }}>{c.address}</div>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {!editMode && order.deliveryMode && (
             <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#6D7175' }}>
-              {order.deliveryMode === 'office' ? '🏢 Bureau Yalidine' : '🏠 Livraison domicile'}
+              {order.deliveryMode === 'desk' ? '🏢 Bureau Yalidine' : '🏠 Livraison domicile'}
             </div>
           )}
 
