@@ -81,7 +81,7 @@ export default function OrderDetailPage() {
   const [editMode,       setEditMode]       = useState(false)
   const [editNote,       setEditNote]       = useState('')
   const [editItems,      setEditItems]      = useState<EditableItem[]>([])
-  const [editDelivery,   setEditDelivery]   = useState<'home' | 'office'>('home')
+  const [editDelivery,   setEditDelivery]   = useState<'home' | 'desk'>('home')
   const [delivery,       setDelivery]       = useState<DeliverySettings>({})
   const [loadingDelivery,setLoadingDelivery]= useState(false)
 
@@ -164,7 +164,7 @@ export default function OrderDetailPage() {
   const enterEditMode = async () => {
     if (!order) return
     setEditNote(order.note ?? '')
-    setEditDelivery((order.deliveryMode as 'home' | 'office') ?? 'home')
+    setEditDelivery((order.deliveryMode as 'home' | 'desk') ?? 'home')
     setEditCustomerName(order.customerName)
     setEditPhone(order.phone)
     setEditPhone2(order.phone2 ?? '')
@@ -213,7 +213,7 @@ export default function OrderDetailPage() {
   const cancelEdit = () => setEditMode(false)
 
   const computedShippingFee = (): number => {
-    if (editDelivery === 'office') return delivery.officeDeliveryFee ?? 0
+    if (editDelivery === 'desk') return delivery.officeDeliveryFee ?? 0
     return delivery.homeDeliveryFee ?? 0
   }
   const computedSubtotal = (): number =>
@@ -578,12 +578,12 @@ export default function OrderDetailPage() {
               <div style={{ fontSize: 10, color: '#9A9A9A', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Mode de livraison</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {[
-                  { value: 'home',   label: '🏠 Domicile', fee: delivery.homeDeliveryFee ?? 0 },
-                  { value: 'office', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee ?? 0 },
+                  { value: 'home', label: '🏠 Domicile', fee: delivery.homeDeliveryFee ?? 0 },
+                  { value: 'desk', label: '🏢 Bureau',   fee: delivery.officeDeliveryFee ?? 0 },
                 ].map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setEditDelivery(opt.value as 'home' | 'office')}
+                    onClick={() => setEditDelivery(opt.value as 'home' | 'desk')}
                     style={{
                       padding: '10px 12px', borderRadius: 8, textAlign: 'left',
                       border: editDelivery === opt.value ? '2px solid #4A3DBC' : '1.5px solid #E3E5E7',
