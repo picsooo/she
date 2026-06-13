@@ -257,8 +257,10 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
 export async function getMarketingSettings(): Promise<MarketingSettings | null> {
   const payload = await getPayloadClient()
   try {
+    // overrideAccess: true obligatoire dans les Server Components (sinon 403 silencieux)
     const settings = await payload.findGlobal({
       slug: 'marketing-settings',
+      overrideAccess: true,
     })
     return settings as unknown as MarketingSettings
   } catch {

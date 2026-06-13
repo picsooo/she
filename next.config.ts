@@ -60,13 +60,13 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              // Scripts : Meta Pixel (connect.facebook.net) + TikTok (analytics.tiktok.com)
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://analytics.tiktok.com",
+              // Scripts : Meta Pixel + TikTok (analytics + ads)
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              // Connexions : Meta events + TikTok events + images
-              "connect-src 'self' https://images.unsplash.com https://connect.facebook.net https://www.facebook.com https://graph.facebook.com https://analytics.tiktok.com",
+              // Connexions : Meta events + TikTok events (analytics + ads)
+              "connect-src 'self' https://images.unsplash.com https://connect.facebook.net https://www.facebook.com https://graph.facebook.com https://analytics.tiktok.com https://ads.tiktok.com",
               // Frames Meta (optionnel — sécurité)
               "frame-src https://www.facebook.com",
             ].join('; '),

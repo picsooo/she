@@ -38,8 +38,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
   ])
 
   // Fallback sur les variables d'environnement si non configuré dans l'admin
-  const metaPixelId = marketing?.metaPixelId || process.env.NEXT_PUBLIC_FB_PIXEL_ID || null
-  const tiktokPixelId = marketing?.tiktokPixelId || null
+  const metaPixelId    = marketing?.metaPixelId    || process.env.NEXT_PUBLIC_FB_PIXEL_ID      || null
+  const tiktokPixelId  = marketing?.tiktokPixelId  || process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID  || null
 
   return (
     <div className="min-h-screen bg-white antialiased flex flex-col">
