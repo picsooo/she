@@ -38,6 +38,15 @@ const NEXT_STATUS: Record<string, string> = {
 
 const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(Math.round(n)) + ' DA'
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+function timeAgo(s: string): string {
+  const diff = Math.floor((Date.now() - new Date(s).getTime()) / 1000)
+  if (diff < 60)          return 'à l\'instant'
+  if (diff < 3600)        return `il y a ${Math.floor(diff / 60)} min`
+  if (diff < 86400)       return `il y a ${Math.floor(diff / 3600)} h`
+  if (diff < 7 * 86400)   return `il y a ${Math.floor(diff / 86400)} j`
+  return ''
+}
 const fmtDateTime = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 function getDateFrom(preset: string): string | null {
@@ -463,7 +472,12 @@ export default function ConfirmatriceOrdersPage() {
                         <span style={{ fontSize: 12, color: '#C0C0C0' }}>—</span>
                       )}
                     </td>
-                    <td style={{ ...TD, color: '#9A9A9A', fontSize: 12 }}>{fmtDate(o.createdAt)}</td>
+                    <td style={TD}>
+                      <div style={{ fontSize: 12, color: '#6D7175' }}>{fmtDate(o.createdAt)}</div>
+                      {timeAgo(o.createdAt) && (
+                        <div style={{ fontSize: 11, color: '#B0B0B0', marginTop: 2 }}>{timeAgo(o.createdAt)}</div>
+                      )}
+                    </td>
                     <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                         {nextSt && nextLabel && (() => {
