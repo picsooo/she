@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { LoginPage } from '@/components/boutique-admin/LoginPage'
 import { LogoutButton } from '@/components/boutique-admin/LogoutButton'
+import { MobileBottomNav } from '@/components/boutique-admin/MobileBottomNav'
 import '@/styles/boutique-admin.css'
 
 export const metadata = { title: "She's Admin" }
@@ -57,6 +58,8 @@ const Icons = {
   analytics:  <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="3" y="10" width="3" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="8.5" y="6" width="3" height="12" rx="1" stroke="currentColor" strokeWidth="1.5"/><rect x="14" y="2" width="3" height="16" rx="1" stroke="currentColor" strokeWidth="1.5"/></svg>,
   primes:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5"/><path d="M10 6v1.5M10 12.5V14M7.5 8.5C7.5 7.4 8.6 6.5 10 6.5s2.5.9 2.5 2c0 2.5-5 2.5-5 5h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   assign:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="7" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><circle cx="14" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 17c0-3 2-5 5-5s5 2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M14 12l2 2 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  more:       <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/></svg>,
+  stock:      <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2 14l4-4 4 4 4-6 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -96,7 +99,7 @@ function Sidebar({
   const nav = isConfirmatrice ? NAV_CONFIRMATRICE : NAV_ADMIN
 
   return (
-    <aside style={{
+    <aside className="admin-sidebar" style={{
       width: 240, minHeight: '100vh', flexShrink: 0,
       background: '#fff', borderRight: '1px solid #E3E5E7',
       display: 'flex', flexDirection: 'column',
@@ -175,12 +178,23 @@ function NavItem({ href, icon, label, badge, external }: { href: string; icon: R
 }
 
 // ── Top Bar ────────────────────────────────────────────────────────────────────
-function TopBar({ user }: { user: SessionUser }) {
+function TopBar({ user, newOrdersCount }: { user: SessionUser; newOrdersCount: number }) {
   const displayName = user.firstName ?? user.email?.split('@')[0] ?? 'Admin'
 
   return (
-    <header style={{ height: 56, background: '#1A1A1A', display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, position: 'sticky', top: 0, zIndex: 40, flexShrink: 0 }}>
-      <div style={{ flex: 1, maxWidth: 480, margin: '0 auto', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, height: 34, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
+    <header className="admin-topbar" style={{ height: 56, background: '#1A1A1A', display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, position: 'sticky', top: 0, zIndex: 40, flexShrink: 0 }}>
+      {/* Logo visible uniquement sur mobile */}
+      <div className="admin-topbar-mobile-logo" style={{ display: 'none', alignItems: 'center', gap: 8 }}>
+        <img src="/branding/logo.png" alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #E93D91' }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>She&apos;s</span>
+        {newOrdersCount > 0 && (
+          <span style={{ background: '#E93D91', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 20, padding: '1px 6px' }}>
+            {newOrdersCount}
+          </span>
+        )}
+      </div>
+
+      <div className="admin-topbar-search" style={{ flex: 1, maxWidth: 480, margin: '0 auto', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, height: 34, display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
         <svg width="16" height="16" fill="none" viewBox="0 0 20 20" style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }}>
           <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M13 13l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -189,9 +203,9 @@ function TopBar({ user }: { user: SessionUser }) {
         <kbd style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.1)', borderRadius: 4, padding: '2px 5px', fontFamily: 'monospace' }}>Ctrl K</kbd>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
         {user.role !== 'confirmatrice' && (
-          <Link href="/" target="_blank" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textDecoration: 'none', padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Link href="/" target="_blank" className="admin-topbar-store" style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, textDecoration: 'none', padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 6 }}>
             {Icons.store}<span>Boutique</span>
           </Link>
         )}
@@ -202,10 +216,9 @@ function TopBar({ user }: { user: SessionUser }) {
           <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'linear-gradient(135deg, #E93D91, #CEA060)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11, fontWeight: 700 }}>
             {displayName[0]?.toUpperCase() ?? 'A'}
           </div>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="admin-topbar-user-name" style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {displayName}
           </span>
-          {/* Bouton déconnexion visible */}
           <LogoutButton variant="topbar" />
         </div>
       </div>
@@ -227,6 +240,7 @@ export default async function BoutiqueAdminLayout({ children }: { children: Reac
     return (
       <html lang="fr" dir="ltr" suppressHydrationWarning>
         <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -243,21 +257,40 @@ export default async function BoutiqueAdminLayout({ children }: { children: Reac
   const token = cookieStore.get('payload-token')?.value ?? ''
   const newOrdersCount = await getNewOrdersCount(token)
 
+  // Items de la bottom nav mobile — selon le rôle
+  const MOBILE_NAV_ADMIN = [
+    { href: '/boutique-admin/dashboard',    label: 'Accueil',    icon: Icons.home },
+    { href: '/boutique-admin/orders',       label: 'Commandes',  icon: Icons.orders, badge: newOrdersCount },
+    { href: '/boutique-admin/products',     label: 'Produits',   icon: Icons.products },
+    { href: '/boutique-admin/assignation',  label: 'Assign.',    icon: Icons.assign },
+    { href: '/boutique-admin/settings',     label: 'Réglages',   icon: Icons.settings },
+  ]
+
   return (
     <html lang="fr" dir="ltr" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body suppressHydrationWarning>
-        <TopBar user={user} />
+        <TopBar user={user} newOrdersCount={newOrdersCount} />
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 56px)' }}>
           <Sidebar newOrdersCount={newOrdersCount} user={user} />
-          <main style={{ flex: 1, minWidth: 0, padding: '24px 28px', overflowY: 'auto', animation: 'fadeIn 0.25s ease' }}>
+          <main className="admin-main" style={{ flex: 1, minWidth: 0, padding: '24px 28px', overflowY: 'auto', animation: 'fadeIn 0.25s ease' }}>
             {children}
           </main>
         </div>
+        {/* Bottom nav mobile uniquement */}
+        <MobileBottomNav items={MOBILE_NAV_ADMIN} />
+
+        {/* CSS mobile pour le logo de la topbar */}
+        <style>{`
+          @media (max-width: 768px) {
+            .admin-topbar-mobile-logo { display: flex !important; }
+          }
+        `}</style>
       </body>
     </html>
   )

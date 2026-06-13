@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ConfirmatriceUserContext, ConfUser } from './ConfirmatriceUserContext'
 import '@/styles/boutique-admin.css'
 
-// ── Icône commandes ────────────────────────────────────────────────────────────
+// ── Icônes ─────────────────────────────────────────────────────────────────────
 const IconOrders = (
   <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
     <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.5"/>
@@ -13,7 +13,20 @@ const IconOrders = (
   </svg>
 )
 
+const IconStock = (
+  <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+    <path d="M10 2l7 4v8l-7 4-7-4V6l7-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    <path d="M10 2v14M3 6l7 4 7-4" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+)
+
 const IconLogout = (
+  <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+    <path d="M8 17H5a2 2 0 01-2-2V5a2 2 0 012-2h3M13 14l4-4-4-4M17 10H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+)
+
+const IconLogoutSmall = (
   <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
     <path d="M6 14H3a1 1 0 01-1-1V3a1 1 0 011-1h3M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
@@ -93,11 +106,12 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
     window.location.href = '/boutique-admin'
   }
 
-  // ── Écran de chargement ────────────────────────────────────────────────────
+  // ── Écran de chargement ────────────────────────────────────────────────
   if (!authChecked) {
     return (
       <html lang="fr" dir="ltr" suppressHydrationWarning>
         <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -112,17 +126,18 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
     )
   }
 
-  // ── Formulaire de connexion ────────────────────────────────────────────────
+  // ── Formulaire de connexion ────────────────────────────────────────────
   if (!user) {
     return (
       <html lang="fr" dir="ltr" suppressHydrationWarning>
         <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
           <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
         </head>
         <body suppressHydrationWarning style={{ margin: 0, fontFamily: 'Inter, system-ui, sans-serif' }}>
-          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #FFF0F7 0%, #F9FAFB 50%, #F0F5FF 100%)' }}>
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #FFF0F7 0%, #F9FAFB 50%, #F0F5FF 100%)', padding: '20px 16px' }}>
             <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.10)', padding: '40px 36px', width: '100%', maxWidth: 380 }}>
 
               {/* Logo */}
@@ -200,7 +215,7 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
     )
   }
 
-  // ── Interface authentifiée ─────────────────────────────────────────────────
+  // ── Interface authentifiée ─────────────────────────────────────────────
   const displayName = user.firstName
     ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
     : user.email.split('@')[0]
@@ -211,6 +226,7 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
   return (
     <html lang="fr" dir="ltr" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -218,8 +234,8 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
       <body suppressHydrationWarning>
         <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, system-ui, sans-serif' }}>
 
-          {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-          <aside style={{
+          {/* ── Sidebar (desktop uniquement) ───────────────────────────────── */}
+          <aside className="admin-sidebar" style={{
             width: 220, minHeight: '100vh', flexShrink: 0,
             background: '#fff', borderRight: '1px solid #E3E5E7',
             display: 'flex', flexDirection: 'column',
@@ -239,37 +255,29 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
               <div style={{ fontSize: 10, fontWeight: 600, color: '#B0B0B0', letterSpacing: '0.08em', padding: '8px 8px 6px', textTransform: 'uppercase' }}>
                 ESPACE CONFIRMATRICE
               </div>
-              <Link
-                href="/confirmatrice/orders"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 10px', borderRadius: 8, textDecoration: 'none',
-                  color: isOrdersActive ? '#E93D91' : '#3D3D3D',
-                  background: isOrdersActive ? '#FEF0F7' : 'transparent',
-                  fontSize: 14, fontWeight: isOrdersActive ? 700 : 500,
-                  transition: 'background 0.15s',
-                  border: isOrdersActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
-                  marginBottom: 2,
-                }}
-              >
+              <Link href="/confirmatrice/orders" style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 10px', borderRadius: 8, textDecoration: 'none',
+                color: isOrdersActive ? '#E93D91' : '#3D3D3D',
+                background: isOrdersActive ? '#FEF0F7' : 'transparent',
+                fontSize: 14, fontWeight: isOrdersActive ? 700 : 500,
+                transition: 'background 0.15s',
+                border: isOrdersActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
+                marginBottom: 2,
+              }}>
                 <span style={{ color: isOrdersActive ? '#E93D91' : '#666', flexShrink: 0, display: 'flex' }}>{IconOrders}</span>
                 <span>📋 Commandes</span>
               </Link>
-              <Link
-                href="/confirmatrice/stock"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 10px', borderRadius: 8, textDecoration: 'none',
-                  color: isStockActive ? '#E93D91' : '#3D3D3D',
-                  background: isStockActive ? '#FEF0F7' : 'transparent',
-                  fontSize: 14, fontWeight: isStockActive ? 700 : 500,
-                  transition: 'background 0.15s',
-                  border: isStockActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
-                }}
-              >
-                <span style={{ color: isStockActive ? '#E93D91' : '#666', flexShrink: 0, display: 'flex' }}>
-                  <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M10 2l7 4v8l-7 4-7-4V6l7-4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M10 2v14M3 6l7 4 7-4" stroke="currentColor" strokeWidth="1.5"/></svg>
-                </span>
+              <Link href="/confirmatrice/stock" style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '9px 10px', borderRadius: 8, textDecoration: 'none',
+                color: isStockActive ? '#E93D91' : '#3D3D3D',
+                background: isStockActive ? '#FEF0F7' : 'transparent',
+                fontSize: 14, fontWeight: isStockActive ? 700 : 500,
+                transition: 'background 0.15s',
+                border: isStockActive ? '1px solid rgba(233,61,145,0.15)' : '1px solid transparent',
+              }}>
+                <span style={{ color: isStockActive ? '#E93D91' : '#666', flexShrink: 0, display: 'flex' }}>{IconStock}</span>
                 <span>📦 Gestion stock</span>
               </Link>
             </nav>
@@ -290,18 +298,61 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
                 title="Déconnexion"
                 style={{ width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9A9A9A', cursor: 'pointer', border: '1px solid #E8E8E8', background: 'transparent', flexShrink: 0 }}
               >
-                {IconLogout}
+                {IconLogoutSmall}
               </button>
             </div>
           </aside>
 
           {/* ── Zone contenu ─────────────────────────────────────────────────── */}
-          <main style={{ flex: 1, minWidth: 0, padding: '24px 28px', overflowY: 'auto', background: '#F9FAFB' }}>
-            <ConfirmatriceUserContext.Provider value={user}>
-              {children}
-            </ConfirmatriceUserContext.Provider>
-          </main>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+
+            {/* ── Top bar mobile (logo + nom + déconnexion) ── */}
+            <header className="conf-mobile-topbar" style={{ display: 'none', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#1A1A1A', borderBottom: '1px solid #2D2D2D', position: 'sticky', top: 0, zIndex: 40, flexShrink: 0 }}>
+              <img src="/branding/logo.png" alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #E93D91' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayName}
+                </div>
+                <div style={{ fontSize: 10, color: '#9A9A9A' }}>Confirmatrice</div>
+              </div>
+              <button
+                onClick={handleLogout}
+                style={{ padding: '6px 12px', borderRadius: 7, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                {IconLogoutSmall} Déco
+              </button>
+            </header>
+
+            <main className="admin-main" style={{ flex: 1, padding: '24px 28px', overflowY: 'auto', background: '#F9FAFB' }}>
+              <ConfirmatriceUserContext.Provider value={user}>
+                {children}
+              </ConfirmatriceUserContext.Provider>
+            </main>
+          </div>
         </div>
+
+        {/* ── Bottom nav mobile ────────────────────────────────────────────── */}
+        <nav className="admin-bottom-nav" role="navigation" aria-label="Navigation mobile">
+          <Link href="/confirmatrice/orders" className={`admin-bottom-nav-item${isOrdersActive ? ' active' : ''}`}>
+            {IconOrders}
+            <span>Commandes</span>
+          </Link>
+          <Link href="/confirmatrice/stock" className={`admin-bottom-nav-item${isStockActive ? ' active' : ''}`}>
+            {IconStock}
+            <span>Stock</span>
+          </Link>
+          <button className="admin-bottom-nav-item" onClick={handleLogout}>
+            {IconLogout}
+            <span>Déconnexion</span>
+          </button>
+        </nav>
+
+        <style>{`
+          @keyframes spin { to { transform: rotate(360deg) } }
+          @media (max-width: 768px) {
+            .conf-mobile-topbar { display: flex !important; }
+          }
+        `}</style>
       </body>
     </html>
   )
