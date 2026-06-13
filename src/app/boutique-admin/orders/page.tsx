@@ -330,11 +330,16 @@ export default function OrdersPage() {
                     <td style={{ ...TD, color: '#9A9A9A', fontSize: 12 }}>{fmtDate(o.createdAt)}</td>
                     <td style={{ ...TD, whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
-                        {nextSt && nextLabel && (
-                          <button onClick={() => changeStatus(o.id, nextSt)} disabled={updating === o.id} style={{
-                            padding: '5px 12px', background: '#1A1A1A', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: updating === o.id ? 0.6 : 1,
-                          }}>→ {nextLabel}</button>
-                        )}
+                        {nextSt && nextLabel && (() => {
+                          const ns = STATUSES.find(st => st.value === nextSt)
+                          return (
+                            <button onClick={() => changeStatus(o.id, nextSt)} disabled={updating === o.id} style={{
+                              padding: '5px 12px', background: ns?.bg ?? '#F1F1F1', color: ns?.color ?? '#1A1A1A',
+                              border: `1px solid ${ns?.dot ?? '#9A9A9A'}40`, borderRadius: 7, fontSize: 11, fontWeight: 700,
+                              cursor: 'pointer', opacity: updating === o.id ? 0.6 : 1, transition: 'all 0.15s',
+                            }}>→ {nextLabel}</button>
+                          )
+                        })()}
                         {o.status !== 'cancelled' && o.status !== 'delivered' && (
                           <button onClick={() => changeStatus(o.id, 'cancelled')} style={{ padding: '5px 10px', background: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>✕</button>
                         )}
