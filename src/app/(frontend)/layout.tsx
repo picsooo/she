@@ -5,6 +5,7 @@ import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { PixelScripts } from '@/components/analytics/PixelScripts'
 import { PixelPageView } from '@/components/analytics/PixelPageView'
+import { TrafficSourceCapture } from '@/components/analytics/TrafficSourceCapture'
 import { getMarketingSettings, getChapeauGift } from '@/lib/payload-client'
 import { FreeGiftInit } from '@/components/FreeGiftInit'
 
@@ -57,6 +58,8 @@ export default async function FrontendLayout({ children }: { children: React.Rea
       />
       {/* PageView automatique sur chaque navigation client-side */}
       <PixelPageView />
+      {/* Capture source de trafic (UTM/fbclid/ttclid/referrer) → sessionStorage */}
+      <TrafficSourceCapture />
     </div>
   )
 }

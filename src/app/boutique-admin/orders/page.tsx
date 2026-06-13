@@ -6,9 +6,36 @@ import { WILAYAS } from '@/lib/algeria-geo'
 interface Order {
   id: string; orderNumber: string; customerName: string; phone: string
   wilaya: string; commune?: string; address?: string
-  total: number; status: string; createdAt: string
+  total: number; status: string; createdAt: string; trafficSource?: string
   items?: Array<{ productName?: string; quantity?: number; price?: number; colorAr?: string; size?: string; unitPrice?: number }>
   note?: string
+}
+
+// Badge source de trafic — affiché dans la liste des commandes
+const SOURCE_CONFIG: Record<string, { label: string; bg: string; color: string; border: string }> = {
+  facebook:  { label: 'FB',  bg: '#EBF5FF', color: '#1877F2', border: '#1877F220' },
+  instagram: { label: 'IG',  bg: '#FDF0FF', color: '#C13584', border: '#C1358420' },
+  tiktok:    { label: 'TT',  bg: '#F0F0F0', color: '#010101', border: '#01010120' },
+  google:    { label: 'G',   bg: '#FEF2F2', color: '#EA4335', border: '#EA433520' },
+  email:     { label: '✉',   bg: '#F0FDF4', color: '#059669', border: '#05996920' },
+  sms:       { label: '💬',  bg: '#FFFBEB', color: '#D97706', border: '#D9770620' },
+  direct:    { label: '—',   bg: '#F8F9FA', color: '#9A9A9A', border: '#E3E5E7'   },
+  organic:   { label: '🌿',  bg: '#F0FDF4', color: '#16A34A', border: '#16A34A20' },
+}
+
+function SourceBadge({ source }: { source?: string }) {
+  if (!source) return null
+  const cfg = SOURCE_CONFIG[source] ?? { label: source.slice(0, 3).toUpperCase(), bg: '#F1F1F1', color: '#6D7175', border: '#E3E5E7' }
+  return (
+    <span title={source} style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      padding: '2px 6px', borderRadius: 5, fontSize: 10, fontWeight: 800,
+      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`,
+      letterSpacing: '0.02em', whiteSpace: 'nowrap',
+    }}>
+      {cfg.label}
+    </span>
+  )
 }
 
 const STATUSES = [
@@ -318,7 +345,12 @@ export default function OrdersPage() {
                         style={{ cursor: 'pointer', width: 14, height: 14 }}
                       />
                     </td>
-                    <td style={{ ...TD, fontWeight: 700, color: '#E93D91', fontFamily: 'monospace', fontSize: 12 }}>{o.orderNumber}</td>
+                    <td style={{ ...TD, fontWeight: 700, color: '#E93D91', fontFamily: 'monospace', fontSize: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        {o.orderNumber}
+                        <SourceBadge source={o.trafficSource} />
+                      </div>
+                    </td>
                     <td style={TD}>
                       <div style={{ fontWeight: 600, color: '#1A1A1A' }}>{o.customerName}</div>
                       <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 1 }}>{o.phone}</div>

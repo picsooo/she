@@ -194,6 +194,7 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         ...(fbp ? { fbp } : {}),
         ...(fbc ? { fbc } : {}),
         ...(assignedTo ? { assignedTo } : {}),
+        ...(customer.trafficSource ? { trafficSource: customer.trafficSource } : {}),
       },
     })
 

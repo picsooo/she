@@ -348,6 +348,27 @@ export const Orders: CollectionConfig = {
       admin: { description: 'Date/heure d\'envoi du colis à Yalidine' },
     },
 
+    // ── Source de trafic ──────────────────────────────────────────────
+    {
+      name: 'trafficSource',
+      label: 'Source',
+      type: 'select',
+      options: [
+        { label: '📘 Facebook',   value: 'facebook' },
+        { label: '📸 Instagram',  value: 'instagram' },
+        { label: '🎵 TikTok',     value: 'tiktok' },
+        { label: '🔍 Google',     value: 'google' },
+        { label: '📧 Email',      value: 'email' },
+        { label: '💬 SMS/WhatsApp', value: 'sms' },
+        { label: '🔗 Direct',     value: 'direct' },
+        { label: '🌿 Organique',  value: 'organic' },
+      ],
+      admin: {
+        position: 'sidebar',
+        description: 'Source de trafic détectée automatiquement (UTM, fbclid, ttclid, referrer)',
+      },
+    },
+
     // ── Champs tracking Meta Pixel + CAPI ─────────────────────────────
     // Masqués dans l'admin — gérés automatiquement
     {

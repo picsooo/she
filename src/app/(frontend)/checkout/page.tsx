@@ -136,6 +136,7 @@ export default function CheckoutPage() {
     }
 
     setLoading(true)
+    const trafficSource = sessionStorage.getItem('_traffic_source') ?? undefined
     const result = await createOrder({
       customer: {
         customerName: form.customerName,
@@ -147,6 +148,7 @@ export default function CheckoutPage() {
         note: form.note || undefined,
         deliveryMode: form.deliveryMode,
         shippingFee: (fees ?? defaultFeesRef.current)[form.deliveryMode],
+        trafficSource,
       },
       items: items.map((item) => ({
         productId: item.productId,

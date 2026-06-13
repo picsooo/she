@@ -41,6 +41,9 @@ export const checkoutSchema = z.object({
   // Frais de livraison calculés côté client (depuis Yalidine ou valeur par défaut)
   // Le serveur les utilise directement pour éviter un second appel Yalidine
   shippingFee: z.coerce.number().min(0).optional(),
+
+  // Source de trafic capturée côté client (sessionStorage → TrafficSourceCapture)
+  trafficSource: z.string().max(50).optional(),
 })
 
 export type CheckoutFormData = z.infer<typeof checkoutSchema>
