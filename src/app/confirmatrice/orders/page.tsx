@@ -36,7 +36,7 @@ const NEXT_STATUS: Record<string, string> = {
   new: 'confirmed', pending: 'confirmed', confirmed: 'shipping', shipping: 'delivered',
 }
 
-const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(n) + ' DA'
+const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(Math.round(n)) + ' DA'
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 const fmtDateTime = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -50,6 +50,24 @@ function getDateFrom(preset: string): string | null {
 }
 
 const WILAYA_OPTIONS = WILAYAS.map(w => ({ value: w.nameAr, label: `${w.code} · ${w.nameAr} (${w.nameFr})` }))
+
+// ── Calcul prime local (identique à la page admin) ───────────────────────────
+function calcPrime(user: ReturnType<typeof useConfUser>, delivered: number): { prime: number; salaireDebloque: boolean; detail: string } {
+  if (!user) return { prime: 0, salaireDebloque: false, detail: '' }
+  const primeCmd = user.primeParCommande ?? 0
+
+  if (user.confirmatriceType === 'salarie') {
+    const salaire  = user.salaireMensuel ?? 0
+    const seuil    = user.seuilCommandes ?? 0
+    const debloque = seuil > 0 && delivered >= seuil
+    if (!debloque) {
+      return { prime: 0, salaireDebloque: false, detail: `${delivered}/${seuil} livrées — seuil non atteint` }
+    }
+    return { prime: salaire + delivered * primeCmd, salaireDebloque: true, detail: `${fmt(salaire)} + ${delivered} × ${fmt(primeCmd)}` }
+  }
+  // Non-salariée
+  return { prime: delivered * primeCmd, salaireDebloque: false, detail: `${delivered} × ${fmt(primeCmd)}` }
+}
 
 export default function ConfirmatriceOrdersPage() {
   const currentUser = useConfUser()
@@ -69,6 +87,8 @@ export default function ConfirmatriceOrdersPage() {
   const [bulkStatus,   setBulkStatus]   = useState('')
   const [bulkLoading,  setBulkLoading]  = useState(false)
   const [deleting,     setDeleting]     = useState<string | null>(null)
+  // Compteur mois en cours pour le widget prime
+  const [deliveredThisMonth, setDeliveredThisMonth] = useState(0)
   const perPage = 20
 
   // Construit le filtre de base incluant toujours le filtre assignedTo pour cette confirmatrice
@@ -112,6 +132,17 @@ export default function ConfirmatriceOrdersPage() {
       })
     ).then(results => setCounts(Object.fromEntries(results)))
   }, [orders, currentUser?.id, buildBaseWhere])
+
+  // Charge le nombre de commandes livrées ce mois pour le widget prime
+  useEffect(() => {
+    if (!currentUser?.id) return
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+    const where = buildBaseWhere({ status: { equals: 'delivered' }, createdAt: { greater_than: startOfMonth } })
+    fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`)
+      .then(r => r.json())
+      .then(d => setDeliveredThisMonth(d.totalDocs ?? 0))
+      .catch(() => { /* ignore */ })
+  }, [currentUser?.id, buildBaseWhere, orders])
 
   // Met à jour le statut et enregistre qui l'a changé
   async function changeStatus(id: string, status: string) {
@@ -189,6 +220,66 @@ export default function ConfirmatriceOrdersPage() {
           <p style={{ fontSize: 13, color: '#6D7175', margin: '3px 0 0' }}>{total} commande{total > 1 ? 's' : ''} assignée{total > 1 ? 's' : ''}</p>
         </div>
       </div>
+
+      {/* ── Widget prime ce mois ────────────────────────────────────────── */}
+      {currentUser?.confirmatriceType && (() => {
+        const { prime, salaireDebloque, detail } = calcPrime(currentUser, deliveredThisMonth)
+        const seuil   = currentUser.seuilCommandes ?? 0
+        const isSal   = currentUser.confirmatriceType === 'salarie'
+        const pct     = isSal && seuil > 0 ? Math.min(100, (deliveredThisMonth / seuil) * 100) : 100
+
+        return (
+          <div style={{
+            marginBottom: 20, borderRadius: 14, overflow: 'hidden',
+            background: prime > 0 ? 'linear-gradient(135deg, #F0FDF4, #DCFCE7)' : '#F9FAFB',
+            border: `1.5px solid ${prime > 0 ? '#BBF7D0' : '#E3E5E7'}`,
+          }}>
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              {/* Icône */}
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: prime > 0 ? '#15803D' : '#9A9A9A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                💰
+              </div>
+              {/* Détail */}
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: prime > 0 ? '#166534' : '#6D7175', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
+                  Prime ce mois-ci
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: prime > 0 ? '#15803D' : '#9A9A9A' }}>{fmt(prime)}</div>
+                <div style={{ fontSize: 11, color: '#8A8A8A', marginTop: 2 }}>{detail}</div>
+              </div>
+              {/* Barre de progrès (salariée seulement) */}
+              {isSal && seuil > 0 && (
+                <div style={{ minWidth: 140, maxWidth: 180, flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, marginBottom: 5 }}>
+                    <span style={{ color: '#6D7175' }}>{deliveredThisMonth} livrées</span>
+                    <span style={{ color: salaireDebloque ? '#15803D' : '#7C3AED' }}>/ {seuil} requises</span>
+                  </div>
+                  <div style={{ background: '#E3E5E7', borderRadius: 6, height: 10, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 6, transition: 'width 0.6s ease',
+                      background: salaireDebloque ? 'linear-gradient(90deg, #15803D, #4ADE80)' : 'linear-gradient(90deg, #7C3AED, #A78BFA)',
+                      width: `${pct}%`,
+                    }} />
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, color: salaireDebloque ? '#15803D' : '#7C3AED', textAlign: 'right' }}>
+                    {salaireDebloque ? '✓ Seuil atteint !' : `${seuil - deliveredThisMonth} livraisons pour débloquer`}
+                  </div>
+                </div>
+              )}
+              {/* Badge type */}
+              <span style={{
+                padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                background: isSal ? '#EFF6FF' : '#F5F3FF',
+                color: isSal ? '#1D4ED8' : '#7C3AED',
+                border: `1px solid ${isSal ? '#BFDBFE' : '#DDD6FE'}`,
+                flexShrink: 0,
+              }}>
+                {isSal ? 'Salariée' : 'Non-salariée'}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Tabs statut */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>

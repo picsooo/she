@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getPayload } from 'payload'
+import configPromise from '@payload-config'
+import { getYalidineClient, mapYalidineStatusToOrder } from '@/lib/yalidine'
+
+/**
+ * GET /api/yalidine/sync
+ *
+ * Interroge l'API Yalidine pour toutes les commandes en statut "shipping"
+ * qui ont un numéro de suivi Yalidine, et met à jour leur statut si Yalidine
+ * indique une livraison ou annulation.
+ *
+ * Utilisé en fallback (cron toutes les 15 min) en cas de webhook manqué.
+ * Protégé par X-Sync-Key = PAYLOAD_SECRET.
+ */
+export async function GET(req: NextRequest) {
+  // Vérification de la clé de sécurité
+  const syncKey = req.headers.get('x-sync-key')
+  if (syncKey !== process.env.PAYLOAD_SECRET) {
+    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  }
+
+  const yalidine = await getYalidineClient()
+  if (!yalidine) {
+    return NextResponse.json({ skipped: true, reason: 'Yalidine non configuré ou désactivé' })
+  }
+
+  const payload = await getPayload({ config: configPromise })
+
+  // Récupère toutes les commandes en livraison avec un tracking Yalidine
+  let allOrders: Array<{ id: string; status: string; yalidineTrackingId?: string; orderNumber?: string }> = []
+  let page = 1
+  while (true) {
+    const result = await payload.find({
+      collection: 'orders',
+      where: {
+        and: [
+          { status: { equals: 'shipping' } },
+          { yalidineTrackingId: { exists: true } },
+        ],
+      },
+      select: { id: true, status: true, yalidineTrackingId: true, orderNumber: true } as Record<string, true>,
+      limit: 100,
+      page,
+      overrideAccess: true,
+    })
+    allOrders = allOrders.concat(result.docs as typeof allOrders)
+    if (page >= result.totalPages) break
+    page++
+  }
+
+  if (allOrders.length === 0) {
+    return NextResponse.json({ synced: 0, updated: 0, message: 'Aucune commande en livraison avec tracking Yalidine' })
+  }
+
+  let updated = 0
+  const errors: string[] = []
+
+  // Traitement en lots de 5 pour ne pas saturer l'API Yalidine
+  for (let i = 0; i < allOrders.length; i += 5) {
+    const batch = allOrders.slice(i, i + 5)
+    await Promise.all(batch.map(async (order) => {
+      if (!order.yalidineTrackingId) return
+      try {
+        const detail = await yalidine.getParcel(order.yalidineTrackingId)
+        const parcel = detail.data?.[0]
+        if (!parcel) return
+
+        const mappedStatus = mapYalidineStatusToOrder(parcel.last_status)
+        if (!mappedStatus || order.status === mappedStatus) return
+
+        // Ne jamais reculer depuis un statut final
+        const finalStatuses = ['delivered', 'cancelled']
+        if (finalStatuses.includes(order.status)) return
+
+        await payload.update({
+          collection: 'orders',
+          id: order.id,
+          data: {
+            status: mappedStatus,
+            yalidineStatus: parcel.last_status,
+          },
+          overrideAccess: true,
+        })
+        updated++
+      } catch (err) {
+        errors.push(`${order.yalidineTrackingId}: ${err instanceof Error ? err.message : 'Erreur'}`)
+      }
+    }))
+  }
+
+  return NextResponse.json({
+    synced: allOrders.length,
+    updated,
+    errors: errors.length > 0 ? errors : undefined,
+  })
+}

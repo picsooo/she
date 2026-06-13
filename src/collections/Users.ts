@@ -60,6 +60,51 @@ export const Users: CollectionConfig = {
       label: 'Nom',
       type: 'text',
     },
+
+    // ── Champs spécifiques aux confirmatrices (masqués si autre rôle) ─────────
+    {
+      name: 'confirmatriceType',
+      label: 'Type de confirmatrice',
+      type: 'select',
+      options: [
+        { label: 'Salariée (fixe + prime au-dessus du seuil)', value: 'salarie' },
+        { label: 'Non-salariée (prime par commande uniquement)', value: 'non_salarie' },
+      ],
+      admin: {
+        condition: (data) => data.role === 'confirmatrice',
+        description: 'Détermine le mode de calcul de la rémunération',
+      },
+    },
+    {
+      name: 'salaireMensuel',
+      label: 'Salaire mensuel (DA)',
+      type: 'number',
+      min: 0,
+      admin: {
+        condition: (data) => data.role === 'confirmatrice' && data.confirmatriceType === 'salarie',
+        description: 'Salaire fixe versé si le seuil de commandes livrées est atteint',
+      },
+    },
+    {
+      name: 'seuilCommandes',
+      label: 'Seuil commandes livrées (déblocage)',
+      type: 'number',
+      min: 0,
+      admin: {
+        condition: (data) => data.role === 'confirmatrice' && data.confirmatriceType === 'salarie',
+        description: 'Nombre minimum de commandes livrées pour débloquer le salaire + prime',
+      },
+    },
+    {
+      name: 'primeParCommande',
+      label: 'Prime par commande livrée (DA)',
+      type: 'number',
+      min: 0,
+      admin: {
+        condition: (data) => data.role === 'confirmatrice',
+        description: 'Prime additionnelle par commande livrée (pour tous les types)',
+      },
+    },
   ],
   timestamps: true,
 }

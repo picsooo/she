@@ -56,7 +56,13 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
       const data = await res.json()
       const u = data.user ?? null
       if (u && ['confirmatrice', 'admin'].includes(u.role ?? '')) {
-        setUser({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role })
+        setUser({
+          id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role,
+          confirmatriceType: u.confirmatriceType,
+          salaireMensuel: u.salaireMensuel,
+          seuilCommandes: u.seuilCommandes,
+          primeParCommande: u.primeParCommande,
+        })
       } else {
         localStorage.removeItem('conf-token')
       }
@@ -91,7 +97,13 @@ export default function ConfirmatriceLayout({ children }: { children: React.Reac
         return
       }
       localStorage.setItem('conf-token', data.token)
-      setUser({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role })
+      setUser({
+        id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role,
+        confirmatriceType: u.confirmatriceType,
+        salaireMensuel: u.salaireMensuel,
+        seuilCommandes: u.seuilCommandes,
+        primeParCommande: u.primeParCommande,
+      })
       router.push('/confirmatrice/orders')
     } catch {
       setLoginError('Erreur réseau, veuillez réessayer')
