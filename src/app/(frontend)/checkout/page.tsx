@@ -34,16 +34,18 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false)
   const [communes, setCommunes] = useState<{ value: string; label: string }[]>([])
 
-  // Frais de livraison (chargés depuis le serveur via API Payload)
-  const [fees, setFees] = useState({ home: 400, desk: 300 })
+  // Frais de livraison — null tant que la commune n'est pas sélectionnée (pas d'affichage par défaut)
+  const [fees, setFees] = useState<{ home: number; desk: number } | null>(null)
+  // Valeurs de repli chargées depuis les settings (utilisées uniquement pour le calcul final si Yalidine échoue)
+  const [defaultFees, setDefaultFees] = useState({ home: 400, desk: 300 })
 
   useEffect(() => {
-    // Charger les frais depuis les settings
+    // Charger les frais par défaut depuis les settings (repli silencieux)
     fetch('/api/globals/delivery-settings?depth=0')
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data) {
-          setFees({
+          setDefaultFees({
             home: data.defaultHomeDeliveryFee ?? 400,
             desk: data.defaultDeskDeliveryFee ?? 300,
           })
@@ -64,6 +66,8 @@ export default function CheckoutPage() {
       const list = getCommunesByWilaya(form.wilayaCode)
       setCommunes(list.map((c) => ({ value: c.nameAr, label: c.nameAr })))
       setForm((prev) => ({ ...prev, commune: '' }))
+      // Réinitialiser les frais quand la wilaya change — on attend la commune
+      setFees(null)
       // Charger les bureaux Yalidine pour cette wilaya
       setCentersLoading(true)
       fetch(`/api/yalidine/centers?wilayaCode=${encodeURIComponent(form.wilayaCode)}`)
@@ -77,7 +81,7 @@ export default function CheckoutPage() {
     }
   }, [form.wilayaCode])
 
-  // Charger les vrais frais Yalidine dès qu'une commune est sélectionnée
+  // Charger les vrais frais Yalidine dès que wilaya + commune sont sélectionnées
   useEffect(() => {
     if (!form.wilayaCode || !form.commune) return
     let cancelled = false
@@ -86,18 +90,21 @@ export default function CheckoutPage() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (cancelled) return
-        // Si Yalidine renvoie des tarifs réels, on les utilise ; sinon on garde les defaults
         if (data?.source === 'yalidine' && (data.home !== null || data.desk !== null)) {
-          setFees(prev => ({
-            home: data.home ?? prev.home,
-            desk: data.desk ?? prev.desk,
-          }))
+          // Frais Yalidine réels disponibles
+          setFees({
+            home: data.home ?? defaultFees.home,
+            desk: data.desk ?? defaultFees.desk,
+          })
+        } else {
+          // Fallback sur les frais par défaut des settings
+          setFees(defaultFees)
         }
       })
-      .catch(() => {/* garder les defaults */})
+      .catch(() => { if (!cancelled) setFees(defaultFees) })
       .finally(() => { if (!cancelled) setFeesLoading(false) })
     return () => { cancelled = true }
-  }, [form.wilayaCode, form.commune])
+  }, [form.wilayaCode, form.commune, defaultFees])
 
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -134,7 +141,7 @@ export default function CheckoutPage() {
         address: form.address,
         note: form.note || undefined,
         deliveryMode: form.deliveryMode,
-        shippingFee: fees[form.deliveryMode],
+        shippingFee: (fees ?? defaultFees)[form.deliveryMode],
       },
       items: items.map((item) => ({
         productId: item.productId,
@@ -168,8 +175,9 @@ export default function CheckoutPage() {
   }
 
   const wilayaOptions = WILAYAS.map((w) => ({ value: w.code, label: w.nameAr }))
-  const shippingFee = fees[form.deliveryMode]
-  const total = subtotal + shippingFee
+  // shippingFee = null si wilaya/commune pas encore choisis → pas d'affichage
+  const shippingFee = fees ? fees[form.deliveryMode] : null
+  const total = shippingFee !== null ? subtotal + shippingFee : null
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -261,9 +269,11 @@ export default function CheckoutPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground">توصيل إلى المنزل</p>
                     <p className="text-xs text-foreground/60 mt-0.5">Livraison à domicile</p>
-                    <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">
-                      {formatPrice(fees.home)}
-                    </p>
+                    {fees ? (
+                      <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">{formatPrice(fees.home)}</p>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-foreground/40">يُحدَّد بعد اختيار الولاية</p>
+                    )}
                   </div>
                   {form.deliveryMode === 'home' && (
                     <span className="h-5 w-5 rounded-full bg-[#E93D91] flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -286,9 +296,11 @@ export default function CheckoutPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-foreground">توصيل إلى مكتب ياليدين</p>
                     <p className="text-xs text-foreground/60 mt-0.5">Bureau Yalidine</p>
-                    <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">
-                      {formatPrice(fees.desk)}
-                    </p>
+                    {fees ? (
+                      <p className="mt-1.5 text-base font-extrabold text-[#E93D91]">{formatPrice(fees.desk)}</p>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-foreground/40">يُحدَّد بعد اختيار الولاية</p>
+                    )}
                   </div>
                   {form.deliveryMode === 'desk' && (
                     <span className="h-5 w-5 rounded-full bg-[#E93D91] flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -393,16 +405,25 @@ export default function CheckoutPage() {
                   <span className="font-semibold text-[#1A1A1A] flex items-center gap-1.5">
                     {feesLoading ? (
                       <span className="inline-block h-3 w-3 rounded-full border-2 border-foreground/20 border-t-[#E93D91] animate-spin" />
-                    ) : null}
-                    {formatPrice(shippingFee)}
-                    <span className="ms-1 text-xs text-foreground/40">
-                      ({form.deliveryMode === 'desk' ? 'مكتب' : 'منزل'})
-                    </span>
+                    ) : shippingFee !== null ? (
+                      <>
+                        {formatPrice(shippingFee)}
+                        <span className="ms-1 text-xs text-foreground/40">
+                          ({form.deliveryMode === 'desk' ? 'مكتب' : 'منزل'})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-foreground/40">اختاري الولاية والبلدية</span>
+                    )}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold border-t border-[#EBE6DF] pt-2 mt-1">
                   <span>{t.cart.total}</span>
-                  <span className="text-[#E93D91]">{formatPrice(total)}</span>
+                  <span className="text-[#E93D91]">
+                    {total !== null ? formatPrice(total) : (
+                      <span className="text-sm text-foreground/40">سيُحدَّد بعد الولاية</span>
+                    )}
+                  </span>
                 </div>
               </div>
 
