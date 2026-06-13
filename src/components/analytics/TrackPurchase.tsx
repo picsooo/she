@@ -30,7 +30,8 @@ export function TrackPurchase({ order }: TrackPurchaseProps) {
     }))
 
     // 1) Pixel navigateur (avec eventID pour déduplication)
-    trackPurchase(order.orderNumber, order.total ?? 0, items, eventId)
+    // Passer le téléphone pour TikTok Advanced Matching
+    trackPurchase(order.orderNumber, order.total ?? 0, items, eventId, order.phone ?? undefined)
 
     // 2) CAPI serveur — même eventId → Meta déduplique automatiquement
     // Envoi non-bloquant (fire-and-forget), erreurs silencieuses

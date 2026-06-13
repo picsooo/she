@@ -24,6 +24,7 @@ declare global {
     ) => void
     ttq?: {
       track: (eventName: string, data?: Record<string, unknown>) => void
+      identify: (data: { phone_number?: string; email?: string }) => void
     }
   }
 }
@@ -69,11 +70,41 @@ export function trackEvent(eventName: string, data?: TrackEventData, eventId?: s
   }
   fireMeta()
 
-  // TikTok Pixel (ttq)
+  // TikTok Pixel (ttq) — format légèrement différent de Meta
   if (window.ttq?.track) {
     const ttqEventName = TIKTOK_EVENT_MAP[eventName] ?? eventName
-    window.ttq.track(ttqEventName, data)
+    // TikTok attend content_id (string) + contents[].content_id au lieu de contents[].id
+    const ttqData = toTikTokData(data)
+    window.ttq.track(ttqEventName, ttqData)
   }
+}
+
+/**
+ * Transforme les données Meta Pixel au format TikTok Pixel.
+ * - content_id : chaîne (premier produit ou joint par virgule)
+ * - contents   : { content_id, content_type, quantity, price } au lieu de { id, name, ... }
+ */
+function toTikTokData(data?: TrackEventData): Record<string, unknown> {
+  if (!data) return {}
+  const out: Record<string, unknown> = { ...data }
+
+  // content_id requis par TikTok — extraire depuis contents si absent
+  if (!out.content_id && Array.isArray(data.contents) && data.contents.length > 0) {
+    out.content_id = data.contents.map(c => c.id).join(',')
+  }
+  if (!out.content_type) out.content_type = 'product'
+
+  // Reformater contents : TikTok utilise content_id au lieu de id
+  if (Array.isArray(data.contents)) {
+    out.contents = data.contents.map(c => ({
+      content_id:   c.id,
+      content_type: 'product',
+      quantity:     c.quantity,
+      price:        c.price,
+    }))
+  }
+
+  return out
 }
 
 // Correspondance Meta → TikTok pour les événements qui diffèrent
@@ -161,13 +192,21 @@ export function trackPurchase(
   orderNumber: string,
   total: number,
   items: Array<{ id: string; name: string; quantity: number; price: number }>,
-  eventId?: string
+  eventId?: string,
+  phone?: string,
 ) {
   if (typeof window === 'undefined') return
 
   // Anti-doublon : une seule fois par commande même si la page est rechargée
   const storageKey = `pixel_purchase_${orderNumber}`
   if (localStorage.getItem(storageKey)) return
+
+  // TikTok Advanced Matching — identifier le client par téléphone
+  // Normaliser le numéro algérien : 0XXXXXXXXX → +213XXXXXXXXX
+  if (phone && window.ttq?.identify) {
+    const normalized = phone.replace(/\s/g, '').replace(/^0/, '+213')
+    window.ttq.identify({ phone_number: normalized })
+  }
 
   trackEvent('Purchase', {
     order_id: orderNumber,
