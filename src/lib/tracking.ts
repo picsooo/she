@@ -172,11 +172,16 @@ export function trackAddToCart(
  * @param cartTotal   Total du panier en DZD
  * @param numItems    Nombre d'articles
  */
-export function trackInitiateCheckout(cartTotal: number, numItems: number) {
+export function trackInitiateCheckout(
+  cartTotal: number,
+  numItems: number,
+  contents?: Array<{ id: string; name: string; quantity: number; price: number }>,
+) {
   trackEvent('InitiateCheckout', {
     value: cartTotal,
     currency: 'DZD',
     num_items: numItems,
+    ...(contents && contents.length > 0 ? { contents } : {}),
   })
 }
 

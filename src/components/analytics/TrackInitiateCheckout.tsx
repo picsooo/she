@@ -9,13 +9,19 @@ import { useCartStore } from '@/stores/cart'
  * Lit le panier depuis Zustand pour avoir le total et le nombre d'articles.
  */
 export function TrackInitiateCheckout() {
-  const { getTotalPrice, getTotalItems } = useCartStore()
+  const { items, getTotalPrice, getTotalItems } = useCartStore()
 
   useEffect(() => {
     const total = getTotalPrice()
     const numItems = getTotalItems()
     if (total > 0) {
-      trackInitiateCheckout(total, numItems)
+      const contents = items.map(item => ({
+        id:       item.productId,
+        name:     item.productNameAr ?? '',
+        quantity: item.quantity,
+        price:    item.salePrice && item.salePrice > 0 ? item.salePrice : item.regularPrice,
+      }))
+      trackInitiateCheckout(total, numItems, contents)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Seulement au montage (arrivée sur la page)
