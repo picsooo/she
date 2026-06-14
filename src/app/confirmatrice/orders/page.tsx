@@ -95,7 +95,6 @@ export default function ConfirmatriceOrdersPage() {
   const [selected,     setSelected]     = useState<Set<string>>(new Set())
   const [bulkStatus,   setBulkStatus]   = useState('')
   const [bulkLoading,  setBulkLoading]  = useState(false)
-  const [deleting,     setDeleting]     = useState<string | null>(null)
   // Compteur mois en cours pour le widget prime
   const [deliveredThisMonth, setDeliveredThisMonth] = useState(0)
   const perPage = 20
@@ -168,16 +167,6 @@ export default function ConfirmatriceOrdersPage() {
     })
     await load()
     setUpdating(null)
-  }
-
-  // Supprime une commande
-  async function deleteOrder(id: string) {
-    if (!confirm('Supprimer cette commande ? Cette action est irréversible.')) return
-    setDeleting(id)
-    await fetch(`/api/boutique-admin/orders/${id}`, { method: 'DELETE' })
-    setSelected(prev => { const next = new Set(prev); next.delete(id); return next })
-    await load()
-    setDeleting(null)
   }
 
   // Changement de statut en masse
@@ -496,15 +485,6 @@ export default function ConfirmatriceOrdersPage() {
                         <Link href={`/confirmatrice/orders/${o.id}`} onClick={e => e.stopPropagation()} style={{ padding: '5px 12px', background: '#F1F5F9', border: '1px solid #E3E5E7', color: '#4A3DBC', borderRadius: 7, fontSize: 11, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
                           Voir
                         </Link>
-                        {/* Bouton supprimer */}
-                        <button
-                          onClick={() => deleteOrder(o.id)}
-                          disabled={deleting === o.id}
-                          title="Supprimer cette commande"
-                          style={{ padding: '5px 8px', background: deleting === o.id ? '#F5F5F5' : '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', borderRadius: 7, fontSize: 11, cursor: deleting === o.id ? 'not-allowed' : 'pointer', opacity: deleting === o.id ? 0.5 : 1 }}
-                        >
-                          🗑️
-                        </button>
                         <button style={{ padding: '5px 8px', background: '#F5F5F5', border: '1px solid #E3E5E7', color: '#6D7175', borderRadius: 7, fontSize: 11, cursor: 'pointer' }}>
                           {isExpanded ? '▲' : '▼'}
                         </button>
