@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
-import { getYalidineClient, mapYalidineStatusToOrder } from '@/lib/yalidine'
+import { YalidineClient, mapYalidineStatusToOrder } from '@/lib/yalidine'
 
 /**
  * GET /api/yalidine/sync
  *
- * Interroge l'API Yalidine pour toutes les commandes en statut "shipping"
+ * Interroge l'API Yalidine pour toutes les commandes non-finales
  * qui ont un numéro de suivi Yalidine, et met à jour leur statut si Yalidine
  * indique une livraison ou annulation.
  *
@@ -20,12 +20,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
-  const yalidine = await getYalidineClient()
-  if (!yalidine) {
+  const payload = await getPayload({ config: configPromise })
+
+  // Charger les settings Yalidine directement via Payload (pas d'appel HTTP)
+  const settings = await payload.findGlobal({ slug: 'delivery-settings', overrideAccess: true })
+  if (!settings?.yalidineEnabled || !settings.yalidineApiId || !settings.yalidineApiToken) {
     return NextResponse.json({ skipped: true, reason: 'Yalidine non configuré ou désactivé' })
   }
-
-  const payload = await getPayload({ config: configPromise })
+  const yalidine = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
 
   // Récupère toutes les commandes non-finales avec un tracking Yalidine
   // (inclut 'confirmed' et 'shipping' — rattrape les commandes envoyées avant le fix du send-to-yalidine)
