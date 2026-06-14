@@ -14,14 +14,15 @@ interface Order {
 }
 
 type Tab    = 'overview' | 'products' | 'categories' | 'variants'
-type Period = '7d' | '30d' | '90d' | 'month' | 'all'
+type Period = '7d' | '30d' | '90d' | 'month' | 'all' | 'custom'
 
 const PERIODS: { value: Period; label: string; days: number }[] = [
-  { value: '7d',    label: '7 jours',        days: 7  },
-  { value: '30d',   label: '30 jours',       days: 30 },
-  { value: '90d',   label: '90 jours',       days: 90 },
-  { value: 'month', label: 'Ce mois',        days: 0  },
-  { value: 'all',   label: 'Depuis le début',days: 0  },
+  { value: '7d',     label: '7 jours',         days: 7  },
+  { value: '30d',    label: '30 jours',        days: 30 },
+  { value: '90d',    label: '90 jours',        days: 90 },
+  { value: 'month',  label: 'Ce mois',         days: 0  },
+  { value: 'all',    label: 'Depuis le début', days: 0  },
+  { value: 'custom', label: '📅 Personnalisé', days: 0  },
 ]
 const STATUS_LABEL: Record<string, string>              = { new:'Nouvelle', pending:'En attente', in_progress:'En cours', confirmed:'Confirmée', shipping:'En livraison', delivered:'Livrée', failed:'Échouée', cancelled:'Annulée' }
 const STATUS_COLOR: Record<string, { c: string; bg: string }> = {
@@ -42,9 +43,9 @@ const fmtK = (n: number) => n >= 1_000_000 ? (n/1_000_000).toFixed(1)+'M DA' : n
 const fmtPct = (n: number, d: number) => d === 0 ? '0%' : Math.round((n/d)*100) + '%'
 
 // ── Calcul de la date de début ─────────────────────────────────────────────────
-function getFrom(period: Period): Date | null {
+function getFrom(period: Period, customFrom?: string): Date | null {
   const now = new Date()
-  if (period === 'all') return null
+  if (period === 'all' || period === 'custom') return customFrom ? new Date(customFrom) : null
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1)
   const p = PERIODS.find(p => p.value === period)!
   return new Date(now.getTime() - p.days * 86400000)
@@ -138,6 +139,13 @@ function Card({ title, action, children }: { title:string; action?:React.ReactNo
 export default function AnalyticsPage() {
   const [tab,     setTab]     = useState<Tab>('overview')
   const [period,  setPeriod]  = useState<Period>('30d')
+  // Plage personnalisée (format YYYY-MM-DD pour les inputs date)
+  const today = new Date().toISOString().slice(0, 10)
+  const [customFrom, setCustomFrom] = useState(new Date(Date.now() - 30*86400000).toISOString().slice(0, 10))
+  const [customTo,   setCustomTo]   = useState(today)
+  // Plage appliquée (se synchronise avec customFrom/customTo au clic "Appliquer")
+  const [appliedFrom, setAppliedFrom] = useState(customFrom)
+  const [appliedTo,   setAppliedTo]   = useState(customTo)
   const [orders,  setOrders]  = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [search,  setSearch]  = useState('')
@@ -149,14 +157,21 @@ export default function AnalyticsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const from = getFrom(period)
-      const whereObj = from ? { createdAt: { greater_than: from.toISOString() } } : {}
-      const url = `/api/boutique-admin/orders?limit=1000&depth=2&sort=-createdAt&where=${encodeURIComponent(JSON.stringify(whereObj))}`
+      const from = getFrom(period, period === 'custom' ? appliedFrom : undefined)
+      const whereClause: Record<string, unknown> = {}
+      if (from) whereClause.createdAt = { greater_than: from.toISOString() }
+      // Pour la plage personnalisée, ajouter aussi la date de fin (fin de journée)
+      if (period === 'custom' && appliedTo) {
+        const toDate = new Date(appliedTo)
+        toDate.setHours(23, 59, 59, 999)
+        whereClause.createdAt = { ...(whereClause.createdAt as object ?? {}), less_than: toDate.toISOString() }
+      }
+      const url = `/api/boutique-admin/orders?limit=1000&depth=2&sort=-createdAt&where=${encodeURIComponent(JSON.stringify(whereClause))}`
       const data = await fetch(url).then(r => r.json())
       setOrders(data.docs ?? [])
     } catch { setOrders([]) }
     finally { setLoading(false) }
-  }, [period])
+  }, [period, appliedFrom, appliedTo])
 
   useEffect(() => { load() }, [load])
 
@@ -174,8 +189,8 @@ export default function AnalyticsPage() {
 
   // ── Données chronologiques (CA par jour) ──────────────────────────────────────
   const chartData = useMemo(() => {
-    const from = getFrom(period)
-    const now  = new Date()
+    const from = getFrom(period, period === 'custom' ? appliedFrom : undefined)
+    const now  = period === 'custom' && appliedTo ? new Date(appliedTo + 'T23:59:59') : new Date()
     const start = from ?? new Date(orders.reduce((min,o) => Math.min(min, new Date(o.createdAt).getTime()), now.getTime()))
     const diffDays = Math.ceil((now.getTime() - start.getTime()) / 86400000) + 1
     const buckets: Record<string,number> = {}
@@ -205,7 +220,7 @@ export default function AnalyticsPage() {
         : d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})
       return { label, value }
     })
-  }, [orders, period])
+  }, [orders, period, appliedFrom, appliedTo])
 
   // ── Agrégation PAR PRODUIT ─────────────────────────────────────────────────────
   const productData = useMemo(() => {
@@ -281,7 +296,9 @@ export default function AnalyticsPage() {
   const maxProductCA = productData[0]?.ca ?? 1
   const maxCatCA     = categoryData[0]?.ca ?? 1
 
-  const periodLabel = PERIODS.find(p => p.value === period)?.label ?? ''
+  const periodLabel = period === 'custom'
+    ? `${appliedFrom} → ${appliedTo}`
+    : (PERIODS.find(p => p.value === period)?.label ?? '')
 
   return (
     <div style={{ maxWidth:1300, animation:'fadeIn 0.25s ease' }}>
@@ -297,14 +314,44 @@ export default function AnalyticsPage() {
             ← Commandes
           </Link>
           {/* Période */}
-          <div style={{ display:'flex', gap:3, background:'#F5F5F5', borderRadius:8, padding:3 }}>
-            {PERIODS.map(p => (
-              <button key={p.value} onClick={() => setPeriod(p.value)} style={{
-                padding:'6px 12px', borderRadius:6, fontSize:12, fontWeight:period===p.value?700:500,
-                background:period===p.value?'#fff':'transparent', color:period===p.value?'#1A1A1A':'#6D7175',
-                border:'none', cursor:'pointer', boxShadow:period===p.value?'0 1px 3px rgba(0,0,0,0.1)':'none', whiteSpace:'nowrap',
-              }}>{p.label}</button>
-            ))}
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', gap:3, background:'#F5F5F5', borderRadius:8, padding:3 }}>
+              {PERIODS.map(p => (
+                <button key={p.value} onClick={() => setPeriod(p.value)} style={{
+                  padding:'6px 12px', borderRadius:6, fontSize:12, fontWeight:period===p.value?700:500,
+                  background:period===p.value?'#fff':'transparent', color:period===p.value?'#1A1A1A':'#6D7175',
+                  border:'none', cursor:'pointer', boxShadow:period===p.value?'0 1px 3px rgba(0,0,0,0.1)':'none', whiteSpace:'nowrap',
+                }}>{p.label}</button>
+              ))}
+            </div>
+            {/* Sélection de plage personnalisée */}
+            {period === 'custom' && (
+              <div style={{ display:'flex', gap:8, alignItems:'center', background:'#EEF2FF', border:'1px solid #C7D2FE', borderRadius:8, padding:'8px 12px', flexWrap:'wrap' }}>
+                <label style={{ fontSize:11, fontWeight:700, color:'#4A3DBC', textTransform:'uppercase', letterSpacing:'0.06em' }}>Du</label>
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={customTo}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  style={{ border:'1px solid #C7D2FE', borderRadius:6, padding:'4px 8px', fontSize:12, color:'#1A1A1A', background:'#fff', cursor:'pointer' }}
+                />
+                <label style={{ fontSize:11, fontWeight:700, color:'#4A3DBC', textTransform:'uppercase', letterSpacing:'0.06em' }}>Au</label>
+                <input
+                  type="date"
+                  value={customTo}
+                  min={customFrom}
+                  max={today}
+                  onChange={e => setCustomTo(e.target.value)}
+                  style={{ border:'1px solid #C7D2FE', borderRadius:6, padding:'4px 8px', fontSize:12, color:'#1A1A1A', background:'#fff', cursor:'pointer' }}
+                />
+                <button
+                  onClick={() => { setAppliedFrom(customFrom); setAppliedTo(customTo) }}
+                  style={{ padding:'5px 14px', borderRadius:7, background:'#4A3DBC', color:'#fff', border:'none', fontSize:12, fontWeight:700, cursor:'pointer' }}
+                >
+                  Appliquer
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
