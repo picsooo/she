@@ -1,2 +1,6 @@
-token yallidine : ZXo6KVfmbNupFhHSOqCytjWns4YlIRJMgAEkwxeTL1idrv08QGa923U5cBDPz7
-api : 82746001016417333422
+ conf01@boutique-she.com │ SHE-CONF-01  │                                                                                      ├─────┼─────────────────────────┼──────────────┤                                                                                      │ 02  │ conf02@boutique-she.com │ SHE-CONF-02  │
+  ├─────┼─────────────────────────┼──────────────┤
+  │ 03  │ conf03@boutique-she.com │ SHE-CONF-03  │
+
+
+Boussada321
