@@ -124,13 +124,20 @@ export default function OrdersPage() {
 
   useEffect(() => { load() }, [load])
 
+  // Compteurs par statut — respectent aussi les filtres date et wilaya actifs
   useEffect(() => {
+    const dateFrom = getDateFrom(datePreset)
+    const baseWhere: Record<string, unknown> = {}
+    if (dateFrom) baseWhere.createdAt = { greater_than: dateFrom }
+    if (wilayaFilter) baseWhere.wilaya = { like: wilayaFilter }
+
     Promise.all(
-      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s =>
-        fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: s } }))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
-      )
+      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s => {
+        const where = { ...baseWhere, status: { equals: s } }
+        return fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
+      })
     ).then(results => setCounts(Object.fromEntries(results)))
-  }, [orders])
+  }, [orders, datePreset, wilayaFilter])
 
   async function changeStatus(id: string, status: string) {
     setUpdating(id)
@@ -192,7 +199,12 @@ export default function OrdersPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Commandes</h1>
-          <p style={{ fontSize: 13, color: '#6D7175', margin: '3px 0 0' }}>{total} commande{total > 1 ? 's' : ''} au total</p>
+          <p style={{ fontSize: 13, color: '#6D7175', margin: '3px 0 0' }}>
+            {statusFilter
+              ? <><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{total}</span> commande{total > 1 ? 's' : ''} · <span style={{ color: '#9A9A9A' }}>Total période : {Object.values(counts).reduce((a, b) => a + b, 0)}</span></>
+              : <><span style={{ color: '#1A1A1A', fontWeight: 600 }}>{total}</span> commande{total > 1 ? 's' : ''} au total</>
+            }
+          </p>
         </div>
       </div>
 
@@ -200,7 +212,7 @@ export default function OrdersPage() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         {STATUSES.map(s => {
           const active = statusFilter === s.value
-          const count  = s.value ? (counts[s.value] ?? 0) : total
+          const count  = s.value ? (counts[s.value] ?? 0) : Object.values(counts).reduce((a, b) => a + b, 0)
           return (
             <button key={s.value} onClick={() => { setStatusFilter(s.value); setPage(1) }} style={{
               padding: '7px 14px', borderRadius: 8,
