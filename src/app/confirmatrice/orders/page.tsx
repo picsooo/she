@@ -219,65 +219,7 @@ export default function ConfirmatriceOrdersPage() {
         </div>
       </div>
 
-      {/* ── Widget prime ce mois ────────────────────────────────────────── */}
-      {currentUser?.confirmatriceType && (() => {
-        const { prime, salaireDebloque, detail } = calcPrime(currentUser, deliveredThisMonth)
-        const seuil   = currentUser.seuilCommandes ?? 0
-        const isSal   = currentUser.confirmatriceType === 'salarie'
-        const pct     = isSal && seuil > 0 ? Math.min(100, (deliveredThisMonth / seuil) * 100) : 100
-
-        return (
-          <div style={{
-            marginBottom: 20, borderRadius: 14, overflow: 'hidden',
-            background: prime > 0 ? 'linear-gradient(135deg, #F0FDF4, #DCFCE7)' : '#F9FAFB',
-            border: `1.5px solid ${prime > 0 ? '#BBF7D0' : '#E3E5E7'}`,
-          }}>
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              {/* Icône */}
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: prime > 0 ? '#15803D' : '#9A9A9A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                💰
-              </div>
-              {/* Détail */}
-              <div style={{ flex: 1, minWidth: 160 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: prime > 0 ? '#166534' : '#6D7175', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>
-                  Prime ce mois-ci
-                </div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: prime > 0 ? '#15803D' : '#9A9A9A' }}>{fmt(prime)}</div>
-                <div style={{ fontSize: 11, color: '#8A8A8A', marginTop: 2 }}>{detail}</div>
-              </div>
-              {/* Barre de progrès (salariée seulement) */}
-              {isSal && seuil > 0 && (
-                <div style={{ minWidth: 140, maxWidth: 180, flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, marginBottom: 5 }}>
-                    <span style={{ color: '#6D7175' }}>{deliveredThisMonth} livrées</span>
-                    <span style={{ color: salaireDebloque ? '#15803D' : '#7C3AED' }}>/ {seuil} requises</span>
-                  </div>
-                  <div style={{ background: '#E3E5E7', borderRadius: 6, height: 10, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%', borderRadius: 6, transition: 'width 0.6s ease',
-                      background: salaireDebloque ? 'linear-gradient(90deg, #15803D, #4ADE80)' : 'linear-gradient(90deg, #7C3AED, #A78BFA)',
-                      width: `${pct}%`,
-                    }} />
-                  </div>
-                  <div style={{ fontSize: 10, fontWeight: 700, marginTop: 4, color: salaireDebloque ? '#15803D' : '#7C3AED', textAlign: 'right' }}>
-                    {salaireDebloque ? '✓ Seuil atteint !' : `${seuil - deliveredThisMonth} livraisons pour débloquer`}
-                  </div>
-                </div>
-              )}
-              {/* Badge type */}
-              <span style={{
-                padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                background: isSal ? '#EFF6FF' : '#F5F3FF',
-                color: isSal ? '#1D4ED8' : '#7C3AED',
-                border: `1px solid ${isSal ? '#BFDBFE' : '#DDD6FE'}`,
-                flexShrink: 0,
-              }}>
-                {isSal ? 'Salariée' : 'Non-salariée'}
-              </span>
-            </div>
-          </div>
-        )
-      })()}
+      {/* Widget prime désactivé */}
 
       {/* Tabs statut */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
