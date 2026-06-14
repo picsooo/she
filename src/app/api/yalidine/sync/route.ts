@@ -58,38 +58,37 @@ export async function GET(req: NextRequest) {
 
   let updated = 0
   const errors: string[] = []
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-  // Traitement en lots de 5 pour ne pas saturer l'API Yalidine
-  for (let i = 0; i < allOrders.length; i += 5) {
-    const batch = allOrders.slice(i, i + 5)
-    await Promise.all(batch.map(async (order) => {
-      if (!order.yalidineTrackingId) return
-      try {
-        const detail = await yalidine.getParcel(order.yalidineTrackingId)
-        const parcel = detail.data?.[0]
-        if (!parcel) return
+  // Traitement séquentiel avec 400ms entre chaque requête pour respecter le rate limit Yalidine
+  for (const order of allOrders) {
+    if (!order.yalidineTrackingId) continue
+    try {
+      const detail = await yalidine.getParcel(order.yalidineTrackingId)
+      const parcel = detail.data?.[0]
+      if (!parcel) { await delay(400); continue }
 
-        const mappedStatus = mapYalidineStatusToOrder(parcel.last_status)
-        if (!mappedStatus || order.status === mappedStatus) return
+      const mappedStatus = mapYalidineStatusToOrder(parcel.last_status)
+      if (!mappedStatus || order.status === mappedStatus) { await delay(400); continue }
 
-        // Ne jamais reculer depuis un statut final
-        const finalStatuses = ['delivered', 'cancelled']
-        if (finalStatuses.includes(order.status)) return
+      // Ne jamais reculer depuis un statut final
+      const finalStatuses = ['delivered', 'cancelled']
+      if (finalStatuses.includes(order.status)) { await delay(400); continue }
 
-        await payload.update({
-          collection: 'orders',
-          id: order.id,
-          data: {
-            status: mappedStatus,
-            yalidineStatus: parcel.last_status,
-          },
-          overrideAccess: true,
-        })
-        updated++
-      } catch (err) {
-        errors.push(`${order.yalidineTrackingId}: ${err instanceof Error ? err.message : 'Erreur'}`)
-      }
-    }))
+      await payload.update({
+        collection: 'orders',
+        id: order.id,
+        data: {
+          status: mappedStatus,
+          yalidineStatus: parcel.last_status,
+        },
+        overrideAccess: true,
+      })
+      updated++
+    } catch (err) {
+      errors.push(`${order.yalidineTrackingId}: ${err instanceof Error ? err.message : 'Erreur'}`)
+    }
+    await delay(400)
   }
 
   return NextResponse.json({
