@@ -45,6 +45,7 @@ const STATUSES = [
   { value: 'confirmed', label: 'Confirmées',      color: '#1D4ED8', bg: '#DBEAFE',   dot: '#1D4ED8' },
   { value: 'shipping',  label: 'En livraison',    color: '#7C3AED', bg: '#EDE9FE',   dot: '#7C3AED' },
   { value: 'delivered', label: 'Livrées',         color: '#065F46', bg: '#D1FAE5',   dot: '#065F46' },
+  { value: 'returned',  label: 'Retournées',      color: '#92400E', bg: '#FFF7ED',   dot: '#F97316' },
   { value: 'cancelled', label: 'Annulées',        color: '#991B1B', bg: '#FEE2E2',   dot: '#991B1B' },
 ]
 
@@ -149,7 +150,7 @@ export default function OrdersPage() {
     if (wilayaFilter) baseWhere.wilaya = { like: wilayaFilter }
 
     Promise.all(
-      ['new','pending','confirmed','shipping','delivered','cancelled'].map(s => {
+      ['new','pending','confirmed','shipping','delivered','returned','cancelled'].map(s => {
         const where = { ...baseWhere, status: { equals: s } }
         return fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
       })

@@ -122,8 +122,8 @@ export interface YalidineCenter {
  */
 export function mapYalidineStatusToOrder(
   yalidineStatus: string
-): 'shipping' | 'delivered' | 'failed' | 'cancelled' | null {
-  const statusMap: Record<string, 'shipping' | 'delivered' | 'failed' | 'cancelled' | null> = {
+): 'shipping' | 'delivered' | 'failed' | 'cancelled' | 'returned' | null {
+  const statusMap: Record<string, 'shipping' | 'delivered' | 'failed' | 'cancelled' | 'returned' | null> = {
     'Pas encore expédié':  null,
     'A vérifier':          null,
     'En préparation':      null,
@@ -150,14 +150,14 @@ export function mapYalidineStatusToOrder(
     'Livré':               'delivered',
     'Echèc livraison':     'failed',
     'Annulé':              'cancelled',
-    'Retour vers centre':  null,
-    'Retourné au centre':  null,
-    'Retour transfert':    null,
-    'Retour groupé':       null,
-    'Retour à retirer':    null,
-    'Retour vers vendeur': null,
-    'Retourné au vendeur': null,
-    'Echange échoué':      null,
+    'Retour vers centre':  'returned',
+    'Retourné au centre':  'returned',
+    'Retour transfert':    'returned',
+    'Retour groupé':       'returned',
+    'Retour à retirer':    'returned',
+    'Retour vers vendeur': 'returned',
+    'Retourné au vendeur': 'returned',
+    'Echange échoué':      'returned',
   }
   return statusMap[yalidineStatus] ?? null
 }

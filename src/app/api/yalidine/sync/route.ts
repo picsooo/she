@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       collection: 'orders',
       where: {
         and: [
-          { status: { not_in: ['delivered', 'cancelled'] } },
+          { status: { not_in: ['delivered', 'cancelled', 'returned'] } },
           { yalidineTrackingId: { exists: true } },
         ],
       },
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
       if (!mappedStatus || order.status === mappedStatus) { await delay(RATE_DELAY); continue }
 
       // Ne jamais reculer depuis un statut final
-      const finalStatuses = ['delivered', 'cancelled']
+      const finalStatuses = ['delivered', 'cancelled', 'returned']
       if (finalStatuses.includes(order.status)) { await delay(RATE_DELAY); continue }
 
       await payload.update({

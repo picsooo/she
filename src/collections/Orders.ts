@@ -12,6 +12,7 @@ export const ORDER_STATUSES = [
   { label: 'مؤكدة — Confirmée',               value: 'confirmed' },
   { label: 'قيد التوصيل — En livraison',       value: 'shipping' },
   { label: 'تم التسليم — Livrée',              value: 'delivered' },
+  { label: 'مرتجع — Retournée',               value: 'returned' },
   { label: 'فاشلة — Échouée',                 value: 'failed' },
   { label: 'ملغاة — Annulée',                 value: 'cancelled' },
 ] as const
@@ -19,7 +20,7 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number]['value']
 
 // Statuts qui déclenchent un retour de stock
-const STOCK_RETURN_STATUSES: OrderStatus[] = ['failed', 'cancelled']
+const STOCK_RETURN_STATUSES: OrderStatus[] = ['failed', 'cancelled', 'returned']
 // Statut qui déclenche la déduction de stock
 const STOCK_DEDUCT_STATUS: OrderStatus = 'confirmed'
 
