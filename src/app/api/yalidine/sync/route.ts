@@ -59,21 +59,22 @@ export async function GET(req: NextRequest) {
   let updated = 0
   const errors: string[] = []
   const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
+  // Yalidine : 50 req/min max → 1 req toutes les 1.5s pour rester sous le quota
+  const RATE_DELAY = 1500
 
-  // Traitement séquentiel avec 400ms entre chaque requête pour respecter le rate limit Yalidine
   for (const order of allOrders) {
     if (!order.yalidineTrackingId) continue
     try {
       const detail = await yalidine.getParcel(order.yalidineTrackingId)
       const parcel = detail.data?.[0]
-      if (!parcel) { await delay(400); continue }
+      if (!parcel) { await delay(RATE_DELAY); continue }
 
       const mappedStatus = mapYalidineStatusToOrder(parcel.last_status)
-      if (!mappedStatus || order.status === mappedStatus) { await delay(400); continue }
+      if (!mappedStatus || order.status === mappedStatus) { await delay(RATE_DELAY); continue }
 
       // Ne jamais reculer depuis un statut final
       const finalStatuses = ['delivered', 'cancelled']
-      if (finalStatuses.includes(order.status)) { await delay(400); continue }
+      if (finalStatuses.includes(order.status)) { await delay(RATE_DELAY); continue }
 
       await payload.update({
         collection: 'orders',
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       errors.push(`${order.yalidineTrackingId}: ${err instanceof Error ? err.message : 'Erreur'}`)
     }
-    await delay(400)
+    await delay(RATE_DELAY)
   }
 
   return NextResponse.json({
