@@ -5,21 +5,24 @@
 import nodemailer from 'nodemailer'
 
 // ── Transporteur SMTP ─────────────────────────────────────────────────────────
+const smtpPort = parseInt(process.env.SMTP_PORT ?? '587')
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST ?? 'mail.boutique-she.com',
-  port: parseInt(process.env.SMTP_PORT ?? '465'),
-  secure: parseInt(process.env.SMTP_PORT ?? '465') === 465, // true pour 465, false pour 587
+  host:   process.env.SMTP_HOST ?? 'smtp.gmail.com',
+  port:   smtpPort,
+  secure: smtpPort === 465, // true seulement pour 465, false pour 587 (STARTTLS)
   auth: {
-    user: process.env.SMTP_USER ?? 'contact@boutique-she.com',
+    user: process.env.SMTP_USER ?? '',
     pass: process.env.SMTP_PASS ?? '',
   },
   tls: {
-    rejectUnauthorized: false, // tolérance pour les certificats hébergeurs mutualisés
+    rejectUnauthorized: false,
   },
 })
 
-const FROM_ADDRESS = process.env.EMAIL_FROM ?? "She's Fit & Beauty <contact@boutique-she.com>"
-const ADMIN_EMAIL  = process.env.ADMIN_EMAIL  ?? 'wsaoudi@webminds.dz'
+const FROM_ADDRESS = process.env.EMAIL_FROM ?? "She's Fit & Beauty <shefitandbeauty@gmail.com>"
+// Plusieurs destinataires admin séparés par virgule dans ADMIN_EMAILS
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? 'shefitandbeauty@gmail.com,contact@webminds.dz')
+  .split(',').map(e => e.trim()).filter(Boolean)
 const STORE_URL    = process.env.NEXT_PUBLIC_SERVER_URL ?? 'https://boutique-she.com'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -360,11 +363,11 @@ export async function sendOrderEmails(order: OrderEmailData): Promise<void> {
     )
   }
 
-  // 2. Email admin (toujours)
+  // 2. Email admin — envoyé à tous les destinataires configurés
   promises.push(
     transporter.sendMail({
       from:    FROM_ADDRESS,
-      to:      ADMIN_EMAIL,
+      to:      ADMIN_EMAILS.join(', '),
       subject: `🛍️ Nouvelle commande ${order.orderNumber} — ${formatPrice(order.total)}`,
       html:    buildAdminEmailHtml(order),
     }).catch(err => console.error('[email] Erreur admin:', err))
