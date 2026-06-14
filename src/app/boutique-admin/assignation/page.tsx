@@ -17,6 +17,7 @@ interface Order {
   phone?: string
   wilaya?: string
   total?: number
+  status?: string
   createdAt: string
   assignedTo?: { id: number; firstName?: string; lastName?: string; email?: string } | null
 }
@@ -52,7 +53,7 @@ export default function AssignationPage() {
     try {
       const [ordersRes, usersRes] = await Promise.all([
         fetch('/api/boutique-admin/orders?limit=100&depth=1&sort=-createdAt&where=' +
-          encodeURIComponent(JSON.stringify({ status: { equals: 'new' } }))),
+          encodeURIComponent(JSON.stringify({ status: { in: ['new', 'pending'] } }))),
         fetch('/api/boutique-admin/users?limit=20&where[role][equals]=confirmatrice'),
       ])
       const ordersData = await ordersRes.json()
@@ -140,6 +141,8 @@ export default function AssignationPage() {
 
   const displayed = showUnassigned ? orders.filter(o => !o.assignedTo) : orders
   const unassignedCount = orders.filter(o => !o.assignedTo).length
+  const newCount     = orders.filter(o => o.status === 'new').length
+  const pendingCount = orders.filter(o => o.status === 'pending').length
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -148,7 +151,7 @@ export default function AssignationPage() {
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1A1A1A', margin: 0 }}>Assignation des commandes</h1>
         <p style={{ fontSize: 13, color: '#8A8A8A', marginTop: 4 }}>
-          Répartissez les nouvelles commandes entre vos confirmatrices manuellement ou automatiquement
+          Répartissez les commandes nouvelles et en attente entre vos confirmatrices manuellement ou automatiquement
         </p>
       </div>
 
@@ -161,9 +164,16 @@ export default function AssignationPage() {
 
             {/* Compteurs */}
             <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#B45309' }}>
-                {orders.length} nouvelle{orders.length > 1 ? 's' : ''}
-              </div>
+              {newCount > 0 && (
+                <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#B45309' }}>
+                  {newCount} nouvelle{newCount > 1 ? 's' : ''}
+                </div>
+              )}
+              {pendingCount > 0 && (
+                <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#4338CA' }}>
+                  {pendingCount} en attente
+                </div>
+              )}
               {unassignedCount > 0 && (
                 <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#991B1B' }}>
                   {unassignedCount} non assignée{unassignedCount > 1 ? 's' : ''}
@@ -266,6 +276,16 @@ export default function AssignationPage() {
                       <tr key={o.id} style={{ borderBottom: i < displayed.length - 1 ? '1px solid #F1F1F1' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: '#E93D91', fontFamily: 'monospace' }}>{o.orderNumber ?? o.id.slice(-6)}</div>
+                          {o.status === 'pending' && (
+                            <div style={{ marginTop: 4, display: 'inline-block', background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700, color: '#4338CA' }}>
+                              EN ATTENTE
+                            </div>
+                          )}
+                          {o.status === 'new' && (
+                            <div style={{ marginTop: 4, display: 'inline-block', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 4, padding: '1px 6px', fontSize: 10, fontWeight: 700, color: '#B45309' }}>
+                              NOUVELLE
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ fontWeight: 600, fontSize: 13, color: '#1A1A1A' }}>{o.customerName ?? '—'}</div>
