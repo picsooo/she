@@ -3,30 +3,64 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { YalidineClient } from '@/lib/yalidine'
 import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { join } from 'path'
 
 /**
  * GET /api/yalidine/fees?wilayaCode=16&communeNameAr=باب الواد
- * Retourne les frais réels Yalidine pour la commune (utilisé dans le checkout).
  *
- * Cache serveur en mémoire par paire de wilayas (clé = fromCode_toCode).
- * TTL = 1 heure → Yalidine n'est appelé qu'une fois par paire/heure,
- * puis toutes les communes de la paire sont servies instantanément.
+ * Cache fichier persistant par paire de wilayas (24h).
+ * → Yalidine n'est appelé qu'une fois par paire/jour, survit aux redémarrages.
+ * → Déduplication des requêtes simultanées via Map de promises en cours.
  */
 
-type PerCommuneEntry = { commune_name: string; express_home: number | null; express_desk: number | null; economic_home: number | null; economic_desk: number | null }
-type CachedFees = { perCommune: Record<string, PerCommuneEntry>; ts: number }
+type PerCommuneEntry = {
+  commune_name: string
+  express_home: number | null
+  express_desk: number | null
+  economic_home: number | null
+  economic_desk: number | null
+}
+type FileCache = Record<string, { perCommune: Record<string, PerCommuneEntry>; ts: number }>
 
-// Cache module-level (réinitialisé uniquement au redémarrage du serveur)
-const feesCache = new Map<string, CachedFees>()
-const CACHE_TTL = 60 * 60 * 1000 // 1 heure
+const CACHE_DIR  = join(process.cwd(), '.fees-cache')
+const CACHE_FILE = join(CACHE_DIR, 'yalidine-fees.json')
+const CACHE_TTL  = 24 * 60 * 60 * 1000 // 24 heures
 
-function getCached(key: string): Record<string, PerCommuneEntry> | null {
-  const entry = feesCache.get(key)
+// ── Cache fichier ──────────────────────────────────────────────────────────────
+function loadFileCache(): FileCache {
+  try {
+    if (existsSync(CACHE_FILE)) return JSON.parse(readFileSync(CACHE_FILE, 'utf-8')) as FileCache
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveFileCache(cache: FileCache) {
+  try {
+    if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
+    writeFileSync(CACHE_FILE, JSON.stringify(cache), 'utf-8')
+  } catch { /* ignore */ }
+}
+
+function getCachedPair(key: string): Record<string, PerCommuneEntry> | null {
+  const cache = loadFileCache()
+  const entry  = cache[key]
   if (!entry) return null
-  if (Date.now() - entry.ts > CACHE_TTL) { feesCache.delete(key); return null }
+  if (Date.now() - entry.ts > CACHE_TTL) { delete cache[key]; saveFileCache(cache); return null }
   return entry.perCommune
 }
 
+function setPairCache(key: string, perCommune: Record<string, PerCommuneEntry>) {
+  const cache = loadFileCache()
+  cache[key]  = { perCommune, ts: Date.now() }
+  saveFileCache(cache)
+}
+
+// ── Déduplication des requêtes en vol simultanées ─────────────────────────────
+// Si 5 clients demandent la même wilaya en même temps, un seul appel Yalidine part.
+const inFlight = new Map<string, Promise<Record<string, PerCommuneEntry> | null>>()
+
+// ── Handler ────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const wilayaCode    = searchParams.get('wilayaCode')
@@ -56,36 +90,45 @@ export async function GET(req: NextRequest) {
     const commune = COMMUNES.find(c => c.wilayaCode === toWilaya.code && c.nameAr === communeNameAr)
     if (!commune) return NextResponse.json({ home: null, desk: null, source: 'error' })
 
-    // ── Lecture du cache ──────────────────────────────────────────────────────
     const cacheKey = `${fromWilaya.code}_${toWilaya.code}`
-    let perCommune = getCached(cacheKey)
+
+    // 1) Vérifier le cache fichier (persiste entre les redémarrages)
+    let perCommune = getCachedPair(cacheKey)
 
     if (!perCommune) {
-      // Cache miss → appel Yalidine (1 seul appel pour toute la wilaya)
-      const client = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
+      // 2) Dédupliquer : si une requête Yalidine est déjà en cours pour cette paire, attendre
+      if (!inFlight.has(cacheKey)) {
+        const client = new YalidineClient(
+          settings.yalidineApiId as string,
+          settings.yalidineApiToken as string
+        )
+        const promise = Promise.race([
+          client.getFees(parseInt(fromWilaya.code), parseInt(toWilaya.code)),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+        ]).then(fees => {
+          inFlight.delete(cacheKey)
+          if (!fees) return null
+          const pc = fees.per_commune ?? {}
+          setPairCache(cacheKey, pc) // persisté sur disque
+          return pc
+        }).catch(() => { inFlight.delete(cacheKey); return null })
 
-      const fees = await Promise.race([
-        client.getFees(parseInt(fromWilaya.code), parseInt(toWilaya.code)),
-        new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
-      ])
+        inFlight.set(cacheKey, promise)
+      }
 
-      if (!fees) return NextResponse.json({ home: null, desk: null, source: 'timeout' })
-
-      // Stocker toutes les communes de la wilaya dans le cache
-      perCommune = fees.per_commune ?? {}
-      feesCache.set(cacheKey, { perCommune, ts: Date.now() })
+      perCommune = await inFlight.get(cacheKey)!
     }
 
-    // ── Recherche de la commune dans les données (cache hit ou fresh) ─────────
-    // 1) Correspondance exacte (insensible à la casse)
-    // 2) Correspondance sans accents en repli (ex: "El Harrach" vs "El-Harrach")
+    if (!perCommune) return NextResponse.json({ home: null, desk: null, source: 'timeout' })
+
+    // Recherche commune — exact puis fuzzy sans accents/tirets
     const normalize = (s: string) =>
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
 
-    const communeEntries = Object.values(perCommune)
+    const entries = Object.values(perCommune)
     const communeData =
-      communeEntries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
-      communeEntries.find(c => normalize(c.commune_name) === normalize(commune.nameFr))
+      entries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
+      entries.find(c => normalize(c.commune_name) === normalize(commune.nameFr))
 
     if (!communeData) return NextResponse.json({ home: null, desk: null, source: 'commune_not_found' })
 
