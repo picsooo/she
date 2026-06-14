@@ -54,6 +54,7 @@ const DATE_PRESETS = [
   { label: '7 jours',       value: '7d' },
   { label: '30 jours',      value: '30d' },
   { label: 'Ce mois',       value: 'month' },
+  { label: 'Personnalisé',  value: 'custom' },
 ]
 
 const NEXT_STATUS: Record<string, string> = {
@@ -72,12 +73,13 @@ function timeAgo(s: string): string {
   return ''
 }
 
-function getDateFrom(preset: string): string | null {
+function getDateFrom(preset: string, appliedFrom?: string): string | null {
   const now = new Date()
   if (preset === 'today') { const d = new Date(now); d.setHours(0,0,0,0); return d.toISOString() }
   if (preset === '7d')    { return new Date(now.getTime() - 7  * 86400000).toISOString() }
   if (preset === '30d')   { return new Date(now.getTime() - 30 * 86400000).toISOString() }
   if (preset === 'month') { return new Date(now.getFullYear(), now.getMonth(), 1).toISOString() }
+  if (preset === 'custom' && appliedFrom) { return new Date(appliedFrom).toISOString() }
   return null
 }
 
@@ -99,6 +101,10 @@ export default function OrdersPage() {
   const [bulkStatus,   setBulkStatus]   = useState('')
   const [bulkLoading,  setBulkLoading]  = useState(false)
   const [deleting,     setDeleting]     = useState<string | null>(null)
+  const [customFrom,   setCustomFrom]   = useState('')
+  const [customTo,     setCustomTo]     = useState('')
+  const [appliedFrom,  setAppliedFrom]  = useState('')
+  const [appliedTo,    setAppliedTo]    = useState('')
   const perPage = 20
 
   const load = useCallback(async () => {
@@ -107,8 +113,14 @@ export default function OrdersPage() {
       const where: Record<string, unknown> = {}
       if (statusFilter) where.status = { equals: statusFilter }
       if (wilayaFilter) where.wilaya = { like: wilayaFilter }
-      const dateFrom = getDateFrom(datePreset)
-      if (dateFrom) where.createdAt = { greater_than: dateFrom }
+      const dateFrom = getDateFrom(datePreset, appliedFrom)
+      if (datePreset === 'custom' && appliedFrom && appliedTo) {
+        // Fin de journée pour la date de fin
+        const toDate = new Date(appliedTo); toDate.setHours(23, 59, 59, 999)
+        where.createdAt = { greater_than: new Date(appliedFrom).toISOString(), less_than: toDate.toISOString() }
+      } else if (dateFrom) {
+        where.createdAt = { greater_than: dateFrom }
+      }
       if (search) where.or = [
         { orderNumber: { like: search } },
         { customerName: { like: search } },
@@ -120,15 +132,20 @@ export default function OrdersPage() {
       setOrders(data.docs ?? [])
       setTotal(data.totalDocs ?? 0)
     } finally { setLoading(false) }
-  }, [statusFilter, wilayaFilter, datePreset, search, page])
+  }, [statusFilter, wilayaFilter, datePreset, appliedFrom, appliedTo, search, page])
 
   useEffect(() => { load() }, [load])
 
   // Compteurs par statut — respectent aussi les filtres date et wilaya actifs
   useEffect(() => {
-    const dateFrom = getDateFrom(datePreset)
+    const dateFrom = getDateFrom(datePreset, appliedFrom)
     const baseWhere: Record<string, unknown> = {}
-    if (dateFrom) baseWhere.createdAt = { greater_than: dateFrom }
+    if (datePreset === 'custom' && appliedFrom && appliedTo) {
+      const toDate = new Date(appliedTo); toDate.setHours(23, 59, 59, 999)
+      baseWhere.createdAt = { greater_than: new Date(appliedFrom).toISOString(), less_than: toDate.toISOString() }
+    } else if (dateFrom) {
+      baseWhere.createdAt = { greater_than: dateFrom }
+    }
     if (wilayaFilter) baseWhere.wilaya = { like: wilayaFilter }
 
     Promise.all(
@@ -137,7 +154,7 @@ export default function OrdersPage() {
         return fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
       })
     ).then(results => setCounts(Object.fromEntries(results)))
-  }, [orders, datePreset, wilayaFilter])
+  }, [orders, datePreset, appliedFrom, appliedTo, wilayaFilter])
 
   async function changeStatus(id: string, status: string) {
     setUpdating(id)
@@ -187,7 +204,7 @@ export default function OrdersPage() {
     }
   }
 
-  const resetFilters = () => { setStatusFilter(''); setWilayaFilter(''); setDatePreset(''); setSearch(''); setPage(1) }
+  const resetFilters = () => { setStatusFilter(''); setWilayaFilter(''); setDatePreset(''); setSearch(''); setPage(1); setCustomFrom(''); setCustomTo(''); setAppliedFrom(''); setAppliedTo('') }
   const hasActiveFilters = !!(statusFilter || wilayaFilter || datePreset || search)
   const totalPages = Math.ceil(total / perPage)
   const allSelected = orders.length > 0 && selected.size === orders.length
@@ -267,6 +284,39 @@ export default function OrdersPage() {
           ))}
         </div>
 
+        {/* Sélecteur de plage personnalisée — visible uniquement si "Personnalisé" actif */}
+        {datePreset === 'custom' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#6D7175', whiteSpace: 'nowrap' }}>Du</span>
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="admin-input"
+              style={{ width: 140, fontSize: 12, padding: '6px 10px' }}
+            />
+            <span style={{ fontSize: 12, color: '#6D7175', whiteSpace: 'nowrap' }}>Au</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="admin-input"
+              style={{ width: 140, fontSize: 12, padding: '6px 10px' }}
+            />
+            <button
+              onClick={() => { if (customFrom && customTo) { setAppliedFrom(customFrom); setAppliedTo(customTo); setPage(1) } }}
+              disabled={!customFrom || !customTo}
+              style={{
+                padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 700,
+                background: customFrom && customTo ? '#1A1A1A' : '#E3E5E7',
+                color: customFrom && customTo ? '#fff' : '#9A9A9A',
+                border: 'none', cursor: customFrom && customTo ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}
+            >Appliquer</button>
+          </div>
+        )}
+
         {hasActiveFilters && (
           <button onClick={resetFilters} style={{
             padding: '8px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
@@ -279,7 +329,8 @@ export default function OrdersPage() {
       {hasActiveFilters && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', fontSize: 12 }}>
           {wilayaFilter && <span className="admin-badge" style={{ background: '#EDE9FE', color: '#7C3AED' }}>📍 {wilayaFilter}</span>}
-          {datePreset    && <span className="admin-badge" style={{ background: '#DBEAFE', color: '#1D4ED8' }}>🗓️ {DATE_PRESETS.find(p => p.value === datePreset)?.label}</span>}
+          {datePreset && datePreset !== 'custom' && <span className="admin-badge" style={{ background: '#DBEAFE', color: '#1D4ED8' }}>🗓️ {DATE_PRESETS.find(p => p.value === datePreset)?.label}</span>}
+          {datePreset === 'custom' && appliedFrom && appliedTo && <span className="admin-badge" style={{ background: '#DBEAFE', color: '#1D4ED8' }}>🗓️ {appliedFrom} → {appliedTo}</span>}
         </div>
       )}
 
