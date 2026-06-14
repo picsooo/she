@@ -42,8 +42,8 @@ export default function AssignationPage() {
   const [results,         setResults]         = useState<Record<string, 'ok' | 'err'>>({})
   const [autoLoading,     setAutoLoading]     = useState(false)
   const [autoResult,      setAutoResult]      = useState<string | null>(null)
-  // filtre : toutes les nouvelles, ou seulement non-assignées
-  const [showUnassigned,  setShowUnassigned]  = useState(false)
+  // filtre : all | new | pending | unassigned
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'pending' | 'unassigned'>('all')
   // id de confirmatrice → en cours de toggle actif/inactif
   const [toggling,        setToggling]        = useState<Record<number, boolean>>({})
 
@@ -139,10 +139,16 @@ export default function AssignationPage() {
     setAutoLoading(false)
   }
 
-  const displayed = showUnassigned ? orders.filter(o => !o.assignedTo) : orders
   const unassignedCount = orders.filter(o => !o.assignedTo).length
-  const newCount     = orders.filter(o => o.status === 'new').length
-  const pendingCount = orders.filter(o => o.status === 'pending').length
+  const newCount        = orders.filter(o => o.status === 'new').length
+  const pendingCount    = orders.filter(o => o.status === 'pending').length
+
+  const displayed = (() => {
+    if (statusFilter === 'new')        return orders.filter(o => o.status === 'new')
+    if (statusFilter === 'pending')    return orders.filter(o => o.status === 'pending')
+    if (statusFilter === 'unassigned') return orders.filter(o => !o.assignedTo)
+    return orders
+  })()
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -162,36 +168,48 @@ export default function AssignationPage() {
           {/* Barre d'actions */}
           <div style={{ background: '#fff', border: '1px solid #E3E5E7', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
 
-            {/* Compteurs */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              {newCount > 0 && (
-                <div style={{ background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#B45309' }}>
-                  {newCount} nouvelle{newCount > 1 ? 's' : ''}
-                </div>
-              )}
-              {pendingCount > 0 && (
-                <div style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#4338CA' }}>
-                  {pendingCount} en attente
-                </div>
-              )}
-              {unassignedCount > 0 && (
-                <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: 8, padding: '6px 12px', fontSize: 13, fontWeight: 700, color: '#991B1B' }}>
-                  {unassignedCount} non assignée{unassignedCount > 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
+            {/* Filtres cliquables (compteurs + statuts) */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Nouvelles */}
+              <button onClick={() => setStatusFilter(statusFilter === 'new' ? 'all' : 'new')} style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
+                borderColor: statusFilter === 'new' ? '#F59E0B' : '#FDE68A',
+                background:  statusFilter === 'new' ? '#F59E0B' : '#FEF3C7',
+                color:       statusFilter === 'new' ? '#fff'    : '#B45309',
+                boxShadow:   statusFilter === 'new' ? '0 2px 6px rgba(245,158,11,0.35)' : 'none',
+              }}>
+                {newCount} nouvelle{newCount > 1 ? 's' : ''}
+              </button>
 
-            {/* Filtres */}
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setShowUnassigned(false)}
-                style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s',
-                  borderColor: !showUnassigned ? '#E93D91' : '#E3E5E7', background: !showUnassigned ? '#FEF3F8' : '#fff', color: !showUnassigned ? '#E93D91' : '#3D3D3D' }}>
+              {/* En attente */}
+              <button onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')} style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s', border: '1px solid',
+                borderColor: statusFilter === 'pending' ? '#4338CA' : '#C7D2FE',
+                background:  statusFilter === 'pending' ? '#4338CA' : '#EEF2FF',
+                color:       statusFilter === 'pending' ? '#fff'    : '#4338CA',
+                boxShadow:   statusFilter === 'pending' ? '0 2px 6px rgba(67,56,202,0.3)' : 'none',
+              }}>
+                {pendingCount} en attente
+              </button>
+
+              {/* Toutes */}
+              <button onClick={() => setStatusFilter('all')} style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s',
+                borderColor: statusFilter === 'all' ? '#E93D91' : '#E3E5E7',
+                background:  statusFilter === 'all' ? '#FEF3F8' : '#fff',
+                color:       statusFilter === 'all' ? '#E93D91' : '#3D3D3D',
+              }}>
                 Toutes
               </button>
-              <button onClick={() => setShowUnassigned(true)}
-                style={{ padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s',
-                  borderColor: showUnassigned ? '#E93D91' : '#E3E5E7', background: showUnassigned ? '#FEF3F8' : '#fff', color: showUnassigned ? '#E93D91' : '#3D3D3D' }}>
-                Non assignées
+
+              {/* Non assignées */}
+              <button onClick={() => setStatusFilter(statusFilter === 'unassigned' ? 'all' : 'unassigned')} style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', transition: 'all 0.15s',
+                borderColor: statusFilter === 'unassigned' ? '#991B1B' : '#E3E5E7',
+                background:  statusFilter === 'unassigned' ? '#FEE2E2' : '#fff',
+                color:       statusFilter === 'unassigned' ? '#991B1B' : '#3D3D3D',
+              }}>
+                Non assignées {unassignedCount > 0 && `(${unassignedCount})`}
               </button>
             </div>
 
@@ -254,7 +272,7 @@ export default function AssignationPage() {
           {displayed.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, background: '#fff', borderRadius: 12, border: '1px solid #E3E5E7', color: '#9A9A9A' }}>
               <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
-              <div style={{ fontWeight: 600 }}>{showUnassigned ? 'Toutes les commandes sont assignées' : 'Aucune nouvelle commande'}</div>
+              <div style={{ fontWeight: 600 }}>{statusFilter === 'unassigned' ? 'Toutes les commandes sont assignées' : 'Aucune commande pour ce filtre'}</div>
             </div>
           ) : (
             <div style={{ background: '#fff', border: '1px solid #E3E5E7', borderRadius: 12, overflow: 'hidden' }}>
