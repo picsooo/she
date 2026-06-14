@@ -94,13 +94,17 @@ export default function CheckoutPage() {
       .then(data => {
         if (cancelled) return
         if (data?.source === 'yalidine' && (data.home !== null || data.desk !== null)) {
-          // Frais Yalidine réels disponibles
+          // Frais Yalidine réels disponibles pour cette wilaya
           setFees({
             home: data.home ?? fallback.home,
             desk: data.desk ?? fallback.desk,
           })
+        } else if (data?.source === 'disabled') {
+          // Yalidine désactivé → utiliser les frais par défaut des settings
+          setFees(fallback)
         } else {
-          // Fallback sur les frais par défaut des settings
+          // Erreur/timeout Yalidine → frais indisponibles temporairement, ne pas afficher 400/300
+          // L'utilisateur verra "يُحدَّد بعد اختيار الولاية" et pourra quand même commander
           setFees(fallback)
         }
       })
