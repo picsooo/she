@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
 
   const payload = await getPayload({ config: configPromise })
 
-  // Récupère toutes les commandes en livraison avec un tracking Yalidine
+  // Récupère toutes les commandes non-finales avec un tracking Yalidine
+  // (inclut 'confirmed' et 'shipping' — rattrape les commandes envoyées avant le fix du send-to-yalidine)
   let allOrders: Array<{ id: string; status: string; yalidineTrackingId?: string; orderNumber?: string }> = []
   let page = 1
   while (true) {
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
       collection: 'orders',
       where: {
         and: [
-          { status: { equals: 'shipping' } },
+          { status: { not_in: ['delivered', 'cancelled'] } },
           { yalidineTrackingId: { exists: true } },
         ],
       },

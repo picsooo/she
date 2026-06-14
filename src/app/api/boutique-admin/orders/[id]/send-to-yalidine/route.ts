@@ -86,6 +86,7 @@ export async function POST(
       id,
       overrideAccess: true,
       data: {
+        status:             'shipping',        // passer en "En livraison" dès l'envoi à Yalidine
         yalidineTrackingId: result.tracking ?? undefined,
         yalidineLabelUrl:   result.label ?? undefined,
         yalidineStatus:     'En préparation',
