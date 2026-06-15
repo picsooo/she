@@ -61,6 +61,7 @@ interface ConfStats {
   user: ConfirmatriceUser
   delivered: number
   confirmed: number   // confirmées + en livraison + livrées
+  pending: number     // en attente (mises de côté par la confirmatrice)
   cancelled: number
   total_new: number
   ca: number
@@ -174,16 +175,17 @@ export default function PrimesPage() {
   const stats: ConfStats[] = confirmatrices.map(user => {
     const myOrders = filtered.filter(o => o.assignedTo?.id === user.id || o.assignedTo?.id === String(user.id))
 
-    let delivered = 0, confirmed = 0, cancelled = 0, ca = 0
+    let delivered = 0, confirmed = 0, pending = 0, cancelled = 0, ca = 0
     for (const o of myOrders) {
       if (['confirmed', 'shipping', 'delivered'].includes(o.status)) { confirmed++; ca += o.total ?? 0 }
       if (o.status === 'delivered') delivered++
+      if (o.status === 'pending')   pending++
       if (o.status === 'cancelled') cancelled++
     }
 
     const { prime, salaireDebloque, detail } = computePrime(user, delivered)
     return {
-      user, delivered, confirmed, cancelled,
+      user, delivered, confirmed, pending, cancelled,
       total_new: myOrders.length, ca,
       prime, salaireDebloque, primeDetail: detail,
     }
@@ -192,6 +194,7 @@ export default function PrimesPage() {
   const totals = {
     confirmed: stats.reduce((s, c) => s + c.confirmed, 0),
     delivered: stats.reduce((s, c) => s + c.delivered, 0),
+    pending:   stats.reduce((s, c) => s + c.pending,   0),
     cancelled: stats.reduce((s, c) => s + c.cancelled, 0),
     ca:        stats.reduce((s, c) => s + c.ca,        0),
     prime:     stats.reduce((s, c) => s + c.prime,     0),
@@ -361,10 +364,11 @@ export default function PrimesPage() {
                   {/* Stats de la période */}
                   <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
                     {[
-                      { label: 'Assignées',  value: fmtNum(s.total_new), color: '#3D3D3D',  bg: '#F9FAFB'  },
-                      { label: 'Confirmées', value: fmtNum(s.confirmed), color: '#1D4ED8',  bg: '#EFF6FF'  },
-                      { label: 'Livrées',    value: fmtNum(s.delivered), color: '#065F46',  bg: '#D1FAE5'  },
-                      { label: 'Annulées',   value: fmtNum(s.cancelled), color: '#991B1B',  bg: '#FEE2E2'  },
+                      { label: 'Assignées',   value: fmtNum(s.total_new), color: '#3D3D3D',  bg: '#F9FAFB'  },
+                      { label: 'Confirmées',  value: fmtNum(s.confirmed), color: '#1D4ED8',  bg: '#EFF6FF'  },
+                      { label: 'Livrées',     value: fmtNum(s.delivered), color: '#065F46',  bg: '#D1FAE5'  },
+                      { label: 'En attente',  value: fmtNum(s.pending),   color: '#92400E',  bg: '#FEF9C3'  },
+                      { label: 'Annulées',    value: fmtNum(s.cancelled), color: '#991B1B',  bg: '#FEE2E2'  },
                     ].map(card => (
                       <div key={card.label} style={{ background: card.bg, borderRadius: 10, padding: '12px 14px', border: '1px solid #E3E5E7' }}>
                         <div style={{ fontSize: 10, fontWeight: 600, color: '#8A8A8A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</div>
@@ -412,6 +416,7 @@ export default function PrimesPage() {
               { label: 'Commandes assignées', value: totals.total_new,  color: '#3D3D3D', bg: '#F9FAFB' },
               { label: 'Confirmées',          value: totals.confirmed,  color: '#1D4ED8', bg: '#EFF6FF' },
               { label: 'Livrées',             value: totals.delivered,  color: '#065F46', bg: '#D1FAE5' },
+              { label: 'En attente',          value: totals.pending,    color: '#92400E', bg: '#FEF9C3' },
               { label: 'Annulées',            value: totals.cancelled,  color: '#991B1B', bg: '#FEE2E2' },
             ].map(card => (
               <div key={card.label} style={{ background: card.bg, borderRadius: 10, padding: '14px 16px', border: '1px solid #E3E5E7' }}>
