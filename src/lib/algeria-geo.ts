@@ -139,11 +139,11 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '03', nameAr: 'قلتة سيدي سعد', nameFr: 'Gueltat Sidi Saad' },
   { wilayaCode: '03', nameAr: 'الحاج مشري', nameFr: 'Hadj Mechri' },
   { wilayaCode: '03', nameAr: 'حاسي الدلاعة', nameFr: 'Hassi Delaa' },
-  { wilayaCode: '03', nameAr: 'حاسي الرمل', nameFr: "Hassi R'mel" }
+  { wilayaCode: '03', nameAr: 'حاسي الرمل', nameFr: "Hassi R'mel" },
   { wilayaCode: '03', nameAr: 'الخنق', nameFr: 'Kheneg' },
   { wilayaCode: '03', nameAr: 'قصر الحيران', nameFr: 'Ksar El Hirane' },
   { wilayaCode: '03', nameAr: 'الأغواط', nameFr: 'Laghouat' },
-  { wilayaCode: '03', nameAr: 'وادي مزي', nameFr: "Oued M'zi" }
+  { wilayaCode: '03', nameAr: 'وادي مزي', nameFr: "Oued M'zi" },
   { wilayaCode: '03', nameAr: 'وادي مرة', nameFr: 'Oued Morra' },
   { wilayaCode: '03', nameAr: 'سبقاق', nameFr: 'Sebgag' },
   { wilayaCode: '03', nameAr: 'سيدي بوزيد', nameFr: 'Sidi Bouzid' },
@@ -156,7 +156,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '04', nameAr: 'عين الديس', nameFr: 'Ain Diss' },
   { wilayaCode: '04', nameAr: 'عين فكرون', nameFr: 'Ain Fekroun' },
   { wilayaCode: '04', nameAr: 'عين كرشة', nameFr: 'Ain Kercha' },
-  { wilayaCode: '04', nameAr: 'عين مليلة', nameFr: "Ain M'lila" }
+  { wilayaCode: '04', nameAr: 'عين مليلة', nameFr: "Ain M'lila" },
   { wilayaCode: '04', nameAr: 'عين الزيتون', nameFr: 'Ain Zitoun' },
   { wilayaCode: '04', nameAr: 'بحير الشرقي', nameFr: 'Behir Chergui' },
   { wilayaCode: '04', nameAr: 'بريش', nameFr: 'Berriche' },
@@ -242,7 +242,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '05', nameAr: 'تيمقاد', nameFr: 'Timgad' },
   { wilayaCode: '05', nameAr: 'زانة البيضاء', nameFr: 'Zanet El Beida' },
   { wilayaCode: '06', nameAr: 'أدكار', nameFr: 'Adekar' },
-  { wilayaCode: '06', nameAr: 'أيت رزين', nameFr: "Ait R'zine" }
+  { wilayaCode: '06', nameAr: 'أيت رزين', nameFr: "Ait R'zine" },
   { wilayaCode: '06', nameAr: 'أيت إسماعيل', nameFr: 'Ait-Smail' },
   { wilayaCode: '06', nameAr: 'أقبو', nameFr: 'Akbou' },
   { wilayaCode: '06', nameAr: 'أكفادو', nameFr: 'Akfadou' },
@@ -252,7 +252,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '06', nameAr: 'برباشة', nameFr: 'Barbacha' },
   { wilayaCode: '06', nameAr: 'بجاية', nameFr: 'Bejaia' },
   { wilayaCode: '06', nameAr: 'بني جليل', nameFr: 'Beni Djellil' },
-  { wilayaCode: '06', nameAr: 'بني كسيلة', nameFr: "Beni K'sila" }
+  { wilayaCode: '06', nameAr: 'بني كسيلة', nameFr: "Beni K'sila" },
   { wilayaCode: '06', nameAr: 'بني مليكش', nameFr: 'Beni-Mallikeche' },
   { wilayaCode: '06', nameAr: 'بني معوش', nameFr: 'Benimaouche' },
   { wilayaCode: '06', nameAr: 'بو جليل', nameFr: 'Boudjellil' },
@@ -270,7 +270,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '06', nameAr: 'كنديرة', nameFr: 'Kendira' },
   { wilayaCode: '06', nameAr: 'خراطة', nameFr: 'Kherrata' },
   { wilayaCode: '06', nameAr: 'الفلاي', nameFr: 'Leflaye' },
-  { wilayaCode: '06', nameAr: 'مسيسنة', nameFr: "M'cisna" }
+  { wilayaCode: '06', nameAr: 'مسيسنة', nameFr: "M'cisna" },
   { wilayaCode: '06', nameAr: 'مالبو', nameFr: 'Melbou' },
   { wilayaCode: '06', nameAr: 'وادي غير', nameFr: 'Oued Ghir' },
   { wilayaCode: '06', nameAr: 'أوزلاقن', nameFr: 'Ouzellaguen' },
@@ -291,7 +291,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '06', nameAr: 'تيفرة', nameFr: 'Tifra' },
   { wilayaCode: '06', nameAr: 'تيمزريت', nameFr: 'Timezrit' },
   { wilayaCode: '06', nameAr: 'تينبدار', nameFr: 'Tinebdar' },
-  { wilayaCode: '06', nameAr: 'تيزي نبربر', nameFr: "Tizi-N'berber" }
+  { wilayaCode: '06', nameAr: 'تيزي نبربر', nameFr: "Tizi-N'berber" },
   { wilayaCode: '06', nameAr: 'توجة', nameFr: 'Toudja' },
   { wilayaCode: '07', nameAr: 'عين الناقة', nameFr: 'Ain Naga' },
   { wilayaCode: '07', nameAr: 'عين زعطوط', nameFr: 'Ain Zaatout' },
@@ -311,8 +311,8 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '07', nameAr: 'خنقة سيدي ناجي', nameFr: 'Khenguet Sidi Nadji' },
   { wilayaCode: '07', nameAr: 'ليشانة', nameFr: 'Lichana' },
   { wilayaCode: '07', nameAr: 'ليوة', nameFr: 'Lioua' },
-  { wilayaCode: '07', nameAr: 'مشونش', nameFr: "M'chouneche" }
-  { wilayaCode: '07', nameAr: 'مليلي', nameFr: "M'lili" }
+  { wilayaCode: '07', nameAr: 'مشونش', nameFr: "M'chouneche" },
+  { wilayaCode: '07', nameAr: 'مليلي', nameFr: "M'lili" },
   { wilayaCode: '07', nameAr: 'مخادمة', nameFr: 'Mekhadma' },
   { wilayaCode: '07', nameAr: 'المزيرعة', nameFr: 'Meziraa' },
   { wilayaCode: '07', nameAr: 'أوماش', nameFr: 'Oumache' },
@@ -401,7 +401,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '10', nameAr: 'سور الغزلان', nameFr: 'Sour El Ghozlane' },
   { wilayaCode: '10', nameAr: 'تاغزوت', nameFr: 'Taghzout' },
   { wilayaCode: '10', nameAr: 'تاقديت', nameFr: 'Taguedite' },
-  { wilayaCode: '10', nameAr: 'زبربر', nameFr: "Z'barbar (El Isseri )" }
+  { wilayaCode: '10', nameAr: 'زبربر', nameFr: "Z'barbar (El Isseri )" },
   { wilayaCode: '11', nameAr: 'ابلسة', nameFr: 'Abelsa' },
   { wilayaCode: '11', nameAr: 'عين امقل', nameFr: 'Ain Amguel' },
   { wilayaCode: '11', nameAr: 'أدلس', nameFr: 'Idles' },
@@ -466,10 +466,10 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '13', nameAr: 'حمام بوغرارة', nameFr: 'Hammam Boughrara' },
   { wilayaCode: '13', nameAr: 'الحناية', nameFr: 'Hennaya' },
   { wilayaCode: '13', nameAr: 'هنين', nameFr: 'Honnaine' },
-  { wilayaCode: '13', nameAr: 'مسيردة الفواقة', nameFr: "M'sirda Fouaga" }
+  { wilayaCode: '13', nameAr: 'مسيردة الفواقة', nameFr: "M'sirda Fouaga" },
   { wilayaCode: '13', nameAr: 'مغنية', nameFr: 'Maghnia' },
   { wilayaCode: '13', nameAr: 'منصورة', nameFr: 'Mansourah' },
-  { wilayaCode: '13', nameAr: 'مرسى بن مهيدي', nameFr: "Marsa Ben M'hidi" }
+  { wilayaCode: '13', nameAr: 'مرسى بن مهيدي', nameFr: "Marsa Ben M'hidi" },
   { wilayaCode: '13', nameAr: 'ندرومة', nameFr: 'Nedroma' },
   { wilayaCode: '13', nameAr: 'وادي الخضر', nameFr: 'Oued Lakhdar' },
   { wilayaCode: '13', nameAr: 'أولاد ميمون', nameFr: 'Ouled Mimoun' },
@@ -574,7 +574,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '15', nameAr: 'إمســوحال', nameFr: 'Imsouhal' },
   { wilayaCode: '15', nameAr: 'إيرجـــن', nameFr: 'Irdjen' },
   { wilayaCode: '15', nameAr: 'الأربعــاء ناث إيراثن', nameFr: 'Larbaa Nath Irathen' },
-  { wilayaCode: '15', nameAr: 'مكيرة', nameFr: "M'kira" }
+  { wilayaCode: '15', nameAr: 'مكيرة', nameFr: "M'kira" },
   { wilayaCode: '15', nameAr: 'معـــاتقة', nameFr: 'Maatkas' },
   { wilayaCode: '15', nameAr: 'ماكودة', nameFr: 'Makouda' },
   { wilayaCode: '15', nameAr: 'مشطراس', nameFr: 'Mechtras' },
@@ -590,7 +590,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '15', nameAr: 'تيقـزيرت', nameFr: 'Tigzirt' },
   { wilayaCode: '15', nameAr: 'تيمـيزار', nameFr: 'Timizart' },
   { wilayaCode: '15', nameAr: 'تيرمتين', nameFr: 'Tirmitine' },
-  { wilayaCode: '15', nameAr: 'تيزي نثلاثة', nameFr: "Tizi N'tleta" }
+  { wilayaCode: '15', nameAr: 'تيزي نثلاثة', nameFr: "Tizi N'tleta" },
   { wilayaCode: '15', nameAr: 'تيزي غنيف', nameFr: 'Tizi-Gheniff' },
   { wilayaCode: '15', nameAr: 'تيزي وزو', nameFr: 'Tizi-Ouzou' },
   { wilayaCode: '15', nameAr: 'تيزي راشد', nameFr: 'Tizi-Rached' },
@@ -679,7 +679,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '17', nameAr: 'حاسي بحبح', nameFr: 'Hassi Bahbah' },
   { wilayaCode: '17', nameAr: 'حاسي العش', nameFr: 'Hassi El Euch' },
   { wilayaCode: '17', nameAr: 'حاسي فدول', nameFr: 'Hassi Fedoul' },
-  { wilayaCode: '17', nameAr: 'مليليحة', nameFr: "M'liliha" }
+  { wilayaCode: '17', nameAr: 'مليليحة', nameFr: "M'liliha" },
   { wilayaCode: '17', nameAr: 'مسعد', nameFr: 'Messaad' },
   { wilayaCode: '17', nameAr: 'مجبارة', nameFr: 'Moudjebara' },
   { wilayaCode: '17', nameAr: 'أم العظام', nameFr: 'Oum Laadham' },
@@ -690,7 +690,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '17', nameAr: 'تعظميت', nameFr: 'Taadmit' },
   { wilayaCode: '17', nameAr: 'زعفران', nameFr: 'Zaafrane' },
   { wilayaCode: '17', nameAr: 'زكار', nameFr: 'Zaccar' },
-  { wilayaCode: '18', nameAr: 'برج الطهر', nameFr: "Bordj T'har" }
+  { wilayaCode: '18', nameAr: 'برج الطهر', nameFr: "Bordj T'har" },
   { wilayaCode: '18', nameAr: 'بودريعة بني  ياجيس', nameFr: 'Boudria Beniyadjis' },
   { wilayaCode: '18', nameAr: 'بوراوي بلهادف', nameFr: 'Bouraoui Belhadef' },
   { wilayaCode: '18', nameAr: 'بوسيف أولاد عسكر', nameFr: 'Boussif Ouled Askeur' },
@@ -777,7 +777,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '19', nameAr: 'تالة إيفاسن', nameFr: 'Tala-Ifacene' },
   { wilayaCode: '19', nameAr: 'الطاية', nameFr: 'Taya' },
   { wilayaCode: '19', nameAr: 'التلة', nameFr: 'Tella' },
-  { wilayaCode: '19', nameAr: 'تيزي نبشار', nameFr: "Tizi N'bechar" }
+  { wilayaCode: '19', nameAr: 'تيزي نبشار', nameFr: "Tizi N'bechar" },
   { wilayaCode: '20', nameAr: 'عين الحجر', nameFr: 'Ain El Hadjar' },
   { wilayaCode: '20', nameAr: 'عين السخونة', nameFr: 'Ain Sekhouna' },
   { wilayaCode: '20', nameAr: 'عين السلطان', nameFr: 'Ain Soltane' },
@@ -851,7 +851,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '22', nameAr: 'حاسي دحو', nameFr: 'Hassi Dahou' },
   { wilayaCode: '22', nameAr: 'حاسي زهانة', nameFr: 'Hassi Zahana' },
   { wilayaCode: '22', nameAr: 'لمطار', nameFr: 'Lamtar' },
-  { wilayaCode: '22', nameAr: 'مسيد', nameFr: "M'cid" }
+  { wilayaCode: '22', nameAr: 'مسيد', nameFr: "M'cid" },
   { wilayaCode: '22', nameAr: 'مكدرة', nameFr: 'Makedra' },
   { wilayaCode: '22', nameAr: 'مرحوم', nameFr: 'Marhoum' },
   { wilayaCode: '22', nameAr: 'مرين', nameFr: 'Merine' },
@@ -916,7 +916,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '24', nameAr: 'قلعة بوصبع', nameFr: 'Guelaat Bou Sbaa' },
   { wilayaCode: '24', nameAr: 'قالمة', nameFr: 'Guelma' },
   { wilayaCode: '24', nameAr: 'حمام دباغ', nameFr: 'Hammam Debagh' },
-  { wilayaCode: '24', nameAr: 'حمام النبايل', nameFr: "Hammam N'bail" }
+  { wilayaCode: '24', nameAr: 'حمام النبايل', nameFr: "Hammam N'bail" },
   { wilayaCode: '24', nameAr: 'هيليوبوليس', nameFr: 'Heliopolis' },
   { wilayaCode: '24', nameAr: 'هواري بومدين', nameFr: 'Houari Boumedienne' },
   { wilayaCode: '24', nameAr: 'لخزارة', nameFr: 'Khezaras' },
@@ -973,7 +973,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '26', nameAr: 'الكاف الاخضر', nameFr: 'Kef Lakhdar' },
   { wilayaCode: '26', nameAr: 'خمس جوامع', nameFr: 'Khams Djouamaa' },
   { wilayaCode: '26', nameAr: 'قصر البخاري', nameFr: 'Ksar El Boukhari' },
-  { wilayaCode: '26', nameAr: 'مفاتحة', nameFr: "M'fatha" }
+  { wilayaCode: '26', nameAr: 'مفاتحة', nameFr: "M'fatha" },
   { wilayaCode: '26', nameAr: 'مغراوة', nameFr: 'Maghraoua' },
   { wilayaCode: '26', nameAr: 'المدية', nameFr: 'Medea' },
   { wilayaCode: '26', nameAr: 'مجبر', nameFr: 'Medjebar' },
@@ -1059,9 +1059,9 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '28', nameAr: 'حمام الضلعة', nameFr: 'Hammam Dalaa' },
   { wilayaCode: '28', nameAr: 'خطوطي سد الجير', nameFr: 'Khettouti Sed-El-Jir' },
   { wilayaCode: '28', nameAr: 'خبانة', nameFr: 'Khoubana' },
-  { wilayaCode: '28', nameAr: 'مسيف', nameFr: "M'cif" }
-  { wilayaCode: '28', nameAr: 'المسيلة', nameFr: "M'sila" }
-  { wilayaCode: '28', nameAr: 'المطارفة', nameFr: "M'tarfa" }
+  { wilayaCode: '28', nameAr: 'مسيف', nameFr: "M'cif" },
+  { wilayaCode: '28', nameAr: 'المسيلة', nameFr: "M'sila" },
+  { wilayaCode: '28', nameAr: 'المطارفة', nameFr: "M'tarfa" },
   { wilayaCode: '28', nameAr: 'المعاضيد', nameFr: 'Maadid' },
   { wilayaCode: '28', nameAr: 'معاريف', nameFr: 'Maarif' },
   { wilayaCode: '28', nameAr: 'مقرة', nameFr: 'Magra' },
@@ -1136,7 +1136,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '30', nameAr: 'البرمة', nameFr: 'El Borma' },
   { wilayaCode: '30', nameAr: 'حاسي بن عبد الله', nameFr: 'Hassi Ben Abdellah' },
   { wilayaCode: '30', nameAr: 'حاسي مسعود', nameFr: 'Hassi Messaoud' },
-  { wilayaCode: '30', nameAr: 'انقوسة', nameFr: "N'goussa" }
+  { wilayaCode: '30', nameAr: 'انقوسة', nameFr: "N'goussa" },
   { wilayaCode: '30', nameAr: 'ورقلة', nameFr: 'Ouargla' },
   { wilayaCode: '30', nameAr: 'الرويسات', nameFr: 'Rouissat' },
   { wilayaCode: '30', nameAr: 'سيدي خويلد', nameFr: 'Sidi Khouiled' },
@@ -1205,7 +1205,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '34', nameAr: 'الياشير', nameFr: 'El Achir' },
   { wilayaCode: '34', nameAr: 'العناصر', nameFr: 'El Annasseur' },
   { wilayaCode: '34', nameAr: 'العش', nameFr: 'El Euch' },
-  { wilayaCode: '34', nameAr: 'المهير', nameFr: "El M'hir" }
+  { wilayaCode: '34', nameAr: 'المهير', nameFr: "El M'hir" },
   { wilayaCode: '34', nameAr: 'الماين', nameFr: 'El Main' },
   { wilayaCode: '34', nameAr: 'الحمادية', nameFr: 'Elhammadia' },
   { wilayaCode: '34', nameAr: 'غيلاسة', nameFr: 'Ghailasa' },
@@ -1342,8 +1342,8 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '40', nameAr: 'قايس', nameFr: 'Kais' },
   { wilayaCode: '40', nameAr: 'خنشلة', nameFr: 'Khenchela' },
   { wilayaCode: '40', nameAr: 'خيران', nameFr: 'Khirane' },
-  { wilayaCode: '40', nameAr: 'مصارة', nameFr: "M'sara" }
-  { wilayaCode: '40', nameAr: 'متوسة', nameFr: "M'toussa" }
+  { wilayaCode: '40', nameAr: 'مصارة', nameFr: "M'sara" },
+  { wilayaCode: '40', nameAr: 'متوسة', nameFr: "M'toussa" },
   { wilayaCode: '40', nameAr: 'أولاد رشاش', nameFr: 'Ouled Rechache' },
   { wilayaCode: '40', nameAr: 'الرميلة', nameFr: 'Remila' },
   { wilayaCode: '40', nameAr: 'طامزة', nameFr: 'Tamza' },
@@ -1357,7 +1357,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '41', nameAr: 'الحنانشة', nameFr: 'Hanencha' },
   { wilayaCode: '41', nameAr: 'الخضارة', nameFr: 'Khedara' },
   { wilayaCode: '41', nameAr: 'خميسة', nameFr: 'Khemissa' },
-  { wilayaCode: '41', nameAr: 'مداوروش', nameFr: "M'daourouche" }
+  { wilayaCode: '41', nameAr: 'مداوروش', nameFr: "M'daourouche" },
   { wilayaCode: '41', nameAr: 'المشروحة', nameFr: 'Machroha' },
   { wilayaCode: '41', nameAr: 'المراهنة', nameFr: 'Merahna' },
   { wilayaCode: '41', nameAr: 'وادي الكبريت', nameFr: 'Oued Kebrit' },
@@ -1530,7 +1530,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '48', nameAr: 'بني زنطيس', nameFr: 'Beni Zentis' },
   { wilayaCode: '48', nameAr: 'دار بن عبد الله', nameFr: 'Dar Ben Abdelah' },
   { wilayaCode: '48', nameAr: 'جديوية', nameFr: 'Djidiouia' },
-  { wilayaCode: '48', nameAr: 'الحمادنة', nameFr: "El H'madna" }
+  { wilayaCode: '48', nameAr: 'الحمادنة', nameFr: "El H'madna" },
   { wilayaCode: '48', nameAr: 'الحاسي', nameFr: 'El Hassi' },
   { wilayaCode: '48', nameAr: 'الولجة', nameFr: 'El Ouldja' },
   { wilayaCode: '48', nameAr: 'القطار', nameFr: 'El-Guettar' },
@@ -1595,7 +1595,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '55', nameAr: 'بلدة اعمر', nameFr: 'Blidet Amor' },
   { wilayaCode: '55', nameAr: 'العالية', nameFr: 'El Alia' },
   { wilayaCode: '55', nameAr: 'الحجيرة', nameFr: 'El-Hadjira' },
-  { wilayaCode: '55', nameAr: 'المنقر', nameFr: "M'naguer" }
+  { wilayaCode: '55', nameAr: 'المنقر', nameFr: "M'naguer" },
   { wilayaCode: '55', nameAr: 'المقارين', nameFr: 'Megarine' },
   { wilayaCode: '55', nameAr: 'النزلة', nameFr: 'Nezla' },
   { wilayaCode: '55', nameAr: 'سيدي سليمان', nameFr: 'Sidi Slimane' },
@@ -1607,8 +1607,8 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '56', nameAr: 'برج الحواس', nameFr: 'Bordj El Haouass' },
   { wilayaCode: '56', nameAr: 'جانت', nameFr: 'Djanet' },
   { wilayaCode: '57', nameAr: 'جامعة', nameFr: 'Djamaa' },
-  { wilayaCode: '57', nameAr: 'المغير', nameFr: "El-M'ghaier" }
-  { wilayaCode: '57', nameAr: 'المرارة', nameFr: "M'rara" }
+  { wilayaCode: '57', nameAr: 'المغير', nameFr: "El-M'ghaier" },
+  { wilayaCode: '57', nameAr: 'المرارة', nameFr: "M'rara" },
   { wilayaCode: '57', nameAr: 'أم الطيور', nameFr: 'Oum Touyour' },
   { wilayaCode: '57', nameAr: 'سيدي عمران', nameFr: 'Sidi Amrane' },
   { wilayaCode: '57', nameAr: 'سيدي خليل', nameFr: 'Sidi Khelil' },
