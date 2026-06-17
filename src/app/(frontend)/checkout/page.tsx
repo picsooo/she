@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/Select'
 import { formatPrice, t } from '@/lib/translations'
 import { TrackInitiateCheckout } from '@/components/analytics/TrackInitiateCheckout'
 import { getEffectivePrice, isValidAlgerianPhone } from '@/lib/utils'
-import { WILAYAS, getCommunesByWilaya } from '@/lib/algeria-geo'
+import { WILAYAS, COMMUNES, getCommunesByWilaya } from '@/lib/algeria-geo'
 import { createOrder } from '@/app/actions/createOrder'
 import Image from 'next/image'
 
@@ -329,9 +329,30 @@ export default function CheckoutPage() {
                     <p className="text-foreground/50 text-xs">جار التحميل…</p>
                   ) : centers.length === 0 ? (
                     <p className="text-foreground/50 text-xs">لا توجد مكاتب متاحة في هذه الولاية</p>
-                  ) : (
+                  ) : (() => {
+                    // Filtrer les bureaux par commune sélectionnée (nom FR de la commune)
+                    const communeFr = form.commune
+                      ? (COMMUNES.find(c => c.wilayaCode === form.wilayaCode && c.nameAr === form.commune)?.nameFr ?? '')
+                      : ''
+                    const normalize = (s: string) =>
+                      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
+                    const centersInCommune = communeFr
+                      ? centers.filter(c =>
+                          c.commune_name.toLowerCase() === communeFr.toLowerCase() ||
+                          normalize(c.commune_name) === normalize(communeFr)
+                        )
+                      : centers
+                    const displayCenters = centersInCommune.length > 0 ? centersInCommune : centers
+                    const showFallbackNote = centersInCommune.length === 0 && communeFr && centers.length > 0
+                    return (
+                      <>
+                        {showFallbackNote && (
+                          <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-2">
+                            ⚠️ لا يوجد مكتب في بلديتك — إليك أقرب المكاتب في الولاية
+                          </p>
+                        )}
                     <ul className="flex flex-col gap-2">
-                      {centers.map(c => {
+                      {displayCenters.map(c => {
                         const centerAddress = `${c.name}${c.address ? ' — ' + c.address : ''}${c.commune_name ? ' — ' + c.commune_name : ''}`
                         const isSelected = form.address === centerAddress
                         return (
@@ -354,7 +375,9 @@ export default function CheckoutPage() {
                         )
                       })}
                     </ul>
-                  )}
+                      </>
+                    )
+                  })()}
                 </div>
               )}
             </div>

@@ -9,6 +9,8 @@ interface Order {
   total: number; status: string; createdAt: string; trafficSource?: string
   items?: Array<{ productName?: string; quantity?: number; price?: number; colorAr?: string; size?: string; unitPrice?: number }>
   note?: string
+  yalidineTrackingId?: string
+  assignedTo?: { id: string; email?: string; firstName?: string; lastName?: string } | null
 }
 
 // Badge source de trafic — affiché dans la liste des commandes
@@ -427,10 +429,28 @@ export default function OrdersPage() {
                     </td>
                     <td style={{ ...TD, fontWeight: 700, color: '#007A5C', whiteSpace: 'nowrap' }}>{fmt(o.total)}</td>
                     <td style={TD}>
-                      <span className="admin-badge" style={{ background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
-                        {s.label}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                        <span className="admin-badge" style={{ background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+                          {s.label}
+                        </span>
+                        {o.yalidineTrackingId && (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, fontFamily: 'monospace',
+                            color: '#065F46', background: '#D1FAE5', border: '1px solid #86EFAC',
+                            borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em',
+                          }}>
+                            📦 {o.yalidineTrackingId}
+                          </span>
+                        )}
+                        {o.assignedTo && (() => {
+                          const u = o.assignedTo as { firstName?: string; lastName?: string; email?: string }
+                          const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || ''
+                          return name ? (
+                            <span style={{ fontSize: 10, color: '#6D7175' }}>👩‍💼 {name}</span>
+                          ) : null
+                        })()}
+                      </div>
                     </td>
                     <td style={TD}>
                       <div style={{ fontSize: 12, color: '#6D7175' }}>{fmtDate(o.createdAt)}</div>

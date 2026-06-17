@@ -3,6 +3,8 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { YalidineClient, orderToYalidineParcel } from '@/lib/yalidine'
 import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
+import { existsSync, readFileSync } from 'fs'
+import { join } from 'path'
 
 export async function POST(
   _req: NextRequest,
@@ -57,6 +59,56 @@ export async function POST(
           0
         )
 
+    // Trouver le nom de commune exact attendu par Yalidine
+    // (notre nameFr peut différer légèrement du nom Yalidine — ex: accents, tirets)
+    let toCommuneNameFr = communeEntry.nameFr
+    try {
+      const fromWilaya = WILAYAS.find(
+        w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase()
+      )
+      if (fromWilaya) {
+        const cacheFile = join(process.cwd(), '.fees-cache', 'yalidine-fees.json')
+        if (existsSync(cacheFile)) {
+          const fileCache = JSON.parse(readFileSync(cacheFile, 'utf-8')) as Record<string, {
+            perCommune: Record<string, { commune_name: string }>
+          }>
+          const cacheKey = `${fromWilaya.code}_${wilayaEntry.code}`
+          const perCommune = fileCache[cacheKey]?.perCommune
+          if (perCommune) {
+            const normalize = (s: string) =>
+              s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
+            const entries = Object.values(perCommune)
+            const found = entries.find(c => c.commune_name.toLowerCase() === communeEntry.nameFr.toLowerCase())
+              ?? entries.find(c => normalize(c.commune_name) === normalize(communeEntry.nameFr))
+            if (found) toCommuneNameFr = found.commune_name
+          }
+        }
+      }
+      // Si le cache n'a pas de données, tenter un appel Yalidine pour obtenir le bon nom
+      if (toCommuneNameFr === communeEntry.nameFr) {
+        const fromWilayaForApi = WILAYAS.find(
+          w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase()
+        )
+        if (fromWilayaForApi) {
+          const tempClient = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
+          const fees = await Promise.race([
+            tempClient.getFees(parseInt(fromWilayaForApi.code), parseInt(wilayaEntry.code)),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+          ])
+          if (fees && fees.per_commune) {
+            const normalize = (s: string) =>
+              s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
+            const entries = Object.values(fees.per_commune)
+            const found = entries.find(c => c.commune_name.toLowerCase() === communeEntry.nameFr.toLowerCase())
+              ?? entries.find(c => normalize(c.commune_name) === normalize(communeEntry.nameFr))
+            if (found) toCommuneNameFr = found.commune_name
+          }
+        }
+      }
+    } catch {
+      // Conserver communeEntry.nameFr comme repli
+    }
+
     const parcel = orderToYalidineParcel({
       orderNumber:      order.orderNumber,
       customerName:     order.customerName,
@@ -64,7 +116,7 @@ export async function POST(
       address:          order.address ?? '',
       fromWilayaNameFr: settings.yalidineFromWilayaName as string,
       toWilayaNameFr:   wilayaEntry.nameFr,
-      toCommuneNameFr:  communeEntry.nameFr,
+      toCommuneNameFr,
       total:            order.total,
       subtotal,
       shippingFee:      order.shippingFee ?? 0,

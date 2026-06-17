@@ -23,6 +23,7 @@ interface Order {
   yalidineLabelUrl?: string
   yalidineStatus?: string
   yalidineSentAt?: string
+  assignedTo?: { id: string; email?: string; firstName?: string; lastName?: string } | null
 }
 
 interface DeliverySettings {
@@ -543,9 +544,22 @@ export default function OrderDetailPage() {
               {statusInfo.labelFr}
             </span>
           </div>
-          <div style={{ fontSize: 12, color: '#9A9A9A', marginTop: 4 }}>
-            Passée le {fmtDate(order.createdAt)}
-            {order.updatedAt !== order.createdAt && ` · Mise à jour le ${fmtDate(order.updatedAt)}`}
+          <div style={{ fontSize: 12, color: '#9A9A9A', marginTop: 4, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span>Passée le {fmtDate(order.createdAt)}</span>
+            {order.updatedAt !== order.createdAt && <span>· Mise à jour le {fmtDate(order.updatedAt)}</span>}
+            {order.assignedTo && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '3px 10px', borderRadius: 20,
+                background: '#F0FDF4', border: '1px solid #86EFAC',
+                color: '#065F46', fontWeight: 700, fontSize: 12,
+              }}>
+                👩‍💼 {(() => {
+                  const u = order.assignedTo as { firstName?: string; lastName?: string; email?: string }
+                  return [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'Confirmatrice'
+                })()}
+              </span>
+            )}
           </div>
         </div>
 
@@ -755,34 +769,58 @@ export default function OrderDetailPage() {
                     <div style={{ fontSize: 12, color: '#9A9A9A' }}>Chargement…</div>
                   ) : centers.length === 0 ? (
                     <div style={{ fontSize: 12, color: '#9A9A9A' }}>Aucun bureau disponible pour cette wilaya</div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
-                      {centers.map(c => {
-                        const centerAddress = `${c.name}${c.address ? ' — ' + c.address : ''}${c.commune_name ? ' — ' + c.commune_name : ''}`
-                        const isSelected = editAddress === centerAddress
-                        return (
-                          <div
-                            key={c.center_id}
-                            onClick={() => setEditAddress(centerAddress)}
-                            style={{
-                              padding: '8px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
-                              background: isSelected ? '#FFF0F7' : '#fff',
-                              border: isSelected ? '1.5px solid #E93D91' : '1px solid #E3E5E7',
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                              <div>
-                                <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#E93D91' : '#1A1A1A' }}>{c.name}</div>
-                                {c.address && <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 1 }}>{c.address}</div>}
-                                <div style={{ fontSize: 11, color: '#9A9A9A' }}>{c.commune_name}{c.phone ? ` · ${c.phone}` : ''}</div>
-                              </div>
-                              {isSelected && <span style={{ color: '#E93D91', fontSize: 14, flexShrink: 0 }}>✓</span>}
-                            </div>
-                          </div>
+                  ) : (() => {
+                    // Filtrer par commune sélectionnée (nom FR)
+                    const currentWilaya = WILAYAS.find(w => w.nameAr === editWilaya)
+                    const communeFr = editCommune && currentWilaya
+                      ? (COMMUNES.find(c => c.wilayaCode === currentWilaya.code && c.nameAr === editCommune)?.nameFr ?? '')
+                      : ''
+                    const normalizeStr = (s: string) =>
+                      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
+                    const centersInCommune = communeFr
+                      ? centers.filter(c =>
+                          c.commune_name.toLowerCase() === communeFr.toLowerCase() ||
+                          normalizeStr(c.commune_name) === normalizeStr(communeFr)
                         )
-                      })}
-                    </div>
-                  )}
+                      : centers
+                    const displayCenters = centersInCommune.length > 0 ? centersInCommune : centers
+                    const showFallback = centersInCommune.length === 0 && communeFr
+                    return (
+                      <>
+                        {showFallback && (
+                          <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 11 }}>
+                            ⚠️ Aucun bureau dans la commune — affichage des bureaux de la wilaya
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                          {displayCenters.map(c => {
+                            const centerAddress = `${c.name}${c.address ? ' — ' + c.address : ''}${c.commune_name ? ' — ' + c.commune_name : ''}`
+                            const isSelected = editAddress === centerAddress
+                            return (
+                              <div
+                                key={c.center_id}
+                                onClick={() => setEditAddress(centerAddress)}
+                                style={{
+                                  padding: '8px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
+                                  background: isSelected ? '#FFF0F7' : '#fff',
+                                  border: isSelected ? '1.5px solid #E93D91' : '1px solid #E3E5E7',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                  <div>
+                                    <div style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#E93D91' : '#1A1A1A' }}>{c.name}</div>
+                                    {c.address && <div style={{ fontSize: 11, color: '#9A9A9A', marginTop: 1 }}>{c.address}</div>}
+                                    <div style={{ fontSize: 11, color: '#9A9A9A' }}>{c.commune_name}{c.phone ? ` · ${c.phone}` : ''}</div>
+                                  </div>
+                                  {isSelected && <span style={{ color: '#E93D91', fontSize: 14, flexShrink: 0 }}>✓</span>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               )}
             </div>
