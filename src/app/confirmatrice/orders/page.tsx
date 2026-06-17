@@ -12,6 +12,7 @@ interface Order {
   note?: string
   lastStatusUpdatedBy?: string
   lastStatusUpdatedAt?: string
+  yalidineTrackingId?: string
 }
 
 const STATUSES = [
@@ -385,10 +386,21 @@ export default function ConfirmatriceOrdersPage() {
                     </td>
                     <td style={{ ...TD, fontWeight: 700, color: '#007A5C', whiteSpace: 'nowrap' }}>{fmt(o.total)}</td>
                     <td style={TD}>
-                      <span className="admin-badge" style={{ background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
-                        {s.label}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                        <span className="admin-badge" style={{ background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0 }} />
+                          {s.label}
+                        </span>
+                        {o.yalidineTrackingId && (
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, fontFamily: 'monospace',
+                            color: '#065F46', background: '#D1FAE5', border: '1px solid #86EFAC',
+                            borderRadius: 5, padding: '2px 6px', letterSpacing: '0.04em',
+                          }}>
+                            📦 {o.yalidineTrackingId}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {/* Colonne "Mis à jour par" */}
                     <td style={TD}>
