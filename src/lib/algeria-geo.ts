@@ -637,7 +637,7 @@ export const COMMUNES: Commune[] = [
   { wilayaCode: '16', nameAr: 'القبة', nameFr: 'Kouba' },
   { wilayaCode: '16', nameAr: 'الكاليتوس', nameFr: 'Les Eucalyptus' },
   { wilayaCode: '16', nameAr: 'المعالمة', nameFr: 'Maalma' },
-  { wilayaCode: '16', nameAr: 'محمد بلوزداد', nameFr: 'Mohamed Belouzdad' },
+  { wilayaCode: '16', nameAr: 'محمد بلوزداد', nameFr: 'Mohamed Belouizdad' },
   { wilayaCode: '16', nameAr: 'المحمدية', nameFr: 'Mohammadia' },
   { wilayaCode: '16', nameAr: 'وادي قريش', nameFr: 'Oued Koriche' },
   { wilayaCode: '16', nameAr: 'وادي السمار', nameFr: 'Oued Smar' },

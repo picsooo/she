@@ -121,21 +121,38 @@ export async function GET(req: NextRequest) {
 
     if (!perCommune) return NextResponse.json({ home: null, desk: null, source: 'timeout' })
 
-    // Recherche commune — exact puis fuzzy sans accents/tirets
+    // Recherche commune — 3 passes de plus en plus tolérantes
     const normalize = (s: string) =>
-      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
 
-    const entries = Object.values(perCommune)
+    const ourNorm   = normalize(commune.nameFr)
+    const entries   = Object.values(perCommune)
+
     const communeData =
+      // 1) Correspondance exacte (insensible à la casse)
       entries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
-      entries.find(c => normalize(c.commune_name) === normalize(commune.nameFr))
+      // 2) Normalisé (sans accents/tirets)
+      entries.find(c => normalize(c.commune_name) === ourNorm) ??
+      // 3) Nom Yalidine contenu dans notre nom FR (Yalidine supprime parfois les préfixes
+      //    "Mohamed", "Sidi"... ex: "Belouizdad" ⊂ "Mohamed Belouizdad")
+      //    — seuil ≥ 6 chars pour éviter les faux positifs sur des mots courts comme "El"
+      entries.find(c => {
+        const yn = normalize(c.commune_name)
+        return yn.length >= 6 && ourNorm.includes(yn)
+      }) ??
+      // 4) Notre nom FR contenu dans le nom Yalidine (cas inverse)
+      entries.find(c => {
+        const yn = normalize(c.commune_name)
+        return ourNorm.length >= 6 && yn.includes(ourNorm)
+      })
 
     if (!communeData) return NextResponse.json({ home: null, desk: null, source: 'commune_not_found' })
 
     return NextResponse.json({
-      home:   communeData.express_home   ?? communeData.economic_home,
-      desk:   communeData.express_desk   ?? communeData.economic_desk,
-      source: 'yalidine',
+      home:            communeData.express_home ?? communeData.economic_home,
+      desk:            communeData.express_desk ?? communeData.economic_desk,
+      source:          'yalidine',
+      yalidineCommuneName: communeData.commune_name,  // nom exact attendu par Yalidine
     })
   } catch (err) {
     console.error('[yalidine/fees]', err)

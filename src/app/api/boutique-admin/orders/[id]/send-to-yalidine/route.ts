@@ -59,50 +59,50 @@ export async function POST(
           0
         )
 
-    // Trouver le nom de commune exact attendu par Yalidine
-    // (notre nameFr peut différer légèrement du nom Yalidine — ex: accents, tirets)
+    // Trouver le nom de commune EXACT attendu par Yalidine
+    // Les noms FR locaux peuvent différer : accents, tirets, préfixes ("Mohamed", "Sidi"...)
+    // Algorithme en 4 passes de plus en plus tolérantes, identique à la route /fees
+    const normalizeCommune = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
+
+    function findYalidineCommune(perCommune: Record<string, { commune_name: string }>, ourNameFr: string): string | null {
+      const ourNorm = normalizeCommune(ourNameFr)
+      const entries = Object.values(perCommune)
+      const found =
+        entries.find(c => c.commune_name.toLowerCase() === ourNameFr.toLowerCase()) ??
+        entries.find(c => normalizeCommune(c.commune_name) === ourNorm) ??
+        entries.find(c => { const yn = normalizeCommune(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
+        entries.find(c => { const yn = normalizeCommune(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
+      return found?.commune_name ?? null
+    }
+
     let toCommuneNameFr = communeEntry.nameFr
     try {
       const fromWilaya = WILAYAS.find(
         w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase()
       )
       if (fromWilaya) {
+        // 1) Essayer le cache fichier (rapide, pas d'appel Yalidine)
         const cacheFile = join(process.cwd(), '.fees-cache', 'yalidine-fees.json')
+        let perCommune: Record<string, { commune_name: string }> | null = null
         if (existsSync(cacheFile)) {
           const fileCache = JSON.parse(readFileSync(cacheFile, 'utf-8')) as Record<string, {
             perCommune: Record<string, { commune_name: string }>
           }>
-          const cacheKey = `${fromWilaya.code}_${wilayaEntry.code}`
-          const perCommune = fileCache[cacheKey]?.perCommune
-          if (perCommune) {
-            const normalize = (s: string) =>
-              s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
-            const entries = Object.values(perCommune)
-            const found = entries.find(c => c.commune_name.toLowerCase() === communeEntry.nameFr.toLowerCase())
-              ?? entries.find(c => normalize(c.commune_name) === normalize(communeEntry.nameFr))
-            if (found) toCommuneNameFr = found.commune_name
-          }
+          perCommune = fileCache[`${fromWilaya.code}_${wilayaEntry.code}`]?.perCommune ?? null
         }
-      }
-      // Si le cache n'a pas de données, tenter un appel Yalidine pour obtenir le bon nom
-      if (toCommuneNameFr === communeEntry.nameFr) {
-        const fromWilayaForApi = WILAYAS.find(
-          w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase()
-        )
-        if (fromWilayaForApi) {
+        // 2) Si pas en cache, appeler l'API Yalidine
+        if (!perCommune) {
           const tempClient = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
           const fees = await Promise.race([
-            tempClient.getFees(parseInt(fromWilayaForApi.code), parseInt(wilayaEntry.code)),
-            new Promise<null>(resolve => setTimeout(() => resolve(null), 5000)),
+            tempClient.getFees(parseInt(fromWilaya.code), parseInt(wilayaEntry.code)),
+            new Promise<null>(resolve => setTimeout(() => resolve(null), 6000)),
           ])
-          if (fees && fees.per_commune) {
-            const normalize = (s: string) =>
-              s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_]/g, ' ')
-            const entries = Object.values(fees.per_commune)
-            const found = entries.find(c => c.commune_name.toLowerCase() === communeEntry.nameFr.toLowerCase())
-              ?? entries.find(c => normalize(c.commune_name) === normalize(communeEntry.nameFr))
-            if (found) toCommuneNameFr = found.commune_name
-          }
+          if (fees?.per_commune) perCommune = fees.per_commune as Record<string, { commune_name: string }>
+        }
+        if (perCommune) {
+          const found = findYalidineCommune(perCommune, communeEntry.nameFr)
+          if (found) toCommuneNameFr = found
         }
       }
     } catch {
