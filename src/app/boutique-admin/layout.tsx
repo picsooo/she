@@ -60,6 +60,8 @@ const Icons = {
   assign:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="7" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><circle cx="14" cy="6" r="3" stroke="currentColor" strokeWidth="1.5"/><path d="M2 17c0-3 2-5 5-5s5 2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M14 12l2 2 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   more:       <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/></svg>,
   stock:      <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2 14l4-4 4 4 4-6 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  // Icône retour : carton avec flèche de retour
+  returns:    <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 6h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M1 6h18M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M8 12l-2-2 2-2M6 10h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 }
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
@@ -83,6 +85,7 @@ function Sidebar({
   const NAV_ADMIN = [
     { href: '/boutique-admin/dashboard',       label: 'Accueil',        icon: Icons.home },
     { href: '/boutique-admin/orders',          label: 'Commandes',      icon: Icons.orders,    badge: newOrdersCount },
+    { href: '/boutique-admin/returns',         label: 'Retours',        icon: Icons.returns },
     { href: '/boutique-admin/assignation',     label: 'Assignation',    icon: Icons.assign },
     { href: '/boutique-admin/orders/analytics',label: 'Analytics',      icon: Icons.analytics },
     { href: '/boutique-admin/products',        label: 'Produits',       icon: Icons.products },

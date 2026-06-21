@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       // et que ce n'est pas un retour en arrière inutile
       if (mappedStatus && order.status !== mappedStatus) {
         // Ne jamais repasser en statut antérieur pour les statuts finaux
-        const finalStatuses = ['delivered', 'cancelled']
+        const finalStatuses = ['delivered', 'cancelled', 'returned']
         if (!finalStatuses.includes(order.status)) {
           dataToUpdate.status = mappedStatus
         }

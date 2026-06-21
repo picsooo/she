@@ -235,6 +235,20 @@ export class YalidineClient {
     return this.request<{ data: YalidineParcelDetail[] }>(`/parcels/${tracking}/`)
   }
 
+  /**
+   * Lister tous les colis Yalidine avec pagination.
+   * Utilisé par le sync inversé : récupère tous les colis Yalidine pour
+   * rattraper les commandes dont le webhook n'a pas été reçu.
+   */
+  async listParcels(page = 1, pageSize = 100): Promise<{
+    data: YalidineParcelDetail[]
+    total_data: number
+    total_pages: number
+    current_page: number
+  }> {
+    return this.request(`/parcels/?page=${page}&page_size=${pageSize}`)
+  }
+
   /** Récupérer l'historique complet des statuts d'un colis */
   async getParcelHistory(tracking: string): Promise<{ data: YalidineHistoryEntry[] }> {
     return this.request<{ data: YalidineHistoryEntry[] }>(`/histories/${tracking}/`)
