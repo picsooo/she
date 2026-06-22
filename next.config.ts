@@ -35,41 +35,71 @@ const nextConfig: NextConfig = {
 
   // Headers de sécurité
   async headers() {
-    return [
+    // CSP du frontend public — sans 'unsafe-eval'
+    const frontendCSP = [
+      "default-src 'self'",
+      // Scripts : Meta Pixel + TikTok (analytics + ads) — sans 'unsafe-eval'
+      "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      // Connexions : Meta events + TikTok events (analytics + ads)
+      "connect-src 'self' https://images.unsplash.com https://connect.facebook.net https://www.facebook.com https://graph.facebook.com https://analytics.tiktok.com https://ads.tiktok.com",
+      // Frames Meta (optionnel — sécurité)
+      "frame-src https://www.facebook.com",
+    ].join('; ')
+
+    // CSP de l'admin Payload — 'unsafe-eval' autorisé uniquement ici (requis par certains bundlers admin)
+    const adminCSP = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self'",
+      "frame-src 'self'",
+    ].join('; ')
+
+    // Headers communs à toutes les routes
+    const commonHeaders = [
       {
-        source: '/(.*)',
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+      },
+      {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+      },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=()',
+      },
+    ]
+
+    return [
+      // Admin Payload — 'unsafe-eval' autorisé + pas de X-Frame-Options DENY (iframes admin)
+      {
+        source: '/admin(.*)',
         headers: [
+          ...commonHeaders,
+          {
+            key: 'Content-Security-Policy',
+            value: adminCSP,
+          },
+        ],
+      },
+      // Frontend public — CSP stricte sans 'unsafe-eval'
+      {
+        source: '/((?!admin).*)',
+        headers: [
+          ...commonHeaders,
           {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
-          {
-            key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
-          },
-          // CSP — autorise Meta Pixel, TikTok Pixel, Google Fonts
-          {
             key: 'Content-Security-Policy',
-            value: [
-              "default-src 'self'",
-              // Scripts : Meta Pixel + TikTok (analytics + ads)
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https:",
-              // Connexions : Meta events + TikTok events (analytics + ads)
-              "connect-src 'self' https://images.unsplash.com https://connect.facebook.net https://www.facebook.com https://graph.facebook.com https://analytics.tiktok.com https://ads.tiktok.com",
-              // Frames Meta (optionnel — sécurité)
-              "frame-src https://www.facebook.com",
-            ].join('; '),
+            value: frontendCSP,
           },
         ],
       },

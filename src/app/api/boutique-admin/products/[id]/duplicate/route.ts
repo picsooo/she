@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 function makeSlug(text: string): string {
   const ascii = text.toLowerCase().trim()
@@ -16,9 +17,11 @@ function makeSlug(text: string): string {
  * Le nom est préfixé "[Copie]" pour que le client sache que c'est une copie.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { id } = await params
     const payload = await getPayload({ config: configPromise })

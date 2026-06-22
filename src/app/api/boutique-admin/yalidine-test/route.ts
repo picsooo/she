@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 /**
  * GET /api/boutique-admin/yalidine-test?apiId=X&apiToken=Y
@@ -6,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server'
  * quand le navigateur appelle api.yalidine.app directement.
  */
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   const { searchParams } = new URL(req.url)
   const apiId    = searchParams.get('apiId')
   const apiToken = searchParams.get('apiToken')

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
-// Upload d'image vers la collection Media sans authentification Payload
-// Utilisé par le formulaire produit (boutique-admin) qui n'a pas de session Payload
+// Upload d'image vers la collection Media — authentification requise
+// Utilisé par le formulaire produit (boutique-admin)
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const payload = await getPayload({ config: configPromise })
     const formData = await req.formData()

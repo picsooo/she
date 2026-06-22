@@ -6,8 +6,9 @@ import { createOrderSchema } from '@/lib/checkout-schema'
 import { generateOrderNumber, getEffectivePrice } from '@/lib/utils'
 import { getProductById, getNextOrderSequence } from '@/lib/payload-client'
 import { sendOrderEmails } from '@/lib/email'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { randomUUID } from 'crypto'
+import { rateLimit } from '@/lib/rate-limit'
 
 type CreateOrderResult =
   | { success: true; orderNumber: string }
@@ -93,6 +94,19 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       ? Object.values(fieldErrors)[0]
       : 'تحقق من المعلومات المدخلة'
     return { success: false, error: errorMsg, fieldErrors }
+  }
+
+  // Récupérer l'IP pour le rate limiting
+  const headersList = await headers()
+  const ip =
+    headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headersList.get('x-real-ip') ??
+    'unknown'
+
+  // Max 5 commandes par IP par heure pour éviter le spam COD
+  const rl = rateLimit(`checkout:${ip}`, 5, 60 * 60 * 1000)
+  if (!rl.allowed) {
+    return { success: false, error: 'Trop de tentatives. Veuillez réessayer dans une heure.' }
   }
 
   const { customer, items } = parsed.data

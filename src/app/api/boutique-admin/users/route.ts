@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import type { Where } from 'payload'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 // Route interne — lecture des utilisateurs pour le dashboard boutique-admin
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const payload = await getPayload({ config: configPromise })
     const { searchParams } = req.nextUrl

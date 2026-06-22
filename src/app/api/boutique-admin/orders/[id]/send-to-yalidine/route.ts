@@ -5,11 +5,14 @@ import { YalidineClient, orderToYalidineParcel } from '@/lib/yalidine'
 import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { id } = await params
     const payload = await getPayload({ config: configPromise })

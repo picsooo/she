@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 // PATCH /api/boutique-admin/users/[id] — mise à jour d'un utilisateur (toggle active, etc.)
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { id } = await params
     const body = await req.json()

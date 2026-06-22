@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 /**
  * GET  /api/boutique-admin/settings — lit les deux globals (delivery + marketing)
- * POST /api/boutique-admin/settings — sauvegarde avec overrideAccess (pas de login Payload requis)
+ * POST /api/boutique-admin/settings — sauvegarde (authentification requise)
  */
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const payload = await getPayload({ config: configPromise })
     const [delivery, marketing] = await Promise.all([
@@ -22,6 +25,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { delivery, marketing } = await req.json() as {
       delivery?: Record<string, unknown>

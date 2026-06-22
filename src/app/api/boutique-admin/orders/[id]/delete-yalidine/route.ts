@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { YalidineClient } from '@/lib/yalidine'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 /**
  * DELETE /api/boutique-admin/orders/[id]/delete-yalidine
@@ -9,9 +10,11 @@ import { YalidineClient } from '@/lib/yalidine'
  * Seulement possible si yalidineStatus = "En préparation" (avant ramassage).
  */
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { id } = await params
     const payload = await getPayload({ config: configPromise })

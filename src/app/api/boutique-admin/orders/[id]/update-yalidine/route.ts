@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { getYalidineClient } from '@/lib/yalidine'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 /**
  * PATCH — Modifier un colis déjà envoyé à Yalidine.
@@ -12,6 +13,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const { id } = await params
     const body = await req.json() as { price?: number; product_list?: string }

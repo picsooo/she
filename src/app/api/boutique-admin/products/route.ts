@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import type { Where } from 'payload'
+import { requireAuth, unauthorizedResponse } from '@/lib/boutique-admin-auth'
 
 function makeSlug(text: string): string {
   // Extraire uniquement les caractères ASCII (le texte arabe ne produit rien d'URL-safe)
@@ -15,6 +16,8 @@ function makeSlug(text: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const data = await req.json()
     // Garantir un slug unique (timestamp suffix)
@@ -30,6 +33,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (!auth) return unauthorizedResponse()
   try {
     const payload = await getPayload({ config: configPromise })
     const { searchParams } = req.nextUrl
