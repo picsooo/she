@@ -46,6 +46,11 @@ export default function AssignationPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'pending' | 'unassigned'>('all')
   // id de confirmatrice → en cours de toggle actif/inactif
   const [toggling,        setToggling]        = useState<Record<number, boolean>>({})
+  // Changement mot de passe confirmatrice
+  const [pwdOpen,   setPwdOpen]   = useState<Record<number, boolean>>({})
+  const [pwdValues, setPwdValues] = useState<Record<number, { pwd: string; confirm: string }>>({})
+  const [pwdSaving, setPwdSaving] = useState<Record<number, boolean>>({})
+  const [pwdResult, setPwdResult] = useState<Record<number, 'ok' | 'err' | null>>({})
 
   // Chargement des données
   const load = useCallback(async () => {
@@ -97,6 +102,35 @@ export default function AssignationPage() {
       setResults(prev => ({ ...prev, [orderId]: 'err' }))
     }
     setSaving(prev => ({ ...prev, [orderId]: false }))
+  }
+
+  // Changer le mot de passe d'une confirmatrice
+  async function changePassword(conf: Confirmatrice) {
+    const vals = pwdValues[conf.id] ?? { pwd: '', confirm: '' }
+    if (!vals.pwd || vals.pwd.length < 8) return
+    if (vals.pwd !== vals.confirm) return
+    setPwdSaving(prev => ({ ...prev, [conf.id]: true }))
+    setPwdResult(prev => ({ ...prev, [conf.id]: null }))
+    try {
+      const res = await fetch(`/api/boutique-admin/users/${conf.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: vals.pwd }),
+      })
+      if (res.ok) {
+        setPwdResult(prev => ({ ...prev, [conf.id]: 'ok' }))
+        setPwdValues(prev => ({ ...prev, [conf.id]: { pwd: '', confirm: '' } }))
+        setTimeout(() => {
+          setPwdOpen(prev => ({ ...prev, [conf.id]: false }))
+          setPwdResult(prev => ({ ...prev, [conf.id]: null }))
+        }, 2000)
+      } else {
+        setPwdResult(prev => ({ ...prev, [conf.id]: 'err' }))
+      }
+    } catch {
+      setPwdResult(prev => ({ ...prev, [conf.id]: 'err' }))
+    }
+    setPwdSaving(prev => ({ ...prev, [conf.id]: false }))
   }
 
   // Toggle actif/inactif d'une confirmatrice
@@ -227,13 +261,14 @@ export default function AssignationPage() {
 
           {/* Confirmatrices — avec toggle actif/inactif */}
           {confirmatrices.length > 0 && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
               {confirmatrices.map(c => {
                 const count   = orders.filter(o => o.assignedTo?.id === c.id).length
                 const isActive = c.active !== false
                 const isBusy   = toggling[c.id]
                 return (
-                  <div key={c.id} style={{ background: '#fff', border: `1px solid ${isActive ? '#E3E5E7' : '#FECACA'}`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, opacity: isActive ? 1 : 0.65 }}>
+                  <div key={c.id} style={{ display: 'flex', flexDirection: 'column', minWidth: 220 }}>
+                  <div style={{ background: '#fff', border: `1px solid ${isActive ? '#E3E5E7' : '#FECACA'}`, borderRadius: pwdOpen[c.id] ? '10px 10px 0 0' : 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, opacity: isActive ? 1 : 0.65 }}>
                     <div style={{ width: 30, height: 30, borderRadius: '50%', background: isActive ? 'linear-gradient(135deg, #E93D91, #CEA060)' : '#D1D5DB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 700 }}>
                       {confName(c)[0]?.toUpperCase()}
                     </div>
@@ -262,6 +297,72 @@ export default function AssignationPage() {
                         boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                       }} />
                     </button>
+
+                    {/* Bouton changer mot de passe */}
+                    <button
+                      onClick={() => {
+                        setPwdOpen(prev => ({ ...prev, [c.id]: !prev[c.id] }))
+                        setPwdResult(prev => ({ ...prev, [c.id]: null }))
+                        setPwdValues(prev => ({ ...prev, [c.id]: { pwd: '', confirm: '' } }))
+                      }}
+                      title="Changer le mot de passe"
+                      style={{ marginLeft: 4, width: 28, height: 28, borderRadius: 8, border: '1px solid #E3E5E7', background: pwdOpen[c.id] ? '#FEF3F8' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}
+                    >🔑</button>
+                  </div>{/* fin card row */}
+
+                  {/* Formulaire inline changement mot de passe */}
+                  {pwdOpen[c.id] && (
+                    <div style={{ padding: '12px 14px', background: '#FEF3F8', border: '1px solid #FBCFE8', borderTop: 'none', borderRadius: '0 0 10px 10px' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9D174D', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Nouveau mot de passe — {confName(c)}
+                      </div>
+                      <input
+                        type="password"
+                        placeholder="Nouveau mot de passe (min. 8 caractères)"
+                        value={pwdValues[c.id]?.pwd ?? ''}
+                        onChange={e => setPwdValues(prev => ({ ...prev, [c.id]: { ...prev[c.id] ?? { pwd: '', confirm: '' }, pwd: e.target.value } }))}
+                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #E3E5E7', borderRadius: 6, fontSize: 13, marginBottom: 6, boxSizing: 'border-box' }}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirmer le mot de passe"
+                        value={pwdValues[c.id]?.confirm ?? ''}
+                        onChange={e => setPwdValues(prev => ({ ...prev, [c.id]: { ...prev[c.id] ?? { pwd: '', confirm: '' }, confirm: e.target.value } }))}
+                        style={{ width: '100%', padding: '7px 10px', border: '1px solid #E3E5E7', borderRadius: 6, fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }}
+                      />
+                      {/* Validation feedback */}
+                      {(() => {
+                        const v = pwdValues[c.id]
+                        if (!v?.pwd) return null
+                        if (v.pwd.length < 8) return <div style={{ fontSize: 11, color: '#DC2626', marginBottom: 6 }}>⚠️ Minimum 8 caractères</div>
+                        if (v.confirm && v.pwd !== v.confirm) return <div style={{ fontSize: 11, color: '#DC2626', marginBottom: 6 }}>⚠️ Les mots de passe ne correspondent pas</div>
+                        if (v.confirm && v.pwd === v.confirm) return <div style={{ fontSize: 11, color: '#059669', marginBottom: 6 }}>✓ Les mots de passe correspondent</div>
+                        return null
+                      })()}
+                      {pwdResult[c.id] === 'ok' && <div style={{ fontSize: 12, color: '#059669', fontWeight: 700, marginBottom: 6 }}>✅ Mot de passe changé avec succès</div>}
+                      {pwdResult[c.id] === 'err' && <div style={{ fontSize: 12, color: '#DC2626', fontWeight: 700, marginBottom: 6 }}>❌ Erreur — réessayez</div>}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => changePassword(c)}
+                          disabled={
+                            pwdSaving[c.id] ||
+                            !pwdValues[c.id]?.pwd ||
+                            (pwdValues[c.id]?.pwd?.length ?? 0) < 8 ||
+                            pwdValues[c.id]?.pwd !== pwdValues[c.id]?.confirm
+                          }
+                          style={{ flex: 1, padding: '7px 12px', borderRadius: 7, background: '#E93D91', border: 'none', color: '#fff', fontWeight: 700, fontSize: 12, cursor: 'pointer', opacity: pwdSaving[c.id] ? 0.6 : 1 }}
+                        >
+                          {pwdSaving[c.id] ? '…' : 'Enregistrer'}
+                        </button>
+                        <button
+                          onClick={() => setPwdOpen(prev => ({ ...prev, [c.id]: false }))}
+                          style={{ padding: '7px 12px', borderRadius: 7, background: '#fff', border: '1px solid #E3E5E7', color: '#3D3D3D', fontSize: 12, cursor: 'pointer' }}
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 )
               })}
