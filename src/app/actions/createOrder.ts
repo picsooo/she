@@ -9,21 +9,73 @@ import { sendOrderEmails } from '@/lib/email'
 import { cookies, headers } from 'next/headers'
 import { randomUUID } from 'crypto'
 import { rateLimit } from '@/lib/rate-limit'
+import { YalidineClient } from '@/lib/yalidine'
+import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
 
 type CreateOrderResult =
   | { success: true; orderNumber: string }
   | { success: false; error: string; fieldErrors?: Record<string, string> }
 
-// Calcule les frais de livraison selon le mode et les paramètres admin
-async function getShippingFee(deliveryMode: 'home' | 'desk', payload: Awaited<ReturnType<typeof getPayload>>): Promise<number> {
+// Calcule les frais de livraison en interrogeant Yalidine côté serveur
+// Ne fait JAMAIS confiance au prix envoyé par le client — toujours recalculer
+async function getShippingFeeFromYalidine(
+  deliveryMode: 'home' | 'desk',
+  wilayaCode: string,
+  communeNameAr: string,
+  payload: Awaited<ReturnType<typeof getPayload>>,
+): Promise<number> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const settings: any = await payload.findGlobal({ slug: 'delivery-settings', overrideAccess: true })
+
+  // Fallback depuis les settings admin
+  const fallbackFee = deliveryMode === 'desk'
+    ? (settings?.defaultDeskDeliveryFee ?? 300)
+    : (settings?.defaultHomeDeliveryFee ?? 400)
+
+  // Si Yalidine désactivé ou pas de credentials, utiliser le fallback
+  if (!settings?.yalidineEnabled || !settings.yalidineApiId || !settings.yalidineApiToken || !settings.yalidineFromWilayaName) {
+    return fallbackFee
+  }
+
   try {
-    const settings = await payload.findGlobal({ slug: 'delivery-settings' })
-    const fee = deliveryMode === 'desk'
-      ? (settings as { defaultDeskDeliveryFee?: number }).defaultDeskDeliveryFee ?? 300
-      : (settings as { defaultHomeDeliveryFee?: number }).defaultHomeDeliveryFee ?? 400
-    return fee
-  } catch {
-    return deliveryMode === 'desk' ? 300 : 400
+    const fromWilaya = WILAYAS.find(w => w.nameFr.toLowerCase() === (settings.yalidineFromWilayaName as string).toLowerCase())
+    const toWilaya = WILAYAS.find(w => w.code === wilayaCode.padStart(2, '0'))
+    if (!fromWilaya || !toWilaya) return fallbackFee
+
+    const commune = COMMUNES.find(c => c.wilayaCode === toWilaya.code && c.nameAr === communeNameAr)
+    if (!commune) return fallbackFee
+
+    const client = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
+
+    // Timeout de 10s côté serveur (plus généreux que le client)
+    const fees = await Promise.race([
+      client.getFees(parseInt(fromWilaya.code), parseInt(toWilaya.code)),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
+    ])
+
+    if (!fees) return fallbackFee
+
+    const perCommune = fees.per_commune ?? {}
+    const entries = Object.values(perCommune)
+    const normalize = (s: string) =>
+      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
+    const ourNorm = normalize(commune.nameFr)
+
+    const communeData =
+      entries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
+      entries.find(c => normalize(c.commune_name) === ourNorm) ??
+      entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
+      entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
+
+    if (!communeData) return fallbackFee
+
+    if (deliveryMode === 'desk') {
+      return communeData.express_desk ?? communeData.economic_desk ?? fallbackFee
+    }
+    return communeData.express_home ?? communeData.economic_home ?? fallbackFee
+  } catch (err) {
+    console.error('[createOrder] Yalidine fee fetch failed, using fallback:', err)
+    return fallbackFee
   }
 }
 
@@ -163,12 +215,15 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       })
     }
 
-    // Frais de livraison : utiliser le tarif Yalidine passé depuis le checkout
-    // s'il est disponible, sinon fallback sur les tarifs par défaut des settings
+    // Frais de livraison : TOUJOURS recalculer côté serveur via Yalidine
+    // Ne jamais faire confiance au shippingFee du client (peut être le fallback 400 DA)
     const deliveryMode = customer.deliveryMode ?? 'home'
-    const shippingFee = customer.shippingFee != null
-      ? customer.shippingFee
-      : await getShippingFee(deliveryMode, payload)
+    const shippingFee = await getShippingFeeFromYalidine(
+      deliveryMode,
+      customer.wilayaCode,
+      customer.commune,
+      payload,
+    )
     const total = subtotal + shippingFee
 
     // Numéro de commande unique

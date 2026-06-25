@@ -103,12 +103,12 @@ export default function CheckoutPage() {
           // Yalidine désactivé → utiliser les frais par défaut des settings
           setFees(fallback)
         } else {
-          // Erreur/timeout Yalidine → frais indisponibles temporairement, ne pas afficher 400/300
-          // L'utilisateur verra "يُحدَّد بعد اختيار الولاية" et pourra quand même commander
-          setFees(fallback)
+          // Erreur/timeout/commune_not_found Yalidine → ne PAS afficher le fallback 400/300
+          // Le serveur recalculera les vrais frais dans createOrder via l'API Yalidine
+          setFees(null)
         }
       })
-      .catch(() => { if (!cancelled) setFees(fallback) })
+      .catch(() => { if (!cancelled) setFees(null) })
       .finally(() => { if (!cancelled) setFeesLoading(false) })
     return () => { cancelled = true }
     // defaultFeesRef intentionnellement absent des deps : c'est un ref, pas un state
@@ -151,7 +151,7 @@ export default function CheckoutPage() {
         address: form.address,
         note: form.note || undefined,
         deliveryMode: form.deliveryMode,
-        shippingFee: (fees ?? defaultFeesRef.current)[form.deliveryMode],
+        shippingFee: fees ? fees[form.deliveryMode] : undefined,
         trafficSource,
       },
       items: items.map((item) => ({
