@@ -86,6 +86,9 @@ export default function OrderDetailPage() {
   const [editDelivery,   setEditDelivery]   = useState<'home' | 'desk'>('home')
   const [delivery,       setDelivery]       = useState<DeliverySettings>({})
   const [loadingDelivery,setLoadingDelivery]= useState(false)
+  // Frais de livraison original de la commande — utilisé tant que wilaya/commune n'ont pas changé
+  const [originalShippingFee, setOriginalShippingFee] = useState<number | null>(null)
+  const [locationChanged, setLocationChanged] = useState(false)
 
   // ── Édition infos client ──────────────────────────────────────────────────────
   const [editCustomerName, setEditCustomerName] = useState('')
@@ -180,6 +183,9 @@ export default function OrderDetailPage() {
     setEditWilaya(order.wilaya ?? '')
     setEditCommune(order.commune ?? '')
     setEditAddress(order.address ?? '')
+    // Garder le shippingFee original — on ne le recalcule que si wilaya/commune change
+    setOriginalShippingFee(order.shippingFee ?? null)
+    setLocationChanged(false)
 
     // Charger le catalogue une seule fois
     let cat = catalog
@@ -256,6 +262,7 @@ export default function OrderDetailPage() {
   // Quand la wilaya change : reset commune, recharge frais + centres Yalidine
   const handleWilayaChange = (newWilayaAr: string) => {
     setEditWilaya(newWilayaAr)
+    setLocationChanged(true) // wilaya a changé → recalculer les frais
     // Première commune de la nouvelle wilaya
     const wilayaEntry = WILAYAS.find(w => w.nameAr === newWilayaAr)
     const firstCommune = wilayaEntry
@@ -295,6 +302,7 @@ export default function OrderDetailPage() {
   // Quand la commune change : recharger les frais Yalidine pour cette commune
   const handleCommuneChange = (newCommuneAr: string) => {
     setEditCommune(newCommuneAr)
+    setLocationChanged(true) // commune a changé → recalculer les frais
     const wilayaEntry = WILAYAS.find(w => w.nameAr === editWilaya)
     if (wilayaEntry && newCommuneAr) {
       setFeesLoading(true)
@@ -313,6 +321,9 @@ export default function OrderDetailPage() {
   }
 
   const computedShippingFee = (): number => {
+    // Si wilaya/commune n'ont pas changé ET qu'on a le frais original → le garder
+    if (!locationChanged && originalShippingFee !== null) return originalShippingFee
+    // Sinon utiliser les frais Yalidine fraîchement chargés
     if (editDelivery === 'desk') return delivery.officeDeliveryFee ?? 0
     return delivery.homeDeliveryFee ?? 0
   }
@@ -740,7 +751,7 @@ export default function OrderDetailPage() {
                 ].map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setEditDelivery(opt.value as 'home' | 'desk')}
+                    onClick={() => { setEditDelivery(opt.value as 'home' | 'desk'); setLocationChanged(true) }}
                     style={{
                       padding: '10px 12px', borderRadius: 8, textAlign: 'left',
                       border: editDelivery === opt.value ? '2px solid #4A3DBC' : '1.5px solid #E3E5E7',

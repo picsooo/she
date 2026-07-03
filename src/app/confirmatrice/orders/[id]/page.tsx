@@ -72,6 +72,35 @@ const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(n) + ' DA'
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const fmtDateShort = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
+// Génère le lien WhatsApp avec un message de confirmation pré-rempli
+function buildWhatsAppUrl(order: Order): string {
+  let phone = (order.phone ?? '').replace(/\s+/g, '').replace(/-/g, '')
+  if (phone.startsWith('0')) phone = '213' + phone.slice(1)
+  else if (!phone.startsWith('213') && !phone.startsWith('+213')) phone = '213' + phone
+
+  const itemsList = (order.items ?? [])
+    .map(item => {
+      const name = item.productName ?? '—'
+      const details = [item.colorAr, item.size].filter(Boolean).join(' / ')
+      return `• ${name}${details ? ` (${details})` : ''} × ${item.quantity ?? 1}`
+    })
+    .join('\n')
+
+  const message = `السلام عليكم ${order.customerName} 👋
+
+نتواصل معاك من *She's Fit & Beauty* بخصوص طلبك رقم *${order.orderNumber}*
+
+📦 *تفاصيل الطلب:*
+${itemsList}
+
+💰 *المبلغ الإجمالي:* ${fmt(order.total)}
+📍 *الولاية:* ${order.wilaya}${order.commune ? ` - ${order.commune}` : ''}
+
+هل تأكدي الطلب؟ ✅`
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
+}
+
 export default function ConfirmatriceOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -93,6 +122,9 @@ export default function ConfirmatriceOrderDetailPage() {
   const [centers,        setCenters]        = useState<Array<{ id: number; name: string; address?: string }>>([])
   const [centersLoading, setCentersLoading] = useState(false)
   const [feesLoading,    setFeesLoading]    = useState(false)
+  // Frais de livraison original de la commande — utilisé tant que wilaya/commune n'ont pas changé
+  const [originalShippingFee, setOriginalShippingFee] = useState<number | null>(null)
+  const [locationChanged, setLocationChanged] = useState(false)
 
   // ── Édition infos client ──────────────────────────────────────────────────────
   const [editCustomerName, setEditCustomerName] = useState('')
@@ -180,6 +212,9 @@ export default function ConfirmatriceOrderDetailPage() {
     setEditWilaya(order.wilaya ?? '')
     setEditCommune(order.commune ?? '')
     setEditAddress(order.address ?? '')
+    // Garder le shippingFee original — on ne le recalcule que si wilaya/commune change
+    setOriginalShippingFee(order.shippingFee ?? null)
+    setLocationChanged(false)
 
     let cat = catalog
     if (!catalogLoaded) {
@@ -255,6 +290,7 @@ export default function ConfirmatriceOrderDetailPage() {
   // Quand la wilaya change : reset commune, recharge frais + centres Yalidine
   const handleWilayaChange = (newWilayaAr: string) => {
     setEditWilaya(newWilayaAr)
+    setLocationChanged(true) // wilaya a changé → recalculer les frais
     const wilayaEntry = WILAYAS.find(w => w.nameAr === newWilayaAr)
     const firstCommune = wilayaEntry
       ? (COMMUNES.find(c => c.wilayaCode === wilayaEntry.code)?.nameAr ?? '')
@@ -290,6 +326,7 @@ export default function ConfirmatriceOrderDetailPage() {
 
   const handleCommuneChange = (newCommuneAr: string) => {
     setEditCommune(newCommuneAr)
+    setLocationChanged(true) // commune a changé → recalculer les frais
     const wilayaEntry = WILAYAS.find(w => w.nameAr === editWilaya)
     if (wilayaEntry && newCommuneAr) {
       setFeesLoading(true)
@@ -308,6 +345,9 @@ export default function ConfirmatriceOrderDetailPage() {
   }
 
   const computedShippingFee = (): number => {
+    // Si wilaya/commune n'ont pas changé ET qu'on a le frais original → le garder
+    if (!locationChanged && originalShippingFee !== null) return originalShippingFee
+    // Sinon utiliser les frais Yalidine fraîchement chargés
     if (editDelivery === 'desk') return delivery.officeDeliveryFee ?? 0
     return delivery.homeDeliveryFee ?? 0
   }
@@ -581,13 +621,29 @@ export default function ConfirmatriceOrderDetailPage() {
         </div>
 
         {!editMode ? (
-          <button onClick={enterEditMode} className="admin-btn" style={{
-            padding: '8px 18px', background: '#1A1A1A', color: '#fff', border: 'none',
-            borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8,
-          }}>
-            ✏️ Modifier la commande
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <a
+              href={buildWhatsAppUrl(order)}
+              target="_blank"
+              rel="noreferrer"
+              title="Envoyer message WhatsApp de confirmation"
+              style={{
+                padding: '8px 18px', background: '#25D366', color: '#fff', border: 'none',
+                borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+              WhatsApp
+            </a>
+            <button onClick={enterEditMode} className="admin-btn" style={{
+              padding: '8px 18px', background: '#1A1A1A', color: '#fff', border: 'none',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              ✏️ Modifier la commande
+            </button>
+          </div>
         ) : (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={cancelEdit} className="admin-btn admin-btn-secondary" style={{ padding: '8px 16px', fontSize: 13 }}>
@@ -725,7 +781,14 @@ export default function ConfirmatriceOrderDetailPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <InfoRow icon="🙍‍♀️" label="Nom"       value={order.customerName} />
-              <InfoRow icon="📱" label="Téléphone" value={<a href={`tel:${order.phone}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone}</a>} />
+              <InfoRow icon="📱" label="Téléphone" value={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <a href={`tel:${order.phone}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone}</a>
+                  <a href={buildWhatsAppUrl(order)} target="_blank" rel="noreferrer" title="WhatsApp" style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 6px', background: '#25D366', borderRadius: 4, textDecoration: 'none' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  </a>
+                </span>
+              } />
               {order.phone2 && <InfoRow icon="📱" label="Tél. 2" value={<a href={`tel:${order.phone2}`} style={{ color: '#E93D91', textDecoration: 'none', fontWeight: 700 }}>{order.phone2}</a>} />}
               <InfoRow icon="📍" label="Wilaya"    value={order.wilaya} />
               {order.commune && <InfoRow icon="🏘️" label="Commune"  value={order.commune} />}
@@ -757,7 +820,7 @@ export default function ConfirmatriceOrderDetailPage() {
                 ].map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setEditDelivery(opt.value as 'home' | 'desk')}
+                    onClick={() => { setEditDelivery(opt.value as 'home' | 'desk'); setLocationChanged(true) }}
                     style={{
                       padding: '10px 12px', borderRadius: 8, textAlign: 'left',
                       border: editDelivery === opt.value ? '2px solid #4A3DBC' : '1.5px solid #E3E5E7',

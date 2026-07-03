@@ -51,6 +51,11 @@ export default function AssignationPage() {
   const [pwdValues, setPwdValues] = useState<Record<number, { pwd: string; confirm: string }>>({})
   const [pwdSaving, setPwdSaving] = useState<Record<number, boolean>>({})
   const [pwdResult, setPwdResult] = useState<Record<number, 'ok' | 'err' | null>>({})
+  // Sélection en masse (bulk)
+  const [selected,        setSelected]        = useState<Set<string>>(new Set())
+  const [bulkConfId,      setBulkConfId]      = useState('')
+  const [bulkLoading,     setBulkLoading]     = useState(false)
+  const [bulkResult,      setBulkResult]      = useState<string | null>(null)
 
   // Chargement des données
   const load = useCallback(async () => {
@@ -173,6 +178,36 @@ export default function AssignationPage() {
     setAutoLoading(false)
   }
 
+  // Toggle sélection individuelle
+  const toggleSelect = (id: string) => setSelected(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  // Assigner en masse les commandes sélectionnées à une confirmatrice
+  async function bulkAssign() {
+    if (!bulkConfId || selected.size === 0) return
+    setBulkLoading(true)
+    setBulkResult(null)
+    let ok = 0; let err = 0
+    for (const orderId of selected) {
+      try {
+        const res = await fetch(`/api/boutique-admin/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignedTo: parseInt(bulkConfId) }),
+        })
+        if (res.ok) ok++; else err++
+      } catch { err++ }
+    }
+    setBulkResult(`✅ ${ok} commande${ok > 1 ? 's' : ''} assignée${ok > 1 ? 's' : ''}${err > 0 ? ` — ⚠️ ${err} erreur(s)` : ''}`)
+    setSelected(new Set())
+    setBulkConfId('')
+    await load()
+    setBulkLoading(false)
+  }
+
   const unassignedCount = orders.filter(o => !o.assignedTo).length
   const newCount        = orders.filter(o => o.status === 'new').length
   const pendingCount    = orders.filter(o => o.status === 'pending').length
@@ -183,6 +218,16 @@ export default function AssignationPage() {
     if (statusFilter === 'unassigned') return orders.filter(o => !o.assignedTo)
     return orders
   })()
+
+  // Tout sélectionner / désélectionner dans la vue filtrée
+  const toggleSelectAll = () => {
+    if (selected.size === displayed.length && displayed.length > 0) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(displayed.map(o => o.id)))
+    }
+  }
+  const allSelected = displayed.length > 0 && selected.size === displayed.length
 
   return (
     <div style={{ maxWidth: 960, margin: '0 auto' }}>
@@ -369,6 +414,30 @@ export default function AssignationPage() {
             </div>
           )}
 
+          {/* Barre d'actions en masse (visible si au moins une sélection) */}
+          {selected.size > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, background: '#EEF2FF', border: '1px solid #C7D2FE', borderRadius: 10, padding: '10px 16px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#4A3DBC' }}>{selected.size} commande{selected.size > 1 ? 's' : ''} sélectionnée{selected.size > 1 ? 's' : ''}</span>
+              <select value={bulkConfId} onChange={e => setBulkConfId(e.target.value)} style={{ border: '1px solid #C7D2FE', borderRadius: 8, padding: '6px 10px', fontSize: 13, color: bulkConfId ? '#1A1A1A' : '#9A9A9A', background: '#fff', cursor: 'pointer', minWidth: 180 }}>
+                <option value="">Assigner à…</option>
+                {confirmatrices.map(c => (
+                  <option key={c.id} value={String(c.id)}>{confName(c)}</option>
+                ))}
+              </select>
+              <button
+                onClick={bulkAssign}
+                disabled={!bulkConfId || bulkLoading}
+                style={{ padding: '7px 16px', background: bulkConfId ? '#E93D91' : '#9CA3AF', color: '#fff', border: 'none', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: bulkConfId ? 'pointer' : 'not-allowed', opacity: bulkLoading ? 0.7 : 1, transition: 'all 0.15s' }}
+              >
+                {bulkLoading ? '⏳ En cours…' : 'Assigner la sélection'}
+              </button>
+              <button onClick={() => setSelected(new Set())} style={{ padding: '7px 12px', background: 'transparent', border: '1px solid #C7D2FE', color: '#6D7175', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
+                Désélectionner
+              </button>
+              {bulkResult && <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, marginLeft: 'auto' }}>{bulkResult}</div>}
+            </div>
+          )}
+
           {/* Liste commandes */}
           {displayed.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 60, background: '#fff', borderRadius: 12, border: '1px solid #E3E5E7', color: '#9A9A9A' }}>
@@ -380,6 +449,14 @@ export default function AssignationPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#FAFAFA' }}>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', width: 40, borderBottom: '1px solid #F1F1F1' }}>
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={toggleSelectAll}
+                        style={{ cursor: 'pointer', width: 14, height: 14 }}
+                      />
+                    </th>
                     {['Commande', 'Client', 'Wilaya', 'Total', 'Date', 'Confirmatrice assignée', ''].map(h => (
                       <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#8A8A8A', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid #F1F1F1' }}>{h}</th>
                     ))}
@@ -390,9 +467,18 @@ export default function AssignationPage() {
                     const isSaving = saving[o.id]
                     const result   = results[o.id]
                     const selVal   = selections[o.id] ?? ''
+                    const isSelected = selected.has(o.id)
 
                     return (
-                      <tr key={o.id} style={{ borderBottom: i < displayed.length - 1 ? '1px solid #F1F1F1' : 'none', background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                      <tr key={o.id} style={{ borderBottom: i < displayed.length - 1 ? '1px solid #F1F1F1' : 'none', background: isSelected ? '#F5F3FF' : i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                        <td style={{ padding: '12px 12px', textAlign: 'center', width: 40 }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(o.id)}
+                            style={{ cursor: 'pointer', width: 14, height: 14 }}
+                          />
+                        </td>
                         <td style={{ padding: '12px 16px' }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: '#E93D91', fontFamily: 'monospace' }}>{o.orderNumber ?? o.id.slice(-6)}</div>
                           {o.status === 'pending' && (

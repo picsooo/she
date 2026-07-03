@@ -11,13 +11,59 @@ import { randomUUID } from 'crypto'
 import { rateLimit } from '@/lib/rate-limit'
 import { YalidineClient } from '@/lib/yalidine'
 import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { join } from 'path'
 
 type CreateOrderResult =
   | { success: true; orderNumber: string }
   | { success: false; error: string; fieldErrors?: Record<string, string> }
 
+// ── Cache fichier partagé avec /api/yalidine/fees ──────────────────────────────
+// Même format et même dossier : évite d'appeler Yalidine en double
+type PerCommuneEntry = {
+  commune_name: string
+  express_home: number | null
+  express_desk: number | null
+  economic_home: number | null
+  economic_desk: number | null
+}
+type FileCache = Record<string, { perCommune: Record<string, PerCommuneEntry>; ts: number }>
+
+const CACHE_DIR  = join(process.cwd(), '.fees-cache')
+const CACHE_FILE = join(CACHE_DIR, 'yalidine-fees.json')
+const CACHE_TTL  = 24 * 60 * 60 * 1000 // 24 heures
+
+function loadFeesCache(): FileCache {
+  try {
+    if (existsSync(CACHE_FILE)) return JSON.parse(readFileSync(CACHE_FILE, 'utf-8')) as FileCache
+  } catch { /* ignore */ }
+  return {}
+}
+
+function saveFeesCache(cache: FileCache) {
+  try {
+    if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true })
+    writeFileSync(CACHE_FILE, JSON.stringify(cache), 'utf-8')
+  } catch { /* ignore */ }
+}
+
+const normalize = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
+
+// Cherche une commune dans les données Yalidine (4 passes progressives)
+function findCommuneData(entries: PerCommuneEntry[], communeNameFr: string): PerCommuneEntry | undefined {
+  const ourNorm = normalize(communeNameFr)
+  return (
+    entries.find(c => c.commune_name.toLowerCase() === communeNameFr.toLowerCase()) ??
+    entries.find(c => normalize(c.commune_name) === ourNorm) ??
+    entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
+    entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
+  )
+}
+
 // Calcule les frais de livraison en interrogeant Yalidine côté serveur
 // Ne fait JAMAIS confiance au prix envoyé par le client — toujours recalculer
+// Utilise le cache fichier partagé avec /api/yalidine/fees (24h TTL)
 async function getShippingFeeFromYalidine(
   deliveryMode: 'home' | 'desk',
   wilayaCode: string,
@@ -45,28 +91,44 @@ async function getShippingFeeFromYalidine(
     const commune = COMMUNES.find(c => c.wilayaCode === toWilaya.code && c.nameAr === communeNameAr)
     if (!commune) return fallbackFee
 
-    const client = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
+    const cacheKey = `${fromWilaya.code}_${toWilaya.code}`
 
-    // Timeout de 10s côté serveur (plus généreux que le client)
-    const fees = await Promise.race([
-      client.getFees(parseInt(fromWilaya.code), parseInt(toWilaya.code)),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 10000)),
-    ])
+    // 1) Vérifier le cache fichier (partagé avec /api/yalidine/fees, persiste entre redémarrages)
+    const cache = loadFeesCache()
+    const cached = cache[cacheKey]
+    let perCommune: Record<string, PerCommuneEntry> | null = null
 
-    if (!fees) return fallbackFee
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      perCommune = cached.perCommune
+    } else {
+      // 2) Cache expiré ou absent → appeler Yalidine avec retry
+      const client = new YalidineClient(settings.yalidineApiId as string, settings.yalidineApiToken as string)
 
-    const perCommune = fees.per_commune ?? {}
+      // Timeout de 15s (plus généreux) avec 1 retry
+      for (let attempt = 0; attempt < 2 && !perCommune; attempt++) {
+        const fees = await Promise.race([
+          client.getFees(parseInt(fromWilaya.code), parseInt(toWilaya.code)),
+          new Promise<null>(resolve => setTimeout(() => resolve(null), 15000)),
+        ])
+        if (fees) {
+          perCommune = fees.per_commune ?? {}
+          // Mettre en cache pour les prochaines commandes
+          cache[cacheKey] = { perCommune, ts: Date.now() }
+          saveFeesCache(cache)
+        }
+      }
+
+      // 3) Yalidine n'a pas répondu mais on a un cache expiré → l'utiliser quand même
+      if (!perCommune && cached) {
+        console.warn('[createOrder] Yalidine timeout — utilisation du cache expiré')
+        perCommune = cached.perCommune
+      }
+    }
+
+    if (!perCommune) return fallbackFee
+
     const entries = Object.values(perCommune)
-    const normalize = (s: string) =>
-      s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
-    const ourNorm = normalize(commune.nameFr)
-
-    const communeData =
-      entries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
-      entries.find(c => normalize(c.commune_name) === ourNorm) ??
-      entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
-      entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
-
+    const communeData = findCommuneData(entries, commune.nameFr)
     if (!communeData) return fallbackFee
 
     if (deliveryMode === 'desk') {
