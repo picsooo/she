@@ -30,8 +30,10 @@ function getDateFromConf(preset: string): string | null {
   return null
 }
 
-async function fetchCountForConf(status: string, dateFrom: string | null, assignedTo?: string): Promise<number> {
-  const where: Record<string, unknown> = { status: { equals: status } }
+async function fetchCountForConf(status: string | string[], dateFrom: string | null, assignedTo?: string): Promise<number> {
+  const where: Record<string, unknown> = Array.isArray(status)
+    ? { status: { in: status } }
+    : { status: { equals: status } }
   if (dateFrom) where.updatedAt = { greater_than: dateFrom }
   if (assignedTo) where.assignedTo = { equals: assignedTo }
   const params = new URLSearchParams({ limit: '0', depth: '0', where: JSON.stringify(where) })
@@ -71,7 +73,7 @@ function ConfirmatriceDashboard({ user }: { user: UserMe }) {
           const users: Array<{ id: string; email: string; firstName?: string; lastName?: string }> = data.docs ?? []
           const results = await Promise.all(users.map(async u => {
             const [confirmed, delivered, cancelled, revenue] = await Promise.all([
-              fetchCountForConf('confirmed', dateFrom, u.id),
+              fetchCountForConf(['confirmed', 'shipping', 'delivered', 'returned', 'failed'], dateFrom, u.id),
               fetchCountForConf('delivered', dateFrom, u.id),
               fetchCountForConf('cancelled', dateFrom, u.id),
               fetchRevenueForConf(dateFrom, u.id),
@@ -90,7 +92,7 @@ function ConfirmatriceDashboard({ user }: { user: UserMe }) {
     } else {
       // Confirmatrice : ses propres stats
       Promise.all([
-        fetchCountForConf('confirmed', dateFrom, user.id),
+        fetchCountForConf(['confirmed', 'shipping', 'delivered', 'returned', 'failed'], dateFrom, user.id),
         fetchCountForConf('delivered', dateFrom, user.id),
         fetchCountForConf('cancelled', dateFrom, user.id),
         (async () => {
@@ -527,6 +529,7 @@ function YalidineStats() {
   const YALIDINE_STATUSES = [
     { key: 'shipping',  label: 'En livraison', color: '#7C3AED', bg: '#EDE9FE' },
     { key: 'delivered', label: 'Livrés',        color: '#065F46', bg: '#D1FAE5' },
+    { key: 'returned',  label: 'Retours',       color: '#B45309', bg: '#FEF3C7' },
     { key: 'cancelled', label: 'Échoués / Annulés', color: '#991B1B', bg: '#FEE2E2' },
   ]
 
@@ -836,7 +839,7 @@ function ConfSummaryWidget() {
         const users: Array<{ id: string; email: string; firstName?: string; lastName?: string }> = data.docs ?? []
         const results = await Promise.all(users.map(async u => {
           const [confirmed, delivered, cancelled, totalRes] = await Promise.all([
-            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'confirmed' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
+            fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { in: ['confirmed', 'shipping', 'delivered', 'returned', 'failed'] }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
             fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'delivered' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
             fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ status: { equals: 'cancelled' }, assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),
             fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify({ assignedTo: { equals: u.id } }))}`).then(r => r.json()).then(d => d.totalDocs ?? 0),

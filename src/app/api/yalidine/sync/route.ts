@@ -97,12 +97,11 @@ export async function GET(req: NextRequest) {
   }
 
   // ── PASSE 2 : sync inversé — liste de TOUS les colis Yalidine ────────────
-  // Limite à 10 pages (1000 colis) pour éviter timeout
-  const MAX_PAGES = 10
+  // Pas de limite de pages — on parcourt tout pour ne rater aucun livré/retour
   let reversePage = 1
   let reverseChecked = 0
 
-  while (reversePage <= MAX_PAGES) {
+  while (true) {
     let pageData: { data: Array<{ tracking: string; order_id: string; last_status: string }>; total_pages: number }
     try {
       pageData = await yalidine.listParcels(reversePage, 100)
