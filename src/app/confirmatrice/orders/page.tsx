@@ -40,33 +40,44 @@ const NEXT_STATUS: Record<string, string> = {
 const fmt     = (n: number) => new Intl.NumberFormat('fr-DZ').format(Math.round(n)) + ' DA'
 const fmtDate = (s: string) => new Date(s).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
+// Numéros de téléphone des confirmatrices — chaque confirmatrice envoie depuis son propre numéro
+const CONF_PHONES: Record<string, string> = {
+  'conf01@boutique-she.com': '0775452415',
+  'conf02@boutique-she.com': '0554989209',
+  'conf03@boutique-she.com': '',
+}
+
 // Génère le lien WhatsApp avec un message de confirmation pré-rempli
-function buildWhatsAppUrl(order: Order): string {
-  // Normalise le numéro de téléphone algérien (05/06/07 → +213)
+function buildWhatsAppUrl(order: Order, confEmail?: string): string {
+  // Normalise le numéro de téléphone du client (05/06/07 → +213)
   let phone = (order.phone ?? '').replace(/\s+/g, '').replace(/-/g, '')
   if (phone.startsWith('0')) phone = '213' + phone.slice(1)
   else if (!phone.startsWith('213') && !phone.startsWith('+213')) phone = '213' + phone
+
+  // Numéro de la confirmatrice
+  const confPhone = confEmail ? (CONF_PHONES[confEmail] ?? '') : ''
 
   // Articles de la commande
   const itemsList = (order.items ?? [])
     .map(item => {
       const name = item.productName ?? '—'
       const details = [item.colorAr, item.size].filter(Boolean).join(' / ')
-      return `• ${name}${details ? ` (${details})` : ''} × ${item.quantity ?? 1}`
+      return `* ${name} (${details || '—'}) × ${item.quantity ?? 1}`
     })
     .join('\n')
 
-  const message = `السلام عليكم ${order.customerName} 👋
+  const message = `السلام عليكم ${order.customerName}
 
-نتواصل معاك من *She's Fit & Beauty* بخصوص طلبك رقم *${order.orderNumber}*
+نتواصل معاك من She's Fit & Beauty بخصوص طلبك رقم ${order.orderNumber}
 
-📦 *تفاصيل الطلب:*
+ تفاصيل الطلب:
 ${itemsList}
 
-💰 *المبلغ الإجمالي:* ${fmt(order.total)}
-📍 *الولاية:* ${order.wilaya}${order.commune ? ` - ${order.commune}` : ''}
+ المبلغ الإجمالي: ${fmt(order.total)}
+ الولاية: ${order.wilaya}${order.commune ? ` - ${order.commune}` : ''}
+*التوصيل الى مكتب ياليدين / الى المنزل
 
-هل تأكدي الطلب؟ ✅`
+يرجى ‏الاتصال بنا على الرقم التالي لتأكيد الطلب :${confPhone ? `\n${confPhone}` : ''}`
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`
 }
@@ -456,7 +467,7 @@ export default function ConfirmatriceOrdersPage() {
                       <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                         {/* Bouton WhatsApp — envoyer message de confirmation au client */}
                         <a
-                          href={buildWhatsAppUrl(o)}
+                          href={buildWhatsAppUrl(o, currentUser?.email)}
                           target="_blank"
                           rel="noreferrer"
                           onClick={e => e.stopPropagation()}
