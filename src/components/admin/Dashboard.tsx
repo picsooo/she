@@ -124,9 +124,12 @@ async function fetchStats(): Promise<Stats> {
 
   const confirmatriceStats: ConfirmatriceStats[] = await Promise.all(
     allConfirmatrices.map(async (u) => {
-      const [totalRes, confirmedConfRes, failedConfRes, cancelledConfRes] = await Promise.all([
+      // Confirmées = confirmed + shipping + delivered (toute commande passée par la confirmation)
+      const [totalRes, confirmedOnlyRes, shippingConfRes, deliveredConfRes, failedConfRes, cancelledConfRes] = await Promise.all([
         fetch(qs({ 'where[assignedTo][equals]': u.id, limit: '0', depth: '0' })).then(r => r.json()),
         fetch(qs({ 'where[assignedTo][equals]': u.id, 'where[status][equals]': 'confirmed', limit: '0', depth: '0' })).then(r => r.json()),
+        fetch(qs({ 'where[assignedTo][equals]': u.id, 'where[status][equals]': 'shipping',  limit: '0', depth: '0' })).then(r => r.json()),
+        fetch(qs({ 'where[assignedTo][equals]': u.id, 'where[status][equals]': 'delivered',  limit: '0', depth: '0' })).then(r => r.json()),
         fetch(qs({ 'where[assignedTo][equals]': u.id, 'where[status][equals]': 'failed',    limit: '0', depth: '0' })).then(r => r.json()),
         fetch(qs({ 'where[assignedTo][equals]': u.id, 'where[status][equals]': 'cancelled', limit: '0', depth: '0' })).then(r => r.json()),
       ])
@@ -134,7 +137,7 @@ async function fetchStats(): Promise<Stats> {
         id: u.id,
         name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || u.id,
         total:     totalRes.totalDocs     ?? 0,
-        confirmed: confirmedConfRes.totalDocs ?? 0,
+        confirmed: (confirmedOnlyRes.totalDocs ?? 0) + (shippingConfRes.totalDocs ?? 0) + (deliveredConfRes.totalDocs ?? 0),
         failed:    failedConfRes.totalDocs    ?? 0,
         cancelled: cancelledConfRes.totalDocs ?? 0,
       }

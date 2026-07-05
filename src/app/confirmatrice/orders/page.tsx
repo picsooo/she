@@ -135,6 +135,7 @@ export default function ConfirmatriceOrdersPage() {
   const [expandedId,   setExpandedId]   = useState<string | null>(null)
   const [updating,     setUpdating]     = useState<string | null>(null)
   const [counts,       setCounts]       = useState<Record<string, number>>({})
+  const [totalConfirmed, setTotalConfirmed] = useState(0) // confirmed + shipping + delivered = vrai total confirmées
   const [selected,     setSelected]     = useState<Set<string>>(new Set())
   const [bulkStatus,   setBulkStatus]   = useState('')
   const [bulkLoading,  setBulkLoading]  = useState(false)
@@ -181,7 +182,12 @@ export default function ConfirmatriceOrdersPage() {
         const where = buildBaseWhere({ status: { equals: s } })
         return fetch(`/api/boutique-admin/orders?limit=0&depth=0&where=${encodeURIComponent(JSON.stringify(where))}`).then(r => r.json()).then(d => [s, d.totalDocs ?? 0])
       })
-    ).then(results => setCounts(Object.fromEntries(results)))
+    ).then(results => {
+      const obj = Object.fromEntries(results)
+      setCounts(obj)
+      // Vrai total confirmées = confirmed + shipping + delivered
+      setTotalConfirmed((obj['confirmed'] ?? 0) + (obj['shipping'] ?? 0) + (obj['delivered'] ?? 0))
+    })
   }, [orders, currentUser?.id, buildBaseWhere])
 
   // Charge le nombre de commandes livrées ce mois pour le widget prime
@@ -262,7 +268,25 @@ export default function ConfirmatriceOrdersPage() {
         </div>
       </div>
 
-      {/* Widget prime désactivé */}
+      {/* Compteur total confirmées (confirmed + shipping + delivered) */}
+      {totalConfirmed > 0 && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+          <div style={{ background: '#EFF6FF', border: '1px solid #93C5FD', borderRadius: 12, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>✅</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total confirmées</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1D4ED8' }}>{totalConfirmed}</div>
+            </div>
+          </div>
+          <div style={{ background: '#D1FAE5', border: '1px solid #86EFAC', borderRadius: 12, padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 18 }}>📦</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Livrées</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#065F46' }}>{counts['delivered'] ?? 0}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs statut */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
