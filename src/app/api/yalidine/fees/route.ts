@@ -121,9 +121,19 @@ export async function GET(req: NextRequest) {
 
     if (!perCommune) return NextResponse.json({ home: null, desk: null, source: 'timeout' })
 
-    // Recherche commune — 3 passes de plus en plus tolérantes
+    // Recherche commune — 7 passes de plus en plus tolérantes
     const normalize = (s: string) =>
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
+
+    // Normalisation agressive : retire articles, préfixes courants
+    const deepNorm = (s: string) =>
+      normalize(s)
+        .replace(/\b(el|les?|la|des?|du|ben|beni|bou|sidi|ain|oued|bir|ksar|bordj|djebel|mohamed|med)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    const getTokens = (s: string) =>
+      normalize(s).split(/\s+/).filter(w => w.length >= 3)
 
     const ourNorm   = normalize(commune.nameFr)
     const entries   = Object.values(perCommune)
@@ -133,18 +143,21 @@ export async function GET(req: NextRequest) {
       entries.find(c => c.commune_name.toLowerCase() === commune.nameFr.toLowerCase()) ??
       // 2) Normalisé (sans accents/tirets)
       entries.find(c => normalize(c.commune_name) === ourNorm) ??
-      // 3) Nom Yalidine contenu dans notre nom FR (Yalidine supprime parfois les préfixes
-      //    "Mohamed", "Sidi"... ex: "Belouizdad" ⊂ "Mohamed Belouizdad")
-      //    — seuil ≥ 6 chars pour éviter les faux positifs sur des mots courts comme "El"
-      entries.find(c => {
-        const yn = normalize(c.commune_name)
-        return yn.length >= 6 && ourNorm.includes(yn)
-      }) ??
-      // 4) Notre nom FR contenu dans le nom Yalidine (cas inverse)
-      entries.find(c => {
-        const yn = normalize(c.commune_name)
-        return ourNorm.length >= 6 && yn.includes(ourNorm)
-      })
+      // 3) Nom Yalidine contenu dans notre nom FR
+      entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 5 && ourNorm.includes(yn) }) ??
+      // 4) Notre nom FR contenu dans le nom Yalidine
+      entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 5 && yn.includes(ourNorm) }) ??
+      // 5) Normalisation agressive (sans articles/préfixes)
+      (() => { const d = deepNorm(commune.nameFr); return d.length >= 3 ? entries.find(c => deepNorm(c.commune_name) === d) : undefined })() ??
+      // 6) Matching par tokens
+      (() => {
+        const t = getTokens(commune.nameFr)
+        if (t.length === 0) return undefined
+        return entries.find(c => { const yn = normalize(c.commune_name); return t.every(w => yn.includes(w)) }) ??
+               entries.find(c => { const yt = getTokens(c.commune_name); return yt.length > 0 && yt.every(w => ourNorm.includes(w)) })
+      })() ??
+      // 7) Sans espaces (concaténation)
+      (() => { const c = ourNorm.replace(/\s/g, ''); return c.length >= 5 ? entries.find(e => normalize(e.commune_name).replace(/\s/g, '') === c) : undefined })()
 
     if (!communeData) return NextResponse.json({ home: null, desk: null, source: 'commune_not_found' })
 

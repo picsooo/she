@@ -64,19 +64,72 @@ export async function POST(
 
     // Trouver le nom de commune EXACT attendu par Yalidine
     // Les noms FR locaux peuvent différer : accents, tirets, préfixes ("Mohamed", "Sidi"...)
-    // Algorithme en 4 passes de plus en plus tolérantes, identique à la route /fees
+    // Algorithme en 7 passes de plus en plus tolérantes
     const normalizeCommune = (s: string) =>
       s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
+
+    // Normalisation agressive : retire articles, préfixes courants, espaces multiples
+    const deepNormalize = (s: string) =>
+      normalizeCommune(s)
+        .replace(/\b(el|les?|la|des?|du|ben|beni|bou|sidi|ain|oued|bir|ksar|bordj|djebel|mohamed|med)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    // Extrait les mots significatifs (≥3 caractères) pour un matching par tokens
+    const getTokens = (s: string) =>
+      normalizeCommune(s).split(/\s+/).filter(w => w.length >= 3)
 
     function findYalidineCommune(perCommune: Record<string, { commune_name: string }>, ourNameFr: string): string | null {
       const ourNorm = normalizeCommune(ourNameFr)
       const entries = Object.values(perCommune)
-      const found =
-        entries.find(c => c.commune_name.toLowerCase() === ourNameFr.toLowerCase()) ??
-        entries.find(c => normalizeCommune(c.commune_name) === ourNorm) ??
-        entries.find(c => { const yn = normalizeCommune(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
-        entries.find(c => { const yn = normalizeCommune(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
-      return found?.commune_name ?? null
+
+      // 1) Correspondance exacte (insensible casse)
+      const pass1 = entries.find(c => c.commune_name.toLowerCase() === ourNameFr.toLowerCase())
+      if (pass1) return pass1.commune_name
+
+      // 2) Normalisé (sans accents/tirets)
+      const pass2 = entries.find(c => normalizeCommune(c.commune_name) === ourNorm)
+      if (pass2) return pass2.commune_name
+
+      // 3) Notre nom contient le nom Yalidine (Yalidine supprime parfois les préfixes)
+      const pass3 = entries.find(c => { const yn = normalizeCommune(c.commune_name); return yn.length >= 5 && ourNorm.includes(yn) })
+      if (pass3) return pass3.commune_name
+
+      // 4) Nom Yalidine contient notre nom
+      const pass4 = entries.find(c => { const yn = normalizeCommune(c.commune_name); return ourNorm.length >= 5 && yn.includes(ourNorm) })
+      if (pass4) return pass4.commune_name
+
+      // 5) Normalisation agressive (retire articles/préfixes courants)
+      const ourDeep = deepNormalize(ourNameFr)
+      if (ourDeep.length >= 3) {
+        const pass5 = entries.find(c => deepNormalize(c.commune_name) === ourDeep)
+        if (pass5) return pass5.commune_name
+      }
+
+      // 6) Matching par tokens : tous les mots significatifs de notre nom dans celui de Yalidine
+      const ourTokens = getTokens(ourNameFr)
+      if (ourTokens.length > 0) {
+        const pass6 = entries.find(c => {
+          const yn = normalizeCommune(c.commune_name)
+          return ourTokens.every(t => yn.includes(t))
+        })
+        if (pass6) return pass6.commune_name
+        // Ou inversement : tous les tokens de Yalidine dans notre nom
+        const pass6b = entries.find(c => {
+          const yTokens = getTokens(c.commune_name)
+          return yTokens.length > 0 && yTokens.every(t => ourNorm.includes(t))
+        })
+        if (pass6b) return pass6b.commune_name
+      }
+
+      // 7) Dernier recours : correspondance sans espaces (concaténation)
+      const ourCompact = ourNorm.replace(/\s/g, '')
+      if (ourCompact.length >= 5) {
+        const pass7 = entries.find(c => normalizeCommune(c.commune_name).replace(/\s/g, '') === ourCompact)
+        if (pass7) return pass7.commune_name
+      }
+
+      return null
     }
 
     let toCommuneNameFr = communeEntry.nameFr
@@ -133,6 +186,13 @@ export async function POST(
     const result = await client.createParcel(parcel)
 
     if (!result.success) {
+      console.error('[send-to-yalidine] Refusé par Yalidine:', {
+        order: order.orderNumber,
+        communeOur: communeEntry.nameFr,
+        communeSent: toCommuneNameFr,
+        wilaya: wilayaEntry.nameFr,
+        message: result.message,
+      })
       return NextResponse.json({ error: `Yalidine a refusé le colis : ${result.message}` }, { status: 422 })
     }
 

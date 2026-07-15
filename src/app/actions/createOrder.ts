@@ -50,14 +50,35 @@ function saveFeesCache(cache: FileCache) {
 const normalize = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').trim()
 
-// Cherche une commune dans les données Yalidine (4 passes progressives)
+// Normalisation agressive : retire articles et préfixes courants
+const deepNormalize = (s: string) =>
+  normalize(s)
+    .replace(/\b(el|les?|la|des?|du|ben|beni|bou|sidi|ain|oued|bir|ksar|bordj|djebel|mohamed|med)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const getTokens = (s: string) =>
+  normalize(s).split(/\s+/).filter(w => w.length >= 3)
+
+// Cherche une commune dans les données Yalidine (7 passes progressives)
 function findCommuneData(entries: PerCommuneEntry[], communeNameFr: string): PerCommuneEntry | undefined {
   const ourNorm = normalize(communeNameFr)
   return (
     entries.find(c => c.commune_name.toLowerCase() === communeNameFr.toLowerCase()) ??
     entries.find(c => normalize(c.commune_name) === ourNorm) ??
-    entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 6 && ourNorm.includes(yn) }) ??
-    entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 6 && yn.includes(ourNorm) })
+    entries.find(c => { const yn = normalize(c.commune_name); return yn.length >= 5 && ourNorm.includes(yn) }) ??
+    entries.find(c => { const yn = normalize(c.commune_name); return ourNorm.length >= 5 && yn.includes(ourNorm) }) ??
+    // Normalisation agressive
+    (() => { const d = deepNormalize(communeNameFr); return d.length >= 3 ? entries.find(c => deepNormalize(c.commune_name) === d) : undefined })() ??
+    // Matching par tokens
+    (() => {
+      const t = getTokens(communeNameFr)
+      if (t.length === 0) return undefined
+      return entries.find(c => { const yn = normalize(c.commune_name); return t.every(w => yn.includes(w)) }) ??
+             entries.find(c => { const yt = getTokens(c.commune_name); return yt.length > 0 && yt.every(w => ourNorm.includes(w)) })
+    })() ??
+    // Sans espaces
+    (() => { const c = ourNorm.replace(/\s/g, ''); return c.length >= 5 ? entries.find(e => normalize(e.commune_name).replace(/\s/g, '') === c) : undefined })()
   )
 }
 

@@ -460,12 +460,15 @@ export default function ConfirmatriceOrderDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.error ?? `Erreur ${res.status}`)
+      }
       await load()
       setEditMode(false)
       showToast('Commande mise à jour ✓')
-    } catch {
-      showToast('Erreur lors de la sauvegarde', false)
+    } catch (err) {
+      showToast(err instanceof Error && err.message ? err.message : 'Erreur lors de la sauvegarde', false)
     } finally {
       setUpdating(false)
     }
@@ -534,9 +537,12 @@ export default function ConfirmatriceOrderDetailPage() {
           lastStatusUpdatedAt: new Date().toISOString(),
         }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.error ?? `Erreur ${res.status}`)
+      }
       await load(); showToast('Statut mis à jour ✓')
-    } catch { showToast('Erreur lors de la mise à jour', false) }
+    } catch (err) { showToast(err instanceof Error && err.message ? err.message : 'Erreur lors de la mise à jour', false) }
     finally { setUpdating(false) }
   }
 
