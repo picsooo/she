@@ -59,3 +59,9 @@ public/media/
 dev.log
 dev-new.log
 *.log
+
+# Worktrees des agents Claude Code (restes de sessions, .git pointant vers un ancien chemin)
+.claude/worktrees/
+
+# Copie de sauvegarde locale du projet — ne jamais versionner
+backup boutique she/
