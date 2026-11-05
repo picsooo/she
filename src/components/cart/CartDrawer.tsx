@@ -6,13 +6,16 @@ import { Button } from '@/components/ui/Button'
 import { formatPrice, t } from '@/lib/translations'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { useCartTotals } from '@/hooks/useCartTotals'
+import { PackOfferSummary } from '@/components/offers/PackOfferSummary'
 
 // Drawer panier — s'ouvre automatiquement à l'ajout d'un article
 // Sidebar en RTL (s'ouvre depuis la gauche = fin de page en RTL)
 export function CartDrawer() {
-  const { items, isDrawerOpen, closeDrawer, getTotalItems, getTotalPrice } = useCartStore()
+  const { items, isDrawerOpen, closeDrawer, getTotalItems } = useCartStore()
 
-  const total = getTotalPrice()
+  // Totaux calculés avec l'offre pack (2 articles = prix fixe) prise en compte
+  const totals = useCartTotals()
   const count = getTotalItems()
 
   // Bloquer le scroll du body quand le drawer est ouvert
@@ -87,9 +90,19 @@ export function CartDrawer() {
         {/* Footer drawer — total + boutons */}
         {items.length > 0 && (
           <div className="border-t border-[#EBE6DF] px-5 py-4 flex flex-col gap-3">
+            {/* Sous-total affiché seulement si l'offre pack modifie le montant */}
+            {totals.discount > 0 && (
+              <div className="flex justify-between text-sm text-foreground/60">
+                <span>{t.cart.subtotal}</span>
+                <span className="line-through">{formatPrice(totals.subtotal)}</span>
+              </div>
+            )}
+
+            <PackOfferSummary totals={totals} compact />
+
             <div className="flex justify-between text-base font-bold">
               <span>{t.cart.total}</span>
-              <span className="text-[#E93D91]">{formatPrice(total)}</span>
+              <span className="text-[#E93D91]">{formatPrice(totals.total)}</span>
             </div>
 
             <Link href="/checkout" onClick={closeDrawer}>

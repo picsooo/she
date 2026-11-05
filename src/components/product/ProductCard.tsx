@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
 import { PriceDisplay } from './PriceDisplay'
 import { t } from '@/lib/translations'
@@ -10,6 +11,7 @@ import { cn, toRelativeMediaUrl, getEffectivePrice } from '@/lib/utils'
 import { useCartStore } from '@/stores/cart'
 import { useFreeGiftStore } from '@/stores/freeGift'
 import { trackAddToCart } from '@/lib/tracking'
+import { PackOfferBadge } from '@/components/offers/PackOfferBadge'
 import type { Product, Category } from '@/payload-types'
 
 // Détecte si un produit appartient à la catégorie burkini (nom FR ou AR)
@@ -29,6 +31,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter()
   const addItem = useCartStore((s) => s.addItem)
   const addItems = useCartStore((s) => s.addItems)
   const openDrawer = useCartStore((s) => s.openDrawer)
@@ -121,7 +124,9 @@ export function ProductCard({ product }: ProductCardProps) {
   // ── Ajout au panier ─────────────────────────────────────────────────
   const canAdd = !!activeVariation && !!activeVariation.inStock && activeVariationIndex >= 0
 
-  const handleAdd = (e: React.MouseEvent) => {
+  // goToCheckout : utilisé par le bouton « اطلبي الآن » — on ajoute au panier
+  // puis on envoie directement au checkout, sans ouvrir le drawer.
+  const handleAdd = (e: React.MouseEvent, goToCheckout = false) => {
     e.preventDefault()
     e.stopPropagation()
     if (!canAdd) return
@@ -175,6 +180,12 @@ export function ProductCard({ product }: ProductCardProps) {
       addItem(mainItem)
     }
     trackAddToCart(product.id, product.nameAr ?? '', price, 1)
+
+    if (goToCheckout) {
+      router.push('/checkout')
+      return
+    }
+
     setAdded(true)
     setTimeout(() => { setAdded(false); openDrawer() }, 700)
   }
@@ -221,6 +232,9 @@ export function ProductCard({ product }: ProductCardProps) {
         {displayPrice.regular > 0 && (
           <PriceDisplay regularPrice={displayPrice.regular} salePrice={displayPrice.sale} size="sm" />
         )}
+
+        {/* Offre pack — visible seulement si ce produit en fait partie */}
+        <PackOfferBadge productId={product.id} />
 
         {/* Sélecteur couleur (si plusieurs) */}
         {colors.length > 1 && (
@@ -294,6 +308,21 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         >
           {added ? '✓ ' + t.product.addedToCart : t.product.addToCart}
+        </button>
+
+        {/* Commander maintenant — ajoute au panier puis file droit au checkout.
+            La cliente choisit : continuer ses achats, ou commander tout de suite. */}
+        <button
+          onClick={(e) => handleAdd(e, true)}
+          disabled={!canAdd}
+          className={cn(
+            'w-full rounded-xl border py-2 text-sm font-semibold transition-all',
+            canAdd
+              ? 'border-[#E93D91] bg-white text-[#E93D91] hover:bg-[#FFF0F7] active:scale-95'
+              : 'border-[#EBE6DF] bg-white text-foreground/30 cursor-not-allowed'
+          )}
+        >
+          {t.product.buyNow}
         </button>
       </div>
     </div>

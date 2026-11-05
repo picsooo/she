@@ -2,6 +2,7 @@ import { getPayload } from 'payload'
 import type { Where } from 'payload'
 import configPromise from '@payload-config'
 import type { Product, Category, Order, MarketingSettings } from '@/payload-types'
+import type { PackOfferConfig } from './pack-offer'
 
 // Helper unique pour accéder à Payload depuis les Server Components
 // Pattern HMR-safe recommandé par Payload 3.x
@@ -338,4 +339,40 @@ export async function getNextOrderSequence(): Promise<number> {
     if (match) return parseInt(match[1], 10) + 1
   }
   return 1
+}
+
+// Lit la configuration de l'offre pack (2 articles = prix fixe) depuis le global.
+// Appelée dans le layout frontend et dans createOrder — jamais de valeur en dur.
+export async function getPackOffer(): Promise<PackOfferConfig | null> {
+  const payload = await getPayloadClient()
+  try {
+    const raw = await payload.findGlobal({ slug: 'pack-offer', overrideAccess: true })
+    const g = raw as unknown as {
+      enabled?: boolean
+      titleAr?: string
+      subtitleAr?: string | null
+      products?: Array<string | number | { id: string | number }> | null
+      packQuantity?: number
+      packPrice?: number
+      repeatable?: boolean
+    }
+
+    // Le champ relationship renvoie soit des IDs bruts (depth 0) soit des objets produit
+    const productIds = (g.products ?? []).map((p) =>
+      typeof p === 'object' && p !== null ? String(p.id) : String(p)
+    )
+
+    return {
+      enabled: g.enabled === true,
+      titleAr: g.titleAr ?? '',
+      subtitleAr: g.subtitleAr ?? null,
+      productIds,
+      packQuantity: g.packQuantity ?? 2,
+      packPrice: g.packPrice ?? 0,
+      repeatable: g.repeatable !== false,
+    }
+  } catch {
+    // Global pas encore initialisé (avant le premier enregistrement dans l'admin)
+    return null
+  }
 }

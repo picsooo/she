@@ -118,6 +118,13 @@ export default async function OrderConfirmationPage({ params }: PageProps) {
             <span>المجموع الفرعي</span>
             <span>{formatPrice((order as Order & { subtotal?: number }).subtotal ?? order.total ?? 0)}</span>
           </div>
+          {/* Remise de l'offre pack, si la commande en a bénéficié */}
+          {((order as Order & { discount?: number }).discount ?? 0) > 0 && (
+            <div className="flex justify-between font-semibold text-[#E93D91]">
+              <span>🎁 {(order as Order & { discountLabel?: string }).discountLabel || t.cart.packDiscount}</span>
+              <span>− {formatPrice((order as Order & { discount?: number }).discount ?? 0)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-foreground/60">
             <span>رسوم التوصيل</span>
             <span>{formatPrice((order as Order & { shippingFee?: number }).shippingFee ?? 0)}</span>

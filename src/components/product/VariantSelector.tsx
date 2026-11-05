@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { t } from '@/lib/translations'
 import { PriceDisplay } from './PriceDisplay'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/stores/cart'
 import { useFreeGiftStore } from '@/stores/freeGift'
 import { trackAddToCart } from '@/lib/tracking'
+import { PackOfferBadge } from '@/components/offers/PackOfferBadge'
 import { toRelativeMediaUrl } from '@/lib/utils'
 import { useGalleryContext } from './ProductGalleryAndSelector'
 import type { Product } from '@/payload-types'
@@ -28,6 +30,7 @@ const BURKINI_CHAPEAU_BEIGE = /fleur\s*noir|ibiza|tahiti|waterproof\s*noir|bora\
 
 // Sélecteur de variations couleur × taille — met à jour le prix/stock en temps réel
 export function VariantSelector({ product, isBurkini, onColorChange }: VariantSelectorProps) {
+  const router = useRouter()
   const galleryCtx = useGalleryContext()
   const addItems = useCartStore((s) => s.addItems)
   const cartItems = useCartStore((s) => s.items)
@@ -119,7 +122,8 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
       .filter((s) => s && s !== 'UNIQUE')
   }, [variations, selectedColor])
 
-  const handleAddToCart = () => {
+  // goToCheckout : bouton « اطلبي الآن » — ajoute au panier puis va au checkout
+  const handleAddToCart = (goToCheckout = false) => {
     if (!activeVariation || activeVariationIndex < 0) return
 
     const firstImage = product.images?.[0]?.image
@@ -180,6 +184,11 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
     addItems(itemsToAdd)
 
     trackAddToCart(product.id, product.nameAr ?? '', effectivePrice, 1)
+
+    if (goToCheckout) {
+      router.push('/checkout')
+      return
+    }
 
     setAdded(true)
     setTimeout(() => setAdded(false), 2000)
@@ -317,16 +326,31 @@ export function VariantSelector({ product, isBurkini, onColorChange }: VariantSe
         </div>
       )}
 
+      {/* Offre pack — visible seulement si ce produit en fait partie */}
+      <PackOfferBadge productId={product.id} size="md" />
+
       {/* Bouton ajouter au panier */}
       <Button
         size="lg"
-        onClick={handleAddToCart}
+        onClick={() => handleAddToCart(false)}
         disabled={!canAdd || added}
         className="w-full"
       >
         {added
           ? `✓ ${activeGift ? 'تمت الإضافة + الشابو المجاني!' : t.product.addedToCart}`
           : t.product.addToCart}
+      </Button>
+
+      {/* Commander maintenant — la cliente peut filer au checkout sans passer
+          par le panier, ou continuer ses achats avec le bouton au-dessus. */}
+      <Button
+        size="lg"
+        variant="outline"
+        onClick={() => handleAddToCart(true)}
+        disabled={!canAdd}
+        className="w-full -mt-2"
+      >
+        {t.product.buyNow}
       </Button>
     </div>
   )

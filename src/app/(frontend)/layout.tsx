@@ -6,8 +6,9 @@ import { CartDrawer } from '@/components/cart/CartDrawer'
 import { PixelScripts } from '@/components/analytics/PixelScripts'
 import { PixelPageView } from '@/components/analytics/PixelPageView'
 import { TrafficSourceCapture } from '@/components/analytics/TrafficSourceCapture'
-import { getMarketingSettings, getChapeauGift } from '@/lib/payload-client'
+import { getMarketingSettings, getChapeauGift, getPackOffer } from '@/lib/payload-client'
 import { FreeGiftInit } from '@/components/FreeGiftInit'
+import { PackOfferProvider } from '@/components/offers/PackOfferProvider'
 
 export const metadata: Metadata = {
   title: {
@@ -32,10 +33,11 @@ export const viewport: Viewport = {
 
 // Layout principal — tout le frontend est en arabe, RTL
 export default async function FrontendLayout({ children }: { children: React.ReactNode }) {
-  // Lire les IDs pixels et le produit chapeau (cadeau burkini) en parallèle
-  const [marketing, chapeau] = await Promise.all([
+  // Lire les IDs pixels, le produit chapeau (cadeau burkini) et l'offre pack en parallèle
+  const [marketing, chapeau, packOffer] = await Promise.all([
     getMarketingSettings().catch(() => null),
     getChapeauGift().catch(() => null),
+    getPackOffer().catch(() => null),
   ])
 
   // Fallback sur les variables d'environnement si non configuré dans l'admin
@@ -43,6 +45,7 @@ export default async function FrontendLayout({ children }: { children: React.Rea
   const tiktokPixelId  = marketing?.tiktokPixelId  || process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID  || null
 
   return (
+    <PackOfferProvider offer={packOffer}>
     <div className="min-h-screen bg-white antialiased flex flex-col">
       <Header />
       <main className="flex-1">{children}</main>
@@ -61,5 +64,6 @@ export default async function FrontendLayout({ children }: { children: React.Rea
       {/* Capture source de trafic (UTM/fbclid/ttclid/referrer) → sessionStorage */}
       <TrafficSourceCapture />
     </div>
+    </PackOfferProvider>
   )
 }

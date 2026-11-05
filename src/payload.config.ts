@@ -13,6 +13,7 @@ import { Products } from './collections/Products'
 import { Users } from './collections/Users'
 import { MarketingSettings } from './globals/MarketingSettings'
 import { DeliverySettings } from './globals/DeliverySettings'
+import { PackOffer } from './globals/PackOffer'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -67,6 +68,7 @@ export default buildConfig({
   globals: [
     MarketingSettings,
     DeliverySettings,
+    PackOffer,
   ],
 
   editor: lexicalEditor(),

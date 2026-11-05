@@ -46,6 +46,9 @@ interface OrderEmailData {
   deliveryMode: 'home' | 'desk'
   items: OrderItem[]
   subtotal: number
+  // Remise de l'offre pack (2 articles = prix fixe) — absente si aucune offre
+  discount?: number
+  discountLabel?: string
   shippingFee: number
   total: number
 }
@@ -157,6 +160,10 @@ function buildCustomerEmailHtml(order: OrderEmailData): string {
           <td colspan="3" style="padding:10px 12px;text-align:right;font-size:13px;color:#6D7175;border-top:1px solid #EBE6DF" dir="rtl">المجموع الجزئي</td>
           <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;border-top:1px solid #EBE6DF">${formatPrice(order.subtotal)}</td>
         </tr>
+        ${order.discount && order.discount > 0 ? `<tr>
+          <td colspan="3" style="padding:10px 12px;text-align:right;font-size:13px;color:#E93D91;font-weight:600" dir="rtl">🎁 ${order.discountLabel || 'خصم العرض'}</td>
+          <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:700;color:#E93D91">− ${formatPrice(order.discount)}</td>
+        </tr>` : ''}
         <tr>
           <td colspan="3" style="padding:10px 12px;text-align:right;font-size:13px;color:#6D7175" dir="rtl">رسوم التوصيل</td>
           <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600">${formatPrice(order.shippingFee)}</td>
@@ -310,6 +317,10 @@ function buildAdminEmailHtml(order: OrderEmailData): string {
           <td colspan="3" style="padding:10px 12px;text-align:right;font-size:12px;color:#9A9A9A;border-top:1px solid #EBE6DF">Sous-total</td>
           <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600;border-top:1px solid #EBE6DF">${formatPrice(order.subtotal)}</td>
         </tr>
+        ${order.discount && order.discount > 0 ? `<tr>
+          <td colspan="3" style="padding:10px 12px;text-align:right;font-size:12px;color:#E93D91;font-weight:600">Remise offre${order.discountLabel ? ` — ${order.discountLabel}` : ''}</td>
+          <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:700;color:#E93D91">− ${formatPrice(order.discount)}</td>
+        </tr>` : ''}
         <tr>
           <td colspan="3" style="padding:10px 12px;text-align:right;font-size:12px;color:#9A9A9A">Frais de livraison</td>
           <td style="padding:10px 12px;text-align:right;font-size:13px;font-weight:600">${formatPrice(order.shippingFee)}</td>

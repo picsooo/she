@@ -4,7 +4,8 @@ import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { createOrderSchema } from '@/lib/checkout-schema'
 import { generateOrderNumber, getEffectivePrice } from '@/lib/utils'
-import { getProductById, getNextOrderSequence } from '@/lib/payload-client'
+import { getProductById, getNextOrderSequence, getPackOffer } from '@/lib/payload-client'
+import { computePackOffer } from '@/lib/pack-offer'
 import { sendOrderEmails } from '@/lib/email'
 import { cookies, headers } from 'next/headers'
 import { randomUUID } from 'crypto'
@@ -298,6 +299,22 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       })
     }
 
+    // Offre pack (ex: 2 ensembles = 10 000 DA) : recalculée ICI, côté serveur,
+    // à partir des prix lus en base et de la config du global. Le navigateur
+    // n'envoie aucun montant — il ne peut donc pas fabriquer une fausse remise.
+    const packOffer = await getPackOffer().catch(() => null)
+    const packResult = computePackOffer(
+      resolvedItems.map((item) => ({
+        productId: item.product,
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+      })),
+      packOffer,
+    )
+    // Garde-fou : la remise ne peut jamais dépasser le sous-total
+    const discount = Math.min(packResult.discount, subtotal)
+    const discountLabel = discount > 0 ? (packOffer?.titleAr ?? '') : ''
+
     // Frais de livraison : TOUJOURS recalculer côté serveur via Yalidine
     // Ne jamais faire confiance au shippingFee du client (peut être le fallback 400 DA)
     const deliveryMode = customer.deliveryMode ?? 'home'
@@ -307,7 +324,7 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       customer.commune,
       payload,
     )
-    const total = subtotal + shippingFee
+    const total = subtotal - discount + shippingFee
 
     // Numéro de commande unique
     const sequence = await getNextOrderSequence()
@@ -338,6 +355,8 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
         note: customer.note,
         items: resolvedItems,
         subtotal,
+        discount,
+        ...(discountLabel ? { discountLabel } : {}),
         shippingFee,
         total,
         deliveryMode,
@@ -363,6 +382,8 @@ export async function createOrder(rawData: unknown): Promise<CreateOrderResult> 
       deliveryMode,
       items: resolvedItems,
       subtotal,
+      discount,
+      discountLabel,
       shippingFee,
       total,
     }).catch(err => console.error('[createOrder] sendOrderEmails error:', err))

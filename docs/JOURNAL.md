@@ -2,6 +2,79 @@
 
 ---
 
+## [2026-11-05] — Offre pack « 2 articles = 10 000 DA » + bouton « commander maintenant »
+
+### Demande client
+1. Offre sur une sélection d'ensembles (N177, EN297, N179, Romy 182 — tous à 5 800 DA) :
+   **si la cliente en prend 2, le total passe à 10 000 DA**. Les prix unitaires ne changent PAS.
+2. Remettre un bouton « commander maintenant » sous « أضف إلى السلة ».
+
+### Vérification faite avant de coder
+- **Le bouton « commander maintenant » n'a JAMAIS existé** dans ce dépôt (`git log -S` sur toutes
+  les variantes arabes + `buyNow` + `push('/checkout')` : aucun résultat). Le seul texte proche est
+  « اطلبي الآن » dans `SocialProof.tsx` = phrase d'urgence sur le stock, pas un bouton.
+  Le client le confond avec l'ancien site WooCommerce. Ajouté quand même, comme demandé.
+- **La base locale est un snapshot ancien** (134 produits, dernier = « Robe Aliah »). Les 4 ensembles
+  de l'offre n'existent qu'en PRODUCTION → impossible de figer leurs IDs dans le code.
+  → L'offre est donc **configurable depuis l'admin** (c'est aussi ce qu'il faut pour les prochaines
+  campagnes). **Le client doit sélectionner les 4 produits dans `/boutique-admin/offers`.**
+
+### Architecture de l'offre pack
+Règle centralisée dans **`src/lib/pack-offer.ts`** (`computePackOffer`), appelée à la fois par le
+panier (navigateur) ET par `createOrder` (serveur). Une seule règle → le prix affiché et le prix
+facturé ne peuvent pas diverger. Le serveur ne fait jamais confiance au montant du navigateur :
+il recalcule à partir des prix lus en base.
+
+- Les articles les plus chers entrent en premier dans les packs (avantage la cliente).
+- Les cadeaux offerts (prix 0, chapeau burkini) sont exclus de l'offre.
+- Garde-fou : si le prix du pack dépasse le prix réel, **aucune** remise (jamais d'augmentation).
+- Remise plafonnée au sous-total.
+
+### Fichiers créés
+- `src/lib/pack-offer.ts` — la règle de calcul (pure, partagée client/serveur)
+- `src/globals/PackOffer.ts` — global Payload `pack-offer` (lecture publique, écriture admin)
+- `src/components/offers/PackOfferProvider.tsx` — contexte client, alimenté par le layout
+- `src/components/offers/PackOfferSummary.tsx` — ligne « خصم العرض » + relance « ajoute 1 article »
+- `src/components/offers/PackOfferBadge.tsx` — pastille sur les produits concernés
+- `src/hooks/useCartTotals.ts` — source unique des totaux du panier
+- `src/app/boutique-admin/offers/page.tsx` — écran de pilotage (recherche produits, %, on/off, aperçu)
+- `src/app/api/boutique-admin/offers/route.ts` — GET/POST du global
+
+### Fichiers modifiés
+- `src/payload.config.ts` — enregistrement du global PackOffer
+- `src/lib/payload-client.ts` — `getPackOffer()`
+- `src/app/(frontend)/layout.tsx` — lit l'offre et la fournit via le provider
+- `src/components/cart/CartDrawer.tsx`, `src/app/(frontend)/cart/page.tsx`,
+  `src/app/(frontend)/checkout/page.tsx` — totaux via `useCartTotals` + ligne de remise
+- `src/app/actions/createOrder.ts` — remise recalculée côté serveur, `total = subtotal - discount + shipping`
+- `src/collections/Orders.ts` — champs `discount` + `discountLabel`
+- `src/lib/email.ts` — ligne de remise dans les emails cliente (AR) et admin (FR)
+- `src/app/(frontend)/order-confirmation/[orderNumber]/page.tsx` — ligne de remise
+- `src/app/boutique-admin/orders/[id]/page.tsx` + `src/app/confirmatrice/orders/[id]/page.tsx` —
+  **important** : ces pages recalculaient `total = subtotal + shippingFee` à l'édition, ce qui aurait
+  effacé la remise. Elles recalculent maintenant l'offre sur les articles édités.
+- `src/lib/translations.ts` — `product.buyNow`, `cart.packDiscount`, `packAddMore`, `packApplied`
+- `src/components/product/ProductCard.tsx` + `VariantSelector.tsx` — bouton « اطلبي الآن » + badge offre
+- `src/components/boutique-admin/Sidebar.tsx` — lien « Offre pack »
+- `tsconfig.json` — exclusion de `backup boutique she/` (cette copie non versionnée était compilée
+  en double et générait ~25 fausses erreurs, dont celles de `tracking.ts`)
+
+### Vérifications
+- `tsc --noEmit` : **0 erreur** (avant : ~25, toutes dues au dossier de backup)
+- `npm run build` : **exit 0**, 40/40 pages générées
+- Calcul testé : 2→10 000 · 3→15 800 · 4→20 000 · 6→30 000 · cadeau 0 DA exclu · offre off → 0 remise
+- ⚠️ `next lint` ne fonctionne plus (supprimé en Next 16) et aucun `eslint.config.js` n'existe.
+  Problème préexistant, non corrigé ici.
+
+### À faire ensuite
+1. **Le client doit aller dans `/boutique-admin/offers`**, chercher les 4 ensembles, les ajouter,
+   vérifier prix du pack = 10 000 et **activer l'offre**. Rien n'est actif tant qu'il ne l'a pas fait.
+2. Ne mettre dans l'offre que des produits **au même prix** : un article à 9 800 glissé dedans
+   partirait aussi à 2 pour 10 000.
+3. Tester un vrai parcours : 2 ensembles → panier → checkout → commande → vérifier le total en base.
+
+---
+
 ## [2026-06-08] — Refonte complète : confirmatrices, livraison, FAQ, burkini
 
 ### Ce qui a été fait

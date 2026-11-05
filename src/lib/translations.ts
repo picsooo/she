@@ -44,6 +44,7 @@ export const t = {
   // ── Page produit ──────────────────────────────────────────────────
   product: {
     addToCart: 'أضف إلى السلة',
+    buyNow: 'اطلبي الآن',
     addedToCart: 'تمت الإضافة إلى السلة',
     outOfStock: 'غير متوفر',
     inStock: 'متوفر',
@@ -70,6 +71,12 @@ export const t = {
     subtotal: 'المجموع الفرعي',
     shipping: 'الشحن',
     total: 'المجموع',
+    packDiscount: 'خصم العرض',
+    // Nombre d'articles à ajouter pour déclencher le pack suivant
+    packAddMore: (n: number) =>
+      n === 1 ? 'أضيفي قطعة واحدة للاستفادة من العرض' : `أضيفي ${n} قطع للاستفادة من العرض`,
+    packApplied: (n: number) =>
+      n === 1 ? 'العرض مطبّق على طلبك' : `العرض مطبّق ${n} مرات على طلبك`,
     checkout: 'إتمام الطلب',
     continueShopping: 'مواصلة التسوق',
     viewCart: 'عرض السلة',

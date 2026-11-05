@@ -4,6 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useConfUser } from '../../ConfirmatriceUserContext'
 import { WILAYAS, COMMUNES } from '@/lib/algeria-geo'
+import { computePackOffer, type PackOfferConfig } from '@/lib/pack-offer'
 
 interface OrderItem {
   productName?: string
@@ -17,6 +18,7 @@ interface Order {
   id: string; orderNumber: string; customerName: string; phone: string; phone2?: string
   wilaya: string; commune?: string; address?: string; note?: string
   subtotal?: number; shippingFee?: number; total: number
+  discount?: number; discountLabel?: string
   status: string; createdAt: string; updatedAt: string
   items?: OrderItem[]
   deliveryMode?: string
@@ -135,6 +137,8 @@ export default function ConfirmatriceOrderDetailPage() {
   const [feesLoading,    setFeesLoading]    = useState(false)
   // Frais de livraison original de la commande — utilisé tant que wilaya/commune n'ont pas changé
   const [originalShippingFee, setOriginalShippingFee] = useState<number | null>(null)
+  // Config de l'offre pack — sert à recalculer la remise si l'admin modifie les articles
+  const [packOffer, setPackOffer] = useState<PackOfferConfig | null>(null)
   const [locationChanged, setLocationChanged] = useState(false)
 
   // ── Édition infos client ──────────────────────────────────────────────────────
@@ -167,6 +171,28 @@ export default function ConfirmatriceOrderDetailPage() {
   }, [id])
 
   useEffect(() => { load() }, [load])
+
+  // Charge la config de l'offre pack (global Payload en lecture publique)
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const res = await fetch('/api/globals/pack-offer?depth=0')
+        if (!res.ok) return
+        const g = await res.json()
+        setPackOffer({
+          enabled:      g.enabled === true,
+          titleAr:      g.titleAr ?? '',
+          subtitleAr:   g.subtitleAr ?? null,
+          productIds:   (g.products ?? []).map((x: unknown) =>
+            typeof x === 'object' && x !== null ? String((x as { id: string | number }).id) : String(x)
+          ),
+          packQuantity: g.packQuantity ?? 2,
+          packPrice:    g.packPrice ?? 0,
+          repeatable:   g.repeatable !== false,
+        })
+      } catch { /* offre indisponible → aucune remise recalculée */ }
+    })()
+  }, [])
 
   const loadDeliverySettings = useCallback(async () => {
     if (loadingDelivery) return
@@ -364,7 +390,21 @@ export default function ConfirmatriceOrderDetailPage() {
   }
   const computedSubtotal = (): number =>
     editItems.reduce((s, item) => s + item.unitPrice * item.quantity, 0)
-  const computedTotal = (): number => computedSubtotal() + computedShippingFee()
+  // Remise de l'offre pack recalculée sur les articles en cours d'édition :
+  // sans ça, modifier une commande ferait disparaître l'offre et gonflerait le total.
+  const computedDiscount = (): number => {
+    const result = computePackOffer(
+      editItems.map(item => ({
+        productId: item.productId ?? '',
+        unitPrice: item.unitPrice,
+        quantity: item.quantity,
+      })),
+      packOffer,
+    )
+    return Math.min(result.discount, computedSubtotal())
+  }
+  const computedTotal = (): number =>
+    computedSubtotal() - computedDiscount() + computedShippingFee()
 
   const changeQty = (idx: number, delta: number) => {
     setEditItems(prev => prev.map((item, i) => {
@@ -429,7 +469,8 @@ export default function ConfirmatriceOrderDetailPage() {
     try {
       const shippingFee = computedShippingFee()
       const subtotal    = computedSubtotal()
-      const total       = subtotal + shippingFee
+      const discount    = computedDiscount()
+      const total       = subtotal - discount + shippingFee
 
       const body = {
         customerName: editCustomerName.trim(),
@@ -441,6 +482,7 @@ export default function ConfirmatriceOrderDetailPage() {
         deliveryMode: editDelivery,
         shippingFee,
         subtotal,
+        discount,
         total,
         note:  editNote,
         items: editItems.map(item => ({
@@ -901,6 +943,13 @@ export default function ConfirmatriceOrderDetailPage() {
               <span>Sous-total</span>
               <span>{editMode ? fmt(computedSubtotal()) : fmt(subtotal)}</span>
             </div>
+            {/* Remise de l'offre pack — affichée seulement si elle s'applique */}
+            {(editMode ? computedDiscount() : (order.discount ?? 0)) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#E93D91', fontWeight: 600 }}>
+                <span>🎁 {order.discountLabel || 'Remise offre'}</span>
+                <span>− {fmt(editMode ? computedDiscount() : (order.discount ?? 0))}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#6D7175' }}>
               <span>Livraison</span>
               <span style={{ color: (editMode ? computedShippingFee() : shippingFee) === 0 ? '#007A5C' : '#1A1A1A', fontWeight: (editMode ? computedShippingFee() : shippingFee) === 0 ? 700 : 400 }}>

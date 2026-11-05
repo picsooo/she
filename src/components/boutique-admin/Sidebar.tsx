@@ -9,6 +9,7 @@ const NAV = [
   { href: '/boutique-admin/products',   icon: '◈', label: 'Produits',          emoji: '👗' },
   { href: '/boutique-admin/stock',      icon: '◈', label: 'Gestion stock',     emoji: '📦' },
   { href: '/boutique-admin/categories', icon: '◈', label: 'Catégories',        emoji: '🗂️' },
+  { href: '/boutique-admin/offers',     icon: '◈', label: 'Offre pack',       emoji: '🎁' },
   { href: '/boutique-admin/settings',   icon: '◈', label: 'Paramètres',        emoji: '⚙️' },
 ]
 

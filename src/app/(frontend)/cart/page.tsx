@@ -5,11 +5,14 @@ import { useCartStore } from '@/stores/cart'
 import { CartItem } from '@/components/cart/CartItem'
 import { Button } from '@/components/ui/Button'
 import { formatPrice, t } from '@/lib/translations'
+import { useCartTotals } from '@/hooks/useCartTotals'
+import { PackOfferSummary } from '@/components/offers/PackOfferSummary'
 
 // Page panier complète (/cart) — list + total + bouton checkout
 export default function CartPage() {
-  const { items, getTotalPrice, getTotalItems } = useCartStore()
-  const total = getTotalPrice()
+  const { items, getTotalItems } = useCartStore()
+  // Totaux calculés avec l'offre pack (2 articles = prix fixe) prise en compte
+  const totals = useCartTotals()
   const count = getTotalItems()
 
   return (
@@ -60,8 +63,11 @@ export default function CartPage() {
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-foreground/60">{t.cart.subtotal}</span>
-                <span className="font-medium">{formatPrice(total)}</span>
+                <span className="font-medium">{formatPrice(totals.subtotal)}</span>
               </div>
+
+              <PackOfferSummary totals={totals} />
+
               <div className="flex justify-between">
                 <span className="text-foreground/60">{t.checkout.shippingFee}</span>
                 <span className="text-foreground/60">يُحدد عند الطلب</span>
@@ -69,7 +75,7 @@ export default function CartPage() {
               <div className="my-2 h-px bg-[#EBE6DF]" />
               <div className="flex justify-between text-base font-bold">
                 <span>{t.cart.total}</span>
-                <span className="text-[#E93D91]">{formatPrice(total)}</span>
+                <span className="text-[#E93D91]">{formatPrice(totals.total)}</span>
               </div>
             </div>
 

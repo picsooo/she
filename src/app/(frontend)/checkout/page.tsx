@@ -12,13 +12,17 @@ import { getEffectivePrice, isValidAlgerianPhone } from '@/lib/utils'
 import { WILAYAS, COMMUNES, getCommunesByWilaya } from '@/lib/algeria-geo'
 import { createOrder } from '@/app/actions/createOrder'
 import Image from 'next/image'
+import { useCartTotals } from '@/hooks/useCartTotals'
+import { PackOfferSummary } from '@/components/offers/PackOfferSummary'
 
 type DeliveryMode = 'home' | 'desk'
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, getTotalPrice, clearCart } = useCartStore()
-  const subtotal = getTotalPrice()
+  const { items, clearCart } = useCartStore()
+  // Totaux avec l'offre pack appliquée — le serveur les recalcule de toute façon
+  const totals = useCartTotals()
+  const subtotal = totals.subtotal
 
   const [form, setForm] = useState({
     customerName: '',
@@ -188,7 +192,7 @@ export default function CheckoutPage() {
   const wilayaOptions = WILAYAS.map((w) => ({ value: w.code, label: w.nameAr }))
   // shippingFee = null si wilaya/commune pas encore choisis → pas d'affichage
   const shippingFee = fees ? fees[form.deliveryMode] : null
-  const total = shippingFee !== null ? subtotal + shippingFee : null
+  const total = shippingFee !== null ? totals.total + shippingFee : null
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -449,6 +453,9 @@ export default function CheckoutPage() {
                   <span className="text-foreground/60">{t.cart.subtotal}</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+
+                <PackOfferSummary totals={totals} />
+
                 <div className="flex justify-between items-center">
                   <span className="text-foreground/60">{t.checkout.shippingFee}</span>
                   <span className="font-semibold text-[#1A1A1A] flex items-center gap-1.5">

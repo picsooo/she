@@ -307,6 +307,22 @@ export const Orders: CollectionConfig = {
       required: true,
     },
     {
+      // Remise apportée par l'offre pack (2 articles = prix fixe).
+      // Recalculée côté serveur à la création — jamais envoyée par le navigateur.
+      name: 'discount',
+      label: 'Remise offre (DZD)',
+      type: 'number',
+      defaultValue: 0,
+    },
+    {
+      name: 'discountLabel',
+      label: 'Offre appliquée',
+      type: 'text',
+      admin: {
+        description: 'Nom de l’offre qui a généré la remise (ex: قطعتان بـ 10.000 دج)',
+      },
+    },
+    {
       name: 'shippingFee',
       label: 'Frais de livraison (DZD)',
       type: 'number',
