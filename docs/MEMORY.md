@@ -131,6 +131,34 @@ npm run import:products
 - Optimisations SEO (sitemap, robots.txt, structured data)
 - Page À propos / Contact / Politique livraison
 
+## 🚨 Déploiement VPS — deux pièges qui cassent le build (découverts le 2026-11-05)
+
+### 1. sharp : le CPU du VPS est un x86-64 v1
+Le VPS tourne sur un « QEMU Virtual CPU version 2.5+ » : pas de `sse4_2`, pas de `popcnt`.
+Les binaires précompilés de **sharp 0.34+ exigent le niveau x86-64-v2** et refusent de se
+charger → le build échoue sur « Failed to collect page data ».
+
+**`sharp` est figé à l'exact en 0.33.5 dans package.json. NE JAMAIS remettre `^`.**
+Toute remontée en 0.34 recassera le build de production.
+
+Pourquoi ça ne se voyait pas avant : le lock pointait déjà 0.34.5, mais `node_modules` sur
+le VPS contenait encore une version compatible. Tant que personne ne réinstalle, rien ne
+casse. `deploy.sh` lance un `npm install` à chaque déploiement → la panne était inévitable.
+
+### 2. Le schéma de base n'est PAS créé automatiquement en production
+`push: true` (sqliteAdapter) ne s'exécute **qu'en mode développement**. En production,
+Payload ne crée jamais de table ni de colonne.
+
+**Donc : chaque nouveau champ / collection / global demande un ALTER TABLE ou CREATE TABLE
+manuel sur le VPS.** C'est la méthode déjà utilisée sur ce projet — les colonnes `email`,
+`phone2`, `fbp`, `fbc`, `traffic_source` de la table `orders` ont toutes été ajoutées ainsi.
+
+Conventions observées (à respecter) : nombre → `numeric`, case à cocher → `integer`,
+global `mon-global` → table `mon_global`, relation hasMany → table `mon_global_rels`
+(`id`, `"order"`, `parent_id`, `path`, `<collection>_id`).
+
+**Toujours sauvegarder la base avant** : `cp boutique-she.db boutique-she.db.avant-XXX`
+
 ## 🎁 Offre pack « 2 articles = prix fixe » (ajoutée le 2026-11-05)
 
 Mécanique de prix au panier : N articles d'une sélection = un prix forfaitaire.

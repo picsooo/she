@@ -66,6 +66,29 @@ il recalcule à partir des prix lus en base.
 - ⚠️ `next lint` ne fonctionne plus (supprimé en Next 16) et aucun `eslint.config.js` n'existe.
   Problème préexistant, non corrigé ici.
 
+### Déploiement en production (2026-11-05, même session)
+
+Déployé sur le VPS : sauvegarde base → `git pull` → `npm install` → `npm run build` → `pm2 reload`.
+Site vérifié en ligne (HTTP 200 sur /, /products, /cart, /checkout).
+
+**Incident rencontré — sharp.** Le build a d'abord échoué :
+« Unsupported CPU: Prebuilt binaries for linux-x64 require v2 microarchitecture ».
+Le CPU du VPS (QEMU Virtual CPU 2.5+) est un x86-64 v1. Le lock pointait sharp 0.34.5 mais
+`node_modules` contenait encore une version compatible — le `npm install` du déploiement les a
+alignés et cassé le build. Résolu en installant sharp 0.33.5 sur le VPS, puis figé à l'exact
+dans `package.json` (commit `724f5f7`) pour que ça ne se reproduise plus.
+
+**Reste à faire — schéma de base.** `push: true` ne s'applique qu'en développement : la table
+`pack_offer`, la table `pack_offer_rels` et les colonnes `orders.discount` / `orders.discount_label`
+n'existent pas encore en production. Le script est déjà déposé sur le serveur :
+`/var/www/boutique-she/pack-schema.js` — à lancer avec `node pack-schema.js` puis `pm2 reload`.
+Sauvegarde disponible : `boutique-she.db.avant-schema-pack` (9 663 commandes).
+Tant que ce n'est pas fait, `/api/globals/pack-offer` renvoie une erreur et la page
+`/boutique-admin/offers` ne pourra pas enregistrer. **Le reste du site fonctionne normalement.**
+
+**IDs des 4 ensembles en production** (tous publiés, 5 800 DA) :
+197 (N177) · 199 (EN297) · 218 (Femina N179) · 219 (Romy 182)
+
 ### À faire ensuite
 1. **Le client doit aller dans `/boutique-admin/offers`**, chercher les 4 ensembles, les ajouter,
    vérifier prix du pack = 10 000 et **activer l'offre**. Rien n'est actif tant qu'il ne l'a pas fait.
