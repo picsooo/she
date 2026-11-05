@@ -20,7 +20,10 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number]['value']
 
 // Statuts qui déclenchent un retour de stock
-const STOCK_RETURN_STATUSES: OrderStatus[] = ['failed', 'cancelled', 'returned']
+// NOTE: 'returned' retiré volontairement — la sync Yalidine faussait le stock
+// en restaurant les quantités avant que le colis soit physiquement reçu.
+// Le client gère les retours de stock manuellement pour l'instant.
+const STOCK_RETURN_STATUSES: OrderStatus[] = ['failed', 'cancelled']
 // Statut qui déclenche la déduction de stock
 const STOCK_DEDUCT_STATUS: OrderStatus = 'confirmed'
 
