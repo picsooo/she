@@ -39,6 +39,9 @@ export function PackOfferSummary({ totals, compact = false }: { totals: CartTota
           {offer.titleAr && (
             <p className="mt-0.5 text-[11px] text-[#9F6F3B]/80">{offer.titleAr}</p>
           )}
+          {offer.subtitleAr && (
+            <p className="mt-0.5 text-[10px] text-[#9F6F3B]/70 leading-snug">{offer.subtitleAr}</p>
+          )}
         </div>
       )}
     </>
