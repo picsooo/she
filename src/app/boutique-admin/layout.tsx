@@ -61,6 +61,7 @@ const Icons = {
   more:       <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><circle cx="4" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="16" cy="10" r="1.5" fill="currentColor"/></svg>,
   stock:      <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M2 14l4-4 4 4 4-6 4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
   // Icône retour : carton avec flèche de retour
+  offers:     <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><rect x="2" y="7" width="16" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M2 11h16M10 7v11" stroke="currentColor" strokeWidth="1.5"/><path d="M10 7S8.5 2.5 6.5 3.5 7.5 7 10 7zM10 7s1.5-4.5 3.5-3.5S12.5 7 10 7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
   returns:    <svg width="20" height="20" fill="none" viewBox="0 0 20 20"><path d="M3 6h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M1 6h18M7 6V4a2 2 0 012-2h2a2 2 0 012 2v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/><path d="M8 12l-2-2 2-2M6 10h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 }
 
@@ -91,6 +92,7 @@ function Sidebar({
     { href: '/boutique-admin/products',        label: 'Produits',       icon: Icons.products },
     { href: '/boutique-admin/stock',           label: 'Gestion stock',  icon: Icons.products },
     { href: '/boutique-admin/categories',      label: 'Catégories',     icon: Icons.categories },
+    { href: '/boutique-admin/offers',          label: 'Offre pack',     icon: Icons.offers },
     { href: '/boutique-admin/primes',          label: 'Primes',         icon: Icons.primes },
     { href: '/boutique-admin/settings',        label: 'Paramètres',     icon: Icons.settings },
   ]

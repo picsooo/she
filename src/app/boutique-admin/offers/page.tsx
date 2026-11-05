@@ -232,7 +232,7 @@ export default function OffersPage() {
         }}>
           {!hasFullSample ? (
             <span style={{ fontSize: 12, color: '#6D7175' }}>
-              Sélectionne au moins {offer.packQuantity} produits pour voir l&apos;aperçu du calcul.
+              {`Sélectionne au moins ${offer.packQuantity} produits pour voir l'aperçu du calcul.`}
             </span>
           ) : saving_ > 0 ? (
             <span style={{ fontSize: 13, color: '#065F46' }}>
