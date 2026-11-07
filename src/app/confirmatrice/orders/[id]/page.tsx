@@ -1264,7 +1264,10 @@ export default function ConfirmatriceOrderDetailPage() {
                 {!yalidineEditMode ? (
                   <button
                     onClick={() => {
-                      setYalidineEditPrice(String(order.total))
+                      // Montant COD = marchandise remise déduite, SANS les frais de
+                      // livraison : Yalidine les rajoute lui-même. Pré-remplir avec
+                      // order.total ferait payer la livraison deux fois.
+                      setYalidineEditPrice(String(Math.max(0, (order.subtotal ?? 0) - (order.discount ?? 0))))
                       setYalidineEditList(
                         (order.items ?? []).map((i: OrderItem) =>
                           `${i.productName ?? 'Article'}${i.size ? ` T${i.size}` : ''}${i.colorAr ? ` (${i.colorAr})` : ''} x${i.quantity ?? 1}`

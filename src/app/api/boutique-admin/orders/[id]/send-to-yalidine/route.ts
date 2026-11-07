@@ -175,6 +175,8 @@ export async function POST(
       toCommuneNameFr,
       total:            order.total,
       subtotal,
+      // Remise de l'offre pack : Yalidine doit encaisser le prix promo, pas le prix plein
+      discount:         (order as { discount?: number }).discount ?? 0,
       shippingFee:      order.shippingFee ?? 0,
       deliveryMode:     (order.deliveryMode as 'home' | 'desk') ?? 'home',
       items,

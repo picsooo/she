@@ -327,7 +327,8 @@ export function orderToYalidineParcel(order: {
   toWilayaNameFr: string     // Wilaya destinataire en français
   toCommuneNameFr: string    // Commune destinataire en français
   total: number
-  subtotal: number           // Montant produits seuls (sans livraison)
+  subtotal: number           // Montant produits seuls (sans livraison), AVANT remise
+  discount?: number          // Remise de l'offre pack (2 articles = prix fixe)
   shippingFee: number
   deliveryMode: 'home' | 'desk'
   items: Array<{ name: string; quantity: number; size?: string; color?: string }>
@@ -348,6 +349,11 @@ export function orderToYalidineParcel(order: {
   // En pratique pour She's : freeshipping = false (client paie)
   const isStopdesk = order.deliveryMode === 'desk'
 
+  // Montant réellement dû par la cliente pour la marchandise : le sous-total
+  // MOINS la remise de l'offre pack. Sans cette soustraction, Yalidine
+  // encaisserait le prix d'avant promo et la cliente paierait la remise.
+  const goodsAmount = Math.max(0, order.subtotal - (order.discount ?? 0))
+
   return {
     order_id:         order.orderNumber,
     from_wilaya_name: order.fromWilayaNameFr,
@@ -358,12 +364,12 @@ export function orderToYalidineParcel(order: {
     to_wilaya_name:   order.toWilayaNameFr,
     to_commune_name:  order.toCommuneNameFr,
     product_list:     productList,
-    // On envoie le sous-total (produits seuls) — Yalidine ajoute ses frais de livraison
+    // On envoie le montant marchandise remise déduite — Yalidine ajoute ses frais
     // par-dessus pour calculer le montant COD final. Si on envoyait order.total
     // (subtotal + shippingFee), le client paierait deux fois les frais de livraison.
-    price:            order.subtotal,
+    price:            goodsAmount,
     do_insurance:     false,
-    declared_value:   order.subtotal,
+    declared_value:   goodsAmount,
     length:           40,               // Valeurs par défaut vêtements
     width:            30,
     height:           5,
